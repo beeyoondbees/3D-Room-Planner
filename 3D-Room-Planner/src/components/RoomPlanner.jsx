@@ -7,8 +7,7 @@ import { SceneManager } from '../three/SceneManager';
 import Toolbar from './UI/Toolbar';
 import SidePanel from './UI/SidePanel';
 import ViewControls from './UI/ViewControls';
-import ModelLoadingIndicator from './UI/ModelLoadingIndicator';
-import GLBDebugButton from './UI/GLBDebugButton'; // Import the debug button
+import ModelLoadingIndicator from './UI/ModelLoadingIndicator'; // Add this import
 import useStore from '../store';
 import equipmentConfig from '../config/equipment';
 
@@ -198,11 +197,6 @@ const RoomPlanner = () => {
       
       {/* Add the ModelLoadingIndicator component here */}
       <ModelLoadingIndicator />
-      
-      {/* Debug Button - remove in production */}
-      {selectedObject && (
-        <GLBDebugButton modelType={selectedObject?.userData?.type || 'treadmill'} />
-      )}
       
       {/* Object Properties Panel (shown when an object is selected) */}
       {selectedObject && (
