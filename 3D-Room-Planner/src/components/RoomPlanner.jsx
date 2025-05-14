@@ -212,6 +212,21 @@ const RoomPlanner = () => {
             <span>Type:</span>
             <span>{selectedObject.userData.type}</span>
           </div>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+          
           
           <div className="actions">
             <button onClick={() => handleObjectAction('translate')}>Move</button>
