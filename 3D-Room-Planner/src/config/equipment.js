@@ -4,24 +4,31 @@
 export const equipmentConfig = {
   // Map of model types to file paths
   modelPaths: {
-    // 'SXM200': '/assets/models/SXM200.glb',
-    'sBike-5': '/assets/models/sBike-5.glb',
+    'sBike': '/assets/models/sBike.glb',
+    'sTreadPro': '/assets/models/sTreadPro.glb',
+    'sPad500': '/assets/models/sPad500.glb',
+    'sRow': '/assets/models/sRow.glb',
   },
   
   // Map of model types to their physical dimensions (in meters)
   // Used for proper placement and collision detection
   dimensions: {
-    // 'SXM200': { width: 0.9, height: 1.5, depth: 1.8 },
-    'sBike-5': { width: 0.9, height: 1.5, depth: 1.8 },
+    'sBike': { width: 0.9, height: 1.5, depth: 1.8 },
+    'sTreadPro': { width: 0.9, height: 1.5, depth: 1.8 },
+    'sPad500': { width: 0.9, height: 1.5, depth: 1.8 },
+    'sRow': { width: 0.9, height: 1.5, depth: 1.8 },
   },
   
   // Equipment catalog for UI
   catalog: {
     'SPORTSTECH': [
-    //   { id: 'SXM200', name: 'SXM200', icon: '/assets/icons/sBike.webp' },
-      { id: 'sBike-5', name: 'sBike-5', icon: '/assets/icons/sBike.webp' },
+      { id: 'sBike', name: 'sBike', icon: '/assets/icons/sBike.png' },
+      { id: 'sTreadPro', name: 'sTreadPro', icon: '/assets/icons/sTreadPro.png' },
+      { id: 'sPad500', name: 'sPad500', icon: '/assets/icons/sPad500.png' },
+      { id: 'sRow', name: 'sRow', icon: '/assets/icons/sRow.png' },
     ],
   }
 };
+
 
 export default equipmentConfig;

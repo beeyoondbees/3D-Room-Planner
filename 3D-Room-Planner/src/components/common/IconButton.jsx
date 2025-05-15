@@ -3,23 +3,30 @@
 
 import React from 'react';
 
-const IconButton = ({ 
-  icon, 
-  tooltip, 
-  onClick, 
+
+const IconButton = ({
+  icon,
+  tooltip,
+  onClick,
   disabled = false,
   size = 'medium', // 'small', 'medium', 'large'
-  active = false
+  active = false,
 }) => {
   // Map size to class name
   const sizeClass = {
-    'small': 'icon-button-sm',
-    'medium': 'icon-button-md',
-    'large': 'icon-button-lg'
+    small: 'icon-button-sm',
+    medium: 'icon-button-md',
+    large: 'icon-button-lg',
   }[size] || 'icon-button-md';
-  
+
+  // If icon is 'logo', just return the image without a button
+  if (icon === 'logo') {
+    return <img src="/assets/icons/logo.svg" width="160px" alt="Logo" />;
+  }
+
+  // Otherwise, return the button with the icon
   return (
-    <button 
+    <button
       className={`icon-button ${sizeClass} ${active ? 'active' : ''}`}
       onClick={onClick}
       disabled={disabled}

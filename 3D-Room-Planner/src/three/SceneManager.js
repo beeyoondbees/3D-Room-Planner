@@ -1,12 +1,12 @@
 // src/three/SceneManager.js
-// This is the core class that manages the Three.js scene
+// Core Three.js scene management with direct manipulation
 
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
-import { TransformControls } from 'three/examples/jsm/controls/TransformControls';
 import { Room } from './objects/Room';
 import { ModelLoader } from './ModelLoader';
 import { GridHelper } from './utils/GridHelper';
+import { InteractionManager } from './InteractionManager';
 
 export class SceneManager {
   constructor(container) {
@@ -14,16 +14,14 @@ export class SceneManager {
     this.objects = []; // All objects in the scene
     this.selectedObject = null;
     this.modelLoader = new ModelLoader();
-    this.transformMode = 'translate'; // 'translate', 'rotate', 'scale'
+    this.interactionMode = 'translate'; // Default to translate mode
     this.undoStack = [];
     this.redoStack = [];
     
     // Add clock for animation timing
     this.clock = new THREE.Clock();
     
-    // Set debug mode for development
-    this.debug = true;
-    
+    // Initialize Three.js components
     this.initScene();
     this.initCamera();
     this.initRenderer();
@@ -31,23 +29,9 @@ export class SceneManager {
     this.initControls();
     this.initRoom();
     this.initGrid();
-    this.initRaycaster();
     
-    // Listen for model loading events for debugging
-    if (this.debug) {
-      window.addEventListener('model-loading-completed', (event) => {
-        console.log('Model loaded:', event.detail.modelType);
-        // We could integrate the ModelDebugger here if needed
-      });
-      
-      window.addEventListener('model-loading-error', (event) => {
-        console.error('Model loading error:', event.detail.error);
-      });
-    }
-    
-    // Event listeners
-    window.addEventListener('resize', this.onWindowResize.bind(this));
-    this.container.addEventListener('pointerdown', this.onPointerDown.bind(this));
+    // Initialize interaction manager AFTER other components
+    this.initInteractionManager();
     
     // Start animation loop
     this.animate();
@@ -60,7 +44,6 @@ export class SceneManager {
   }
   
   initCamera() {
-    // Use a single camera initialization (fixed duplicate camera creation)
     this.camera = new THREE.PerspectiveCamera(
       45, // FOV
       this.container.clientWidth / this.container.clientHeight, // Aspect ratio
@@ -74,10 +57,17 @@ export class SceneManager {
   initRenderer() {
     this.renderer = new THREE.WebGLRenderer({ 
       antialias: true,
-      powerPreference: "high-performance"
+      powerPreference: "high-performance",
+      precision: "highp", // Use high precision to reduce flickering
+      stencil: false, // Disable stencil buffer if not needed for better performance
+      depth: true, // Ensure depth buffer is enabled
+      alpha: false // Disable alpha for better performance
     });
+    
     this.renderer.setPixelRatio(window.devicePixelRatio);
     this.renderer.setSize(this.container.clientWidth, this.container.clientHeight);
+    
+    // Shadow settings
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     
@@ -87,42 +77,100 @@ export class SceneManager {
     // Use sRGB encoding for better color accuracy
     this.renderer.outputEncoding = THREE.sRGBEncoding;
     
+    // Enable logarithmic depth buffer to significantly reduce z-fighting issues
+    this.renderer.logarithmicDepthBuffer = true;
+    
     this.container.appendChild(this.renderer.domElement);
+    
+    // Handle window resize
+    window.addEventListener('resize', this.onWindowResize.bind(this));
   }
   
-  initLights() {
-    // Ambient light
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
-    this.scene.add(ambientLight);
-    
-    // Directional light (sun)
-    const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
-    directionalLight.position.set(5, 10, 7.5);
-    directionalLight.castShadow = true;
-    directionalLight.shadow.mapSize.width = 2048;
-    directionalLight.shadow.mapSize.height = 2048;
-    
+initLights() {
+    // Create a lighting group to manage all lights
+    this.lights = new THREE.Group();
+    this.scene.add(this.lights);
+
+    // 1. Ambient light - increased for brighter overall illumination
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.4); // Increased from 0.2 to 0.4
+    this.lights.add(ambientLight);
+
+    // 2. Primary directional light (simulates sunlight from a window)
+    const mainLight = new THREE.DirectionalLight(0xffffff, 1.5); // Increased intensity from 1 to 1.5
+    mainLight.position.set(5, 8, 5); // Unchanged, good position
+    mainLight.castShadow = true;
+
+    // Improve shadow quality
+    mainLight.shadow.mapSize.width = 2048;
+    mainLight.shadow.mapSize.height = 2048;
+    mainLight.shadow.camera.near = 0.5;
+    mainLight.shadow.camera.far = 30;
+
     // Set up shadow area
     const d = 15;
-    directionalLight.shadow.camera.left = -d;
-    directionalLight.shadow.camera.right = d;
-    directionalLight.shadow.camera.top = d;
-    directionalLight.shadow.camera.bottom = -d;
-    directionalLight.shadow.camera.far = 50;
-    
-    this.scene.add(directionalLight);
-    
-    // Additional rim light for better depth perception
-    const rimLight = new THREE.DirectionalLight(0xffffff, 0.3);
-    rimLight.position.set(-5, 5, -5);
-    this.scene.add(rimLight);
-    
-    // Add an additional point light to better illuminate models
-    const pointLight = new THREE.PointLight(0xffffff, 0.5);
-    pointLight.position.set(0, 5, 0);
-    pointLight.castShadow = true;
-    this.scene.add(pointLight);
-  }
+    mainLight.shadow.camera.left = -d;
+    mainLight.shadow.camera.right = d;
+    mainLight.shadow.camera.top = d;
+    mainLight.shadow.camera.bottom = -d;
+
+    // Softer shadows for a polished look
+    mainLight.shadow.radius = 3; // Increased from 2 for softer edges
+    this.lights.add(mainLight);
+
+    // 3. Secondary fill light (opposite of main light)
+    const fillLight = new THREE.DirectionalLight(0xffffff, 0.6); // Increased from 0.4 to 0.6
+    fillLight.position.set(-5, 7, -5);
+    fillLight.castShadow = false; // No shadow from fill light
+    this.lights.add(fillLight);
+
+    // 4. Ceiling lights - brighter and more realistic room lighting
+    const createCeilingLight = (x, z) => {
+        const pointLight = new THREE.PointLight(0xffffff, 1, 12, 1); // Increased intensity from 0.6 to 1, distance from 10 to 12
+        pointLight.position.set(x, 2.8, z); // Just below ceiling
+        pointLight.castShadow = true;
+
+        // Smaller shadow map for performance
+        pointLight.shadow.mapSize.width = 512;
+        pointLight.shadow.mapSize.height = 512;
+
+        // Add a small sphere to represent the light fixture
+        // const bulb = new THREE.Mesh(
+        //     new THREE.SphereGeometry(0.05, 8, 8),
+        //     new THREE.MeshBasicMaterial({ color: 0xffffee })
+        // );
+        // bulb.position.copy(pointLight.position);
+        // this.scene.add(bulb);
+
+        return pointLight;
+    };
+
+    // Add 4 ceiling lights in a grid pattern
+    const ceilingLight1 = createCeilingLight(-3, -2);
+    const ceilingLight2 = createCeilingLight(-3, 2);
+    const ceilingLight3 = createCeilingLight(3, -2);
+    const ceilingLight4 = createCeilingLight(3, 2);
+    this.lights.add(ceilingLight1, ceilingLight2, ceilingLight3, ceilingLight4);
+
+    // 5. Product spotlight - dedicated light to highlight the product
+    const spotLight = new THREE.SpotLight(0xffffff, 2, 10, Math.PI / 4, 0.5, 1); // Intense, focused light
+    spotLight.position.set(0, 5, 3); // Position above and slightly in front of the product
+    spotLight.target.position.set(0, 0, 0); // Assuming product is at origin; adjust as needed
+    spotLight.castShadow = true;
+
+    // Shadow settings for spotlight
+    spotLight.shadow.mapSize.width = 1024;
+    spotLight.shadow.mapSize.height = 1024;
+    spotLight.shadow.camera.near = 0.5;
+    spotLight.shadow.camera.far = 20;
+    spotLight.shadow.radius = 2;
+
+    this.scene.add(spotLight.target); // Add target to scene
+    this.lights.add(spotLight);
+
+    // 6. Ground bounce light - slightly stronger for better reflection
+    const bounceLight = new THREE.HemisphereLight(0xffffff, 0xffffff, 0.5); // Increased from 0.3 to 0.5
+    this.lights.add(bounceLight);
+}
   
   initControls() {
     // Orbit controls for camera movement
@@ -132,28 +180,36 @@ export class SceneManager {
     this.orbitControls.screenSpacePanning = false;
     this.orbitControls.minDistance = 2;
     this.orbitControls.maxDistance = 30;
-    this.orbitControls.maxPolarAngle = Math.PI / 2 - 0.1; // Prevent camera from going below ground
-    
-    // Transform controls for object manipulation
-    this.transformControls = new TransformControls(this.camera, this.renderer.domElement);
-    this.transformControls.addEventListener('dragging-changed', (event) => {
-      // Disable orbit controls when transforming an object
-      this.orbitControls.enabled = !event.value;
-    });
-    
-    this.transformControls.addEventListener('objectChange', () => {
-      // Save state for undo/redo when object is transformed
-      if (this.selectedObject) {
-        this.updateObjectState(this.selectedObject);
-      }
-    });
-    
-    this.scene.add(this.transformControls);
+    this.orbitControls.maxPolarAngle = Math.PI / 2 - 0.1; // Prevent going below ground
   }
   
   initRoom() {
     this.room = new Room(10, 3, 8); // width, height, depth
+    
+    // Apply material fixes to prevent flickering on room surfaces
+    this.room.group.traverse((object) => {
+      if (object.isMesh && object.material) {
+        // Adjust material to prevent z-fighting
+        const materials = Array.isArray(object.material) ? object.material : [object.material];
+        
+        materials.forEach(material => {
+          // Fix transparent surfaces
+          if (material.transparent) {
+            material.depthWrite = false; // Prevent depth fighting with transparent materials
+          } else {
+            // For opaque surfaces, use polygon offset to prevent z-fighting
+            material.polygonOffset = true;
+            material.polygonOffsetFactor = 1.0;
+            material.polygonOffsetUnits = 1.0;
+          }
+        });
+      }
+    });
+    
     this.scene.add(this.room.group);
+    
+    // Set floor level for interaction manager (to prevent objects going below floor)
+    this.floorLevel = 0; // Adjust based on your room's floor position
   }
   
   initGrid() {
@@ -161,9 +217,75 @@ export class SceneManager {
     this.scene.add(this.grid.grid);
   }
   
-  initRaycaster() {
-    this.raycaster = new THREE.Raycaster();
-    this.pointer = new THREE.Vector2();
+  initInteractionManager() {
+    // Create the interaction manager
+    this.interactionManager = new InteractionManager(
+      this.scene, 
+      this.camera, 
+      this.renderer, 
+      this.orbitControls
+    );
+    
+    // Set floor level
+    this.interactionManager.setFloorLevel(this.floorLevel);
+    
+    // Set up callbacks
+    this.interactionManager.setCallbacks({
+      onObjectSelected: (object) => {
+        this.selectedObject = object;
+        // Dispatch event for UI updates
+        const event = new CustomEvent('object-selected', { detail: object });
+        this.container.dispatchEvent(event);
+      },
+      
+      onObjectDeselected: () => {
+        this.selectedObject = null;
+        // Dispatch event for UI updates
+        const event = new CustomEvent('object-deselected');
+        this.container.dispatchEvent(event);
+      },
+      
+      onObjectChanged: (object) => {
+        // Add to undo stack when object is transformed
+        this.addToUndoStack({
+          type: 'transform',
+          object: object,
+          properties: this.getObjectState(object)
+        });
+      },
+      
+      onObjectPinned: (object) => {
+        // Dispatch event for UI updates
+        const event = new CustomEvent('object-pinned', { detail: object });
+        this.container.dispatchEvent(event);
+      },
+      
+      onObjectUnpinned: (object) => {
+        // Dispatch event for UI updates
+        const event = new CustomEvent('object-unpinned', { detail: object });
+        this.container.dispatchEvent(event);
+      },
+      
+      onObjectDeleted: (object) => {
+        // Remove from objects array
+        this.objects = this.objects.filter(obj => obj !== object);
+        
+        // Add to undo stack
+        this.addToUndoStack({
+          type: 'remove',
+          object: object,
+          properties: this.getObjectState(object)
+        });
+      },
+      
+      onModeChanged: (mode) => {
+        this.interactionMode = mode;
+        
+        // Dispatch event for UI updates
+        const event = new CustomEvent('mode-changed', { detail: mode });
+        this.container.dispatchEvent(event);
+      }
+    });
   }
   
   onWindowResize() {
@@ -172,147 +294,138 @@ export class SceneManager {
     this.renderer.setSize(this.container.clientWidth, this.container.clientHeight);
   }
   
-  onPointerDown(event) {
-    // Convert mouse position to normalized device coordinates
-    this.pointer.x = (event.clientX / this.container.clientWidth) * 2 - 1;
-    this.pointer.y = -(event.clientY / this.container.clientHeight) * 2 + 1;
-
-    // Add this check at the beginning of the method
-    if (!this.camera) {
-        console.warn("Camera is not initialized");
-        return; // Exit early if camera is null
+  animate() {
+    // Use requestAnimationFrame with proper binding
+    this.animationFrameId = requestAnimationFrame(this.animate.bind(this));
+    
+    // Update orbit controls
+    if (this.orbitControls) {
+      this.orbitControls.update();
     }
     
-    // Check if we're clicking on an object
-    this.raycaster.setFromCamera(this.pointer, this.camera);
+    // Update clock
+    if (this.clock) {
+      this.clock.getDelta();
+    }
     
-    // Filter out non-selectable objects (like walls, floor)
-    const selectableObjects = this.objects.filter(obj => obj.userData.selectable !== false);
-    const intersects = this.raycaster.intersectObjects(selectableObjects, true);
+    // Fix for shader uniform issues
+    if (this.scene) {
+      this.scene.traverse((object) => {
+        if (object.isMesh && object.material) {
+          const materials = Array.isArray(object.material) ? object.material : [object.material];
+          
+          materials.forEach(material => {
+            // Fix shader uniform issues
+            if (material.type === 'ShaderMaterial' || material.type === 'RawShaderMaterial') {
+              if (material.uniforms) {
+                Object.keys(material.uniforms).forEach(key => {
+                  if (material.uniforms[key] === undefined) {
+                    material.uniforms[key] = { value: null };
+                  } else if (material.uniforms[key].value === undefined) {
+                    material.uniforms[key].value = null;
+                  }
+                });
+              }
+            }
+          });
+        }
+      });
+    }
     
-    if (intersects.length > 0) {
-      // Find the actual parent object (the model root)
-      let selectedObject = intersects[0].object;
-      while (selectedObject.parent && !selectedObject.userData.isModelRoot) {
-        selectedObject = selectedObject.parent;
+    // Render scene
+    if (this.renderer && this.scene && this.camera) {
+      try {
+        this.renderer.render(this.scene, this.camera);
+      } catch (error) {
+        console.warn('Error during rendering:', error);
       }
-      
-      this.selectObject(selectedObject);
-    } else {
-      // Clicked on empty space
-      this.deselectObject();
     }
   }
   
-  selectObject(object) {
-    this.deselectObject();
-    this.selectedObject = object;
+  // Method to add a model to the scene
+  addModel(modelType, position = new THREE.Vector3(0, 0, 0)) {
+    console.log(`Adding model: ${modelType} at position:`, position);
     
-    // Highlight selected object
-    if (this.selectedObject) {
-      // Add highlight effect (can be a custom shader, outline, etc.)
-      this.addHighlight(this.selectedObject);
+    // Generate model path
+    const modelPath = `/assets/models/${modelType}.glb`;
+    
+    // Load the model
+    this.modelLoader.load(modelType, modelPath, (model) => {
+      // First position the model at the requested XZ coordinates (with Y=0)
+      model.position.set(position.x, 0, position.z);
       
-      // Attach transform controls
-      this.transformControls.attach(this.selectedObject);
-      this.transformControls.setMode(this.transformMode);
+      // Update the world matrix to ensure accurate bounding box calculation
+      model.updateMatrixWorld(true);
       
-      // Dispatch selected event for UI updates
-      const event = new CustomEvent('object-selected', { detail: this.selectedObject });
-      this.container.dispatchEvent(event);
-    }
+      // Calculate bounding box in world space
+      const box = new THREE.Box3().setFromObject(model);
+      
+      // Calculate the Y position required to place the bottom of the model exactly on the floor
+      const bottomY = box.min.y;
+      const offsetY = -bottomY; // Offset needed to move bottom to y=0 (floor level)
+      
+      // Apply the Y offset to position the model with its bottom on the floor
+      model.position.y = offsetY;
+      
+      // Make sure model is selectable
+      model.userData.isModelRoot = true;
+      model.userData.selectable = true;
+      model.userData.type = modelType;
+      model.userData.floorOffset = offsetY; // Store the floor offset for future reference
+      
+      // Add to scene and objects array
+      this.scene.add(model);
+      this.objects.push(model);
+      
+      // Add to undo stack
+      this.addToUndoStack({
+        type: 'add',
+        object: model,
+        properties: this.getObjectState(model)
+      });
+      
+      // Select the newly added model
+      this.selectObject(model);
+      
+      console.log(`Model ${modelType} successfully added to scene at floor level`);
+    });
+  }
+  
+  // OBJECT INTERACTION METHODS
+  
+  selectObject(object) {
+    this.interactionManager.select(object);
   }
   
   deselectObject() {
-    if (this.selectedObject) {
-      // Remove highlight
-      this.removeHighlight(this.selectedObject);
-      
-      // Detach transform controls
-      this.transformControls.detach();
-      this.selectedObject = null;
-      
-      // Dispatch deselected event
-      const event = new CustomEvent('object-deselected');
-      this.container.dispatchEvent(event);
+    this.interactionManager.deselect();
+  }
+  
+  setInteractionMode(mode) {
+    this.interactionManager.setInteractionMode(mode);
+  }
+  
+  pinObject(object) {
+    this.interactionManager.pinObject(object);
+  }
+  
+  unpinObject(object) {
+    this.interactionManager.unpinObject(object);
+  }
+  
+  togglePin(object) {
+    object = object || this.selectedObject;
+    if (object) {
+      this.interactionManager.togglePin(object);
     }
   }
   
-  addHighlight(object) {
-    // Implement highlight effect (example: simple outline)
-    // In a real implementation, you might use an outline shader or other visual feedback
-    object.userData.originalMaterials = [];
-    
-    object.traverse((child) => {
-      if (child.isMesh && child.material) {
-        // Store original material
-        object.userData.originalMaterials.push({
-          mesh: child,
-          material: child.material.clone()
-        });
-        
-        // Apply highlight material (example: brighten materials)
-        if (Array.isArray(child.material)) {
-          child.material = child.material.map(mat => {
-            const highlightMat = mat.clone();
-            highlightMat.emissive = new THREE.Color(0x333333);
-            return highlightMat;
-          });
-        } else {
-          const highlightMat = child.material.clone();
-          highlightMat.emissive = new THREE.Color(0x333333);
-          child.material = highlightMat;
-        }
-      }
-    });
-  }
-  
-  removeHighlight(object) {
-    // Restore original materials
-    if (object.userData.originalMaterials) {
-      object.userData.originalMaterials.forEach(({ mesh, material }) => {
-        mesh.material = material;
-      });
-      delete object.userData.originalMaterials;
+  rotateObject(object, angleDegrees) {
+    object = object || this.selectedObject;
+    if (object) {
+      this.interactionManager.rotateObject(object, angleDegrees);
     }
   }
-  
-  setTransformMode(mode) {
-    this.transformMode = mode;
-    if (this.selectedObject) {
-      this.transformControls.setMode(mode);
-    }
-  }
-
-  // Method to add a new model to the scene
- addModel(modelType, position = new THREE.Vector3(0, 0, 0)) {
-  console.log(`Adding model: ${modelType} at position:`, position);
-  
-  // Generate model path
-  const modelPath = `/assets/models/${modelType}.glb`;
-  
-  // Load the model
-  this.modelLoader.load(modelType, modelPath, (model) => {
-    // Position the model - starting with the passed position
-    model.position.copy(position);
-    
-    // Add to scene and objects array
-    this.scene.add(model);
-    this.objects.push(model);
-    
-    // Add to undo stack
-    this.addToUndoStack({
-      type: 'add',
-      object: model,
-      properties: this.getObjectState(model)
-    });
-    
-    // Select the newly added model
-    this.selectObject(model);
-    
-    console.log(`Model ${modelType} successfully added to scene`);
-  });
-}
   
   duplicateObject(object) {
     if (!object) return;
@@ -322,10 +435,6 @@ export class SceneManager {
       // Offset position slightly
       clone.position.x += 0.5;
       clone.position.z += 0.5;
-      
-      clone.userData = { ...object.userData };
-      clone.userData.isModelRoot = true;
-      clone.userData.selectable = true;
       
       // Add to objects array and scene
       this.objects.push(clone);
@@ -353,7 +462,7 @@ export class SceneManager {
       properties: this.getObjectState(object)
     });
     
-    // Deselect if this is the selected object
+    // If this is the selected object, deselect it first
     if (this.selectedObject === object) {
       this.deselectObject();
     }
@@ -363,21 +472,14 @@ export class SceneManager {
     this.objects = this.objects.filter(obj => obj !== object);
   }
   
+  // UNDO/REDO FUNCTIONALITY
+  
   getObjectState(object) {
     return {
       position: object.position.clone(),
       rotation: object.rotation.clone(),
       scale: object.scale.clone()
     };
-  }
-  
-  updateObjectState(object) {
-    // Add state to undo stack
-    this.addToUndoStack({
-      type: 'transform',
-      object: object,
-      properties: this.getObjectState(object)
-    });
   }
   
   addToUndoStack(action) {
@@ -454,16 +556,17 @@ export class SceneManager {
     }
   }
   
+  // VIEW CONTROLS
+  
   setView2D() {
-    // Switch to top-down orthographic view
+    // Switch to top-down view
     this.camera.position.set(0, 15, 0);
     this.camera.lookAt(0, 0, 0);
     this.orbitControls.maxPolarAngle = Math.PI / 4; // Limit rotation in 2D mode
     this.orbitControls.minPolarAngle = 0;
     
-    // Update controls to use the camera
+    // Update controls
     if (this.orbitControls) {
-      this.orbitControls.object = this.camera;
       this.orbitControls.update();
     }
   }
@@ -475,86 +578,31 @@ export class SceneManager {
     this.orbitControls.maxPolarAngle = Math.PI / 2 - 0.1;
     this.orbitControls.minPolarAngle = 0;
     
-    // Update controls to use the camera
+    // Update controls
     if (this.orbitControls) {
-      this.orbitControls.object = this.camera;
       this.orbitControls.update();
     }
   }
   
-  animate() {
-    // Use requestAnimationFrame with proper binding
-    this.animationFrameId = requestAnimationFrame(this.animate.bind(this));
-    
-    // Update orbit controls if available
-    if (this.orbitControls) {
-      this.orbitControls.update();
-    }
-    
-    // Update clock (we need to call getDelta() even if we don't use the result)
-    if (this.clock) {
-      this.clock.getDelta();
-    }
-    
-    // Fix for "Cannot read properties of undefined (reading 'value')" error
-    // Pre-process all materials in the scene to ensure they have valid uniforms
-    if (this.scene) {
-      this.scene.traverse((object) => {
-        if (object.isMesh && object.material) {
-          const materials = Array.isArray(object.material) ? object.material : [object.material];
-          
-          materials.forEach(material => {
-            // Ensure material is fully initialized
-            if (material.needsUpdate) {
-              material.needsUpdate = true;
-            }
-            
-            // Fix known issues with specific material types
-            if (material.type === 'ShaderMaterial' || material.type === 'RawShaderMaterial') {
-              if (material.uniforms) {
-                // Ensure all uniforms have a value property
-                Object.keys(material.uniforms).forEach(key => {
-                  if (material.uniforms[key] === undefined) {
-                    material.uniforms[key] = { value: null };
-                  } else if (material.uniforms[key].value === undefined) {
-                    material.uniforms[key].value = null;
-                  }
-                });
-              }
-            }
-          });
-        }
-      });
-    }
-    
-    // Render scene if all components are available
-    if (this.renderer && this.scene && this.camera) {
-      try {
-        this.renderer.render(this.scene, this.camera);
-      } catch (error) {
-        console.warn('Error during rendering:', error);
-        // Don't let a single render error crash the entire animation loop
-      }
-    }
-  }
-  
-  // Method to safely dispose resources when component unmounts
+  // Clean up resources
   dispose() {
-    // Cancel animation frame to stop the loop
+    // Cancel animation frame
     if (this.animationFrameId) {
       cancelAnimationFrame(this.animationFrameId);
       this.animationFrameId = null;
     }
     
-    // Clean up other resources
+    // Dispose interaction manager
+    if (this.interactionManager) {
+      this.interactionManager.dispose();
+    }
+    
+    // Dispose orbit controls
     if (this.orbitControls) {
       this.orbitControls.dispose();
     }
     
-    if (this.transformControls) {
-      this.transformControls.dispose();
-    }
-    
+    // Dispose renderer
     if (this.renderer) {
       this.renderer.dispose();
       if (this.container && this.renderer.domElement) {
@@ -562,74 +610,15 @@ export class SceneManager {
       }
     }
     
-    // Clear references to help garbage collection
+    // Remove event listeners
+    window.removeEventListener('resize', this.onWindowResize);
+    
+    // Clear references
     this.scene = null;
     this.camera = null;
     this.renderer = null;
     this.orbitControls = null;
-    this.transformControls = null;
-    this.equipment = null;
+    this.interactionManager = null;
     this.objects = null;
   }
-
-
-  debugModel(model) {
-  console.group('Model Debug Info');
-  console.log('Model object:', model);
-  
-  if (!model) {
-    console.error('Model is null or undefined!');
-    console.groupEnd();
-    return;
-  }
-  
-  console.log('Type:', model.type);
-  console.log('Is visible:', model.visible);
-  console.log('User data:', model.userData);
-  
-  // Count meshes
-  let meshCount = 0;
-  let materialCount = 0;
-  let emptyMaterialCount = 0;
-  
-  model.traverse((node) => {
-    if (node.isMesh) {
-      meshCount++;
-      
-      // Debug geometry
-      if (!node.geometry) {
-        console.error('Mesh has no geometry!', node);
-      }
-      
-      // Debug materials
-      if (!node.material) {
-        emptyMaterialCount++;
-        console.error('Mesh has no material!', node);
-      } else {
-        // Count materials
-        if (Array.isArray(node.material)) {
-          materialCount += node.material.length;
-        } else {
-          materialCount++;
-        }
-      }
-    }
-  });
-  
-  console.log(`Found ${meshCount} meshes, ${materialCount} materials`);
-  
-  if (emptyMaterialCount > 0) {
-    console.warn(`${emptyMaterialCount} meshes have no material!`);
-  }
-  
-  // Check if it's a GLB model
-  if (model.isGroup && model.children.length === 0) {
-    console.warn('Model is a group with no children! Something is wrong with the GLB import.');
-  }
-  
-  console.groupEnd();
 }
-}
-
-
-

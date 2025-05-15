@@ -10,8 +10,8 @@ const Toolbar = ({ viewMode, onViewAction, onObjectAction, selectedObject }) => 
       {/* Left section - Menu */}
       <div className="toolbar-section">
         <IconButton 
-          icon="menu" 
-          tooltip="Menu"
+          icon="logo" 
+          tooltip="Logo"
           onClick={() => {}} // Toggle menu visibility
         />
       </div>
