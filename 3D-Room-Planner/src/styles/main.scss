@@ -12,7 +12,7 @@ body {
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
   font-size: 14px;
   line-height: 1.5;
-  color: #b12727;
+  color: rgb(228, 0, 43);
   background-color: #f5f5f5;
   overflow: hidden;
 }
@@ -96,14 +96,14 @@ button {
 .panel-toggle {
   position: absolute;
   top: 10px;
-  left: 10px;
+  left: 5px;
   z-index: 2;
 }
 
 .category-tabs {
   display: flex;
   border-bottom: 1px solid rgba(0, 0, 0, 0.1);
-  padding: 15px 15px 0 15px;
+  padding: 15px 15px 0 60px
 }
 
 .category-tab {
@@ -130,11 +130,12 @@ button {
   gap: 15px;
   padding: 20px;
   overflow-y: auto;
-  flex: 1;
+  // flex: 1;
 }
 
 .equipment-item {
-  background-color: white;
+  // height: 150px; 
+  background-color: #f1f1f1;
   border-radius: 8px;
   padding: 15px;
   display: flex;
@@ -148,11 +149,12 @@ button {
 .equipment-item:hover {
   transform: translateY(-2px);
   box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08);
+  background-color: #fff
 }
 
 .item-icon {
   width: 48px;
-  height: 48px;
+  // height: 48px;
   margin-bottom: 10px;
   display: flex;
   justify-content: center;
@@ -160,8 +162,8 @@ button {
 }
 
 .item-icon img {
-  width: 100%;
-  height: 100%;
+  width: 80px;
+  height: 80px;
   object-fit: contain;
 }
 
@@ -184,6 +186,7 @@ button {
   font-size: 13px;
   text-align: center;
   color: #333;
+  // padding: 5px; 
 }
 
 /* View controls styles */
@@ -360,8 +363,13 @@ button {
   }
   
   .equipment-grid {
-    grid-template-columns: 1fr;
-  }
+  display: grid;
+  grid-template-columns: repeat(2, 1fr); /* 2 columns of equal width */
+  gap: 20px; /* Space between items */
+  padding: 20px; /* Padding around the grid */
+  max-width: 500px; /* Adjust based on your container width */
+  margin: 0 auto; /* Center the grid */
+}
 }
 
 /* Loading overlay */

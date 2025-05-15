@@ -1,87 +1,106 @@
-// src/three/utils/GridHelper.js
-// Creates an enhanced grid for better spatial awareness
+// src/three/utils/GridHelper.js - Fixed to prevent flickering
 
 import * as THREE from 'three';
 
 export class GridHelper {
-  constructor(size = 20, divisions = 20, gridSize = 1) {
-    this.size = size;
-    this.divisions = divisions;
-    this.gridSize = gridSize;
-    
-    this.createGrid();
+  constructor(size = 20, divisions = 20, spacing = 1.0) {
+    this.createGrid(size, divisions, spacing);
   }
   
-  createGrid() {
-    // Create a group to hold all grid elements
-    this.grid = new THREE.Group();
-    this.grid.userData.selectable = false; // Grid should not be selectable
+  createGrid(size, divisions, spacing) {
+    // Create a container group for all grid elements
+    const gridGroup = new THREE.Group();
     
-    // Create the main grid
-    const mainGrid = new THREE.GridHelper(this.size, this.divisions, 0x888888, 0xcccccc);
-    mainGrid.material.transparent = true;
-    mainGrid.material.opacity = 0.6;
-    mainGrid.position.y = 0.01; // Slightly above the floor to avoid z-fighting
-    this.grid.add(mainGrid);
+    // Create grid without axes
+    const gridHelper = new THREE.GridHelper(size, divisions, 0xcccccc, 0xd3d3d3);
+    // gridHelper.visible = false; // Hide for final render
     
-    // Create a second, larger grid for better orientation
-    const majorGrid = new THREE.GridHelper(this.size, this.divisions / 5, 0x666666, 0x888888);
-    majorGrid.material.transparent = true;
-    majorGrid.material.opacity = 0.8;
-    majorGrid.position.y = 0.005; // Slightly below the main grid
-    this.grid.add(majorGrid);
-    
-    // Add coordinate axes for reference
-    this.addCoordinateAxes();
-  }
-  
-  addCoordinateAxes() {
-    // Create axes helper
-    const axesHelper = new THREE.AxesHelper(2);
-    axesHelper.position.y = 0.01;
-    
-    // Make the axes more visible
-    axesHelper.traverse((child) => {
-      if (child instanceof THREE.Line) {
-        child.material.linewidth = 2;
-      }
-    });
-    
-    this.grid.add(axesHelper);
-  }
-  
-  setVisible(visible) {
-    this.grid.visible = visible;
-  }
-  
-  setOpacity(opacity) {
-    this.grid.traverse((child) => {
-      if (child instanceof THREE.GridHelper) {
-        child.material.opacity = opacity;
-      }
-    });
-  }
-  
-  setSize(size, divisions) {
-    this.size = size;
-    this.divisions = divisions;
-    
-    // Remove old grid
-    while (this.grid.children.length > 0) {
-      this.grid.remove(this.grid.children[0]);
+    // IMPORTANT: Fix z-fighting by adjusting material properties
+    if (gridHelper.material) {
+      // If it's a single material
+      this.adjustMaterial(gridHelper.material);
+    } else if (gridHelper.material && Array.isArray(gridHelper.material)) {
+      // If it's an array of materials
+      gridHelper.material.forEach(mat => this.adjustMaterial(mat));
     }
     
-    // Create new grid with updated parameters
-    this.createGrid();
+    // Raise grid slightly above floor level to prevent z-fighting
+    gridHelper.position.y = 0.02;
+    
+    // Add grid to group
+    gridGroup.add(gridHelper);
+    
+    // Remove axis lines
+    this.removeAxisLines(gridHelper);
+    
+    // Add a semi-transparent floor plane to enhance visual quality
+    const floorGeometry = new THREE.PlaneGeometry(size, size);
+    const floorMaterial = new THREE.MeshBasicMaterial({
+      color: 0xffffff,
+      transparent: true,
+      opacity: 0.05,
+      side: THREE.DoubleSide,
+      depthWrite: false, // Prevents z-fighting with other floor elements
+    });
+    
+    const floor = new THREE.Mesh(floorGeometry, floorMaterial);
+    floor.rotation.x = Math.PI / 2; // Make horizontal
+    floor.position.y = 0.01; // Slightly above the actual floor but below the grid
+    gridGroup.add(floor);
+    
+    this.grid = gridGroup;
   }
   
-  // Helper for snapping positions to grid
-  snapToGrid(position) {
-    const snappedPosition = position.clone();
+  // Helper method to adjust material properties to prevent z-fighting
+  adjustMaterial(material) {
+    if (!material) return;
     
-    snappedPosition.x = Math.round(position.x / this.gridSize) * this.gridSize;
-    snappedPosition.z = Math.round(position.z / this.gridSize) * this.gridSize;
+    material.depthWrite = true;
+    material.polygonOffset = true;
+    material.polygonOffsetFactor = -0.5;
+    material.polygonOffsetUnits = -1.0;
+  }
+  
+  // Remove axis lines from grid
+  removeAxisLines(grid) {
+    if (!grid.geometry || !grid.geometry.attributes || !grid.geometry.attributes.position) return;
     
-    return snappedPosition;
+    const positions = grid.geometry.attributes.position.array;
+    const colors = grid.geometry.attributes.color.array;
+    
+    // Find the actual number of vertices that represent the grid (not axes)
+    const totalVertices = positions.length / 3;
+    const gridOnlyVertices = totalVertices - 4; // Subtract vertices used for axes
+    
+    // Create new arrays without the axis lines
+    const newPositions = new Float32Array(gridOnlyVertices * 3);
+    const newColors = new Float32Array(gridOnlyVertices * 3);
+    
+    // Copy all vertices except the first 4 (which are for axes)
+    for (let i = 4; i < totalVertices; i++) {
+      newPositions[(i - 4) * 3] = positions[i * 3];
+      newPositions[(i - 4) * 3 + 1] = positions[i * 3 + 1];
+      newPositions[(i - 4) * 3 + 2] = positions[i * 3 + 2];
+      
+      newColors[(i - 4) * 3] = colors[i * 3];
+      newColors[(i - 4) * 3 + 1] = colors[i * 3 + 1];
+      newColors[(i - 4) * 3 + 2] = colors[i * 3 + 2];
+    }
+    
+    // Create a new geometry with only grid lines
+    const newGeometry = new THREE.BufferGeometry();
+    newGeometry.setAttribute('position', new THREE.BufferAttribute(newPositions, 3));
+    newGeometry.setAttribute('color', new THREE.BufferAttribute(newColors, 3));
+    
+    // Replace the original geometry
+    grid.geometry.dispose();
+    grid.geometry = newGeometry;
+  }
+  
+  // Toggle grid visibility
+  setVisible(visible) {
+    if (this.grid) {
+      this.grid.visible = visible;
+    }
   }
 }

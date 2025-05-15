@@ -1,5 +1,5 @@
 // src/components/RoomPlanner.jsx
-// Main component that integrates Three.js with React
+// Main component with direct manipulation support
 
 import React, { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
@@ -8,13 +8,14 @@ import Toolbar from './UI/Toolbar';
 import SidePanel from './UI/SidePanel';
 import ViewControls from './UI/ViewControls';
 import ModelLoadingIndicator from './UI/ModelLoadingIndicator';
-import GLBDebugButton from './UI/GLBDebugButton'; // Import the debug button
+import ObjectControls from './UI/ObjectControls';
 import useStore from '../store';
 import equipmentConfig from '../config/equipment';
 
 const RoomPlanner = () => {
   const containerRef = useRef(null);
   const [sceneManager, setSceneManager] = useState(null);
+  const [interactionMode, setInteractionMode] = useState('translate');
   
   // Get state from the store
   const {
@@ -46,8 +47,13 @@ const RoomPlanner = () => {
       setSelectedObject(null);
     };
     
+    const handleModeChanged = (event) => {
+      setInteractionMode(event.detail);
+    };
+    
     container.addEventListener('object-selected', handleObjectSelected);
     container.addEventListener('object-deselected', handleObjectDeselected);
+    container.addEventListener('mode-changed', handleModeChanged);
     
     // Clean up on unmount
     return () => {
@@ -58,6 +64,7 @@ const RoomPlanner = () => {
       // Use the captured container value instead of containerRef.current
       container.removeEventListener('object-selected', handleObjectSelected);
       container.removeEventListener('object-deselected', handleObjectDeselected);
+      container.removeEventListener('mode-changed', handleModeChanged);
     };
   }, [setSelectedObject]);
   
@@ -91,8 +98,17 @@ const RoomPlanner = () => {
   };
   
   // Handle object actions (delete, duplicate, etc.)
-  const handleObjectAction = (action) => {
-    if (!sceneManager || !selectedObject) return;
+  const handleObjectAction = (action, value) => {
+    if (!sceneManager) return;
+    
+    // Some actions don't require a selected object
+    if (action === 'deselect') {
+      sceneManager.deselectObject();
+      return;
+    }
+    
+    // Rest of the actions require a selected object
+    if (!selectedObject && action !== 'deselect') return;
     
     switch (action) {
       case 'delete':
@@ -103,20 +119,25 @@ const RoomPlanner = () => {
         sceneManager.duplicateObject(selectedObject);
         break;
         
-      case 'rotate':
-        selectedObject.rotation.y += Math.PI / 2; // Rotate 90 degrees
-        break;
-        
       case 'translate':
-        sceneManager.setTransformMode('translate');
+        sceneManager.setInteractionMode('translate');
         break;
         
-      case 'rotate-mode':
-        sceneManager.setTransformMode('rotate');
+      case 'rotate':
+        sceneManager.setInteractionMode('rotate');
         break;
         
-      case 'scale':
-        sceneManager.setTransformMode('scale');
+      case 'pin':
+        sceneManager.pinObject(selectedObject);
+        break;
+        
+      case 'unpin':
+        sceneManager.unpinObject(selectedObject);
+        break;
+        
+      case 'rotate-by':
+        // Rotate by specific angle (in degrees)
+        sceneManager.rotateObject(selectedObject, value);
         break;
         
       default:
@@ -196,47 +217,61 @@ const RoomPlanner = () => {
         isGridVisible={isGridVisible}
       />
       
-      {/* Add the ModelLoadingIndicator component here */}
+      {/* Model Loading Indicator */}
       <ModelLoadingIndicator />
       
-      {/* Debug Button - remove in production */}
+      {/* Object Controls Panel (shown when an object is selected) */}
       {selectedObject && (
-        <GLBDebugButton modelType={selectedObject?.userData?.type || 'treadmill'} />
+        <ObjectControls 
+          selectedObject={selectedObject}
+          onObjectAction={handleObjectAction}
+          interactionMode={interactionMode}
+        />
       )}
       
-      {/* Object Properties Panel (shown when an object is selected) */}
+      {/* Direct Manipulation Instructions */}
       {selectedObject && (
-        <div className="properties-panel">
-          <h3>Properties</h3>
-          <div className="property">
-            <span>Type:</span>
-            <span>{selectedObject.userData.type}</span>
-          </div>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-          
-          
-          <div className="actions">
-            <button onClick={() => handleObjectAction('translate')}>Move</button>
-            <button onClick={() => handleObjectAction('rotate-mode')}>Rotate</button>
-            <button onClick={() => handleObjectAction('scale')}>Scale</button>
-            <button onClick={() => handleObjectAction('duplicate')}>Duplicate</button>
-            <button onClick={() => handleObjectAction('delete')}>Delete</button>
-          </div>
+        <div className="manipulation-hint">
+          {interactionMode === 'translate' ? (
+            <span>🖱️ Click and drag to move the object</span>
+          ) : (
+            <span>🖱️ Click and drag left/right to rotate the object</span>
+          )}
         </div>
       )}
+      
+      <style jsx>{`
+        .room-planner {
+          width: 100%;
+          height: 100vh;
+          position: relative;
+          overflow: hidden;
+        }
+        
+        .manipulation-hint {
+          position: absolute;
+          bottom: 20px;
+          left: 50%;
+          transform: translateX(-50%);
+          background-color: rgba(0, 0, 0, 0.7);
+          color: white;
+          padding: 10px 16px;
+          border-radius: 20px;
+          font-size: 14px;
+          display: flex;
+          align-items: center;
+          box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+          z-index: 1000;
+          pointer-events: none;
+          opacity: 0.9;
+          transition: opacity 0.3s ease;
+        }
+        
+        .manipulation-hint span {
+          display: flex;
+          align-items: center;
+        }
+      `}</style>
     </div>
   );
 };

@@ -30,6 +30,10 @@ A web-based 3D room planner application for designing gym spaces. This tool allo
 npm install
 ```
 
+```bash
+npm install three @react-three/fiber @react-three/drei gsap zustand
+```
+
 4. Start the development server:
 
 ```bash
