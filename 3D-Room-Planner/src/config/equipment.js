@@ -21,7 +21,7 @@ export const equipmentConfig = {
   
   // Equipment catalog for UI
   catalog: {
-    'SPORTSTECH': [
+    'Products': [
       { id: 'sBike', name: 'sBike', icon: '/assets/icons/sBike.png' },
       { id: 'sTreadPro', name: 'sTreadPro', icon: '/assets/icons/sTreadPro.png' },
       { id: 'sPad500', name: 'sPad500', icon: '/assets/icons/sPad500.png' },

@@ -1,4 +1,3 @@
-// src/three/InteractionManager.js
 // Direct model manipulation (click and drag)
 
 import * as THREE from 'three';
@@ -43,6 +42,8 @@ export class InteractionManager {
     // Add event listeners
     this.addEventListeners();
   }
+
+  
   
   // When initializing
   createHelpers() {
@@ -139,6 +140,9 @@ export class InteractionManager {
     } else {
       // Clicked on empty space - deselect
       this.deselect();
+
+      // Ensure orbit controls are enabled for empty space clicks
+      this.orbitControls.enabled = true;
     }
   }
   
@@ -324,46 +328,63 @@ export class InteractionManager {
     }
   }
   
-  // Add visual highlight to selected object
-  addHighlight(object) {
-    // Store original materials
-    object.userData.originalMaterials = [];
-    
-    object.traverse((child) => {
-      if (child.isMesh && child.material) {
-        // Store original material
-        object.userData.originalMaterials.push({
-          mesh: child,
-          material: child.material.clone()
-        });
-        
-        // Apply highlight material (just add emissive glow)
-        if (Array.isArray(child.material)) {
-          child.material = child.material.map(mat => {
-            const highlightMat = mat.clone();
-            highlightMat.emissive = new THREE.Color(0x333333);
-            return highlightMat;
-          });
-        } else {
-          const highlightMat = child.material.clone();
-          highlightMat.emissive = new THREE.Color(0x333333);
-          child.material = highlightMat;
-        }
-      }
-    });
-  }
+// Add visual highlight to selected object
+addHighlight(object) {
+  // Create orange wireframe bounding box
+  this.createBoundingBox(object);
+}
+
+// Remove highlight from object
+removeHighlight(object) {
+  // Remove the bounding box
+  this.removeBoundingBox(object);
+}
+
+// Create an orange wireframe bounding box around the object
+createBoundingBox(object) {
+  // Remove any existing bounding box
+  this.removeBoundingBox(object);
   
-  // Remove highlight from object
-  removeHighlight(object) {
-    if (!object.userData.originalMaterials) return;
+  // Create a BoxHelper (not Box3Helper)
+  // BoxHelper directly attaches to the object and will follow it automatically
+  const boxHelper = new THREE.BoxHelper(object, 0xe4002b); // Red color
+  // boxHelper.material.linewidth = 2; // Note: This may not work on all platforms due to WebGL limitations
+  boxHelper.material = new THREE.LineDashedMaterial({
+  color: 0xe4002b, // Line color
+  linewidth: 2, // Line thickness
+  dashSize: 0.1, // Very short dash for dot effect
+  gapSize: 0.1 // Equal gap for dot spacing
+});
+  boxHelper.material.transparent = true;
+  boxHelper.material.opacity = 0.5;
+  boxHelper.userData.isBoundingBox = true;
+  
+  // Store the box helper for later reference
+  object.userData.boundingBoxHelper = boxHelper;
+  
+  // Add the box helper to the scene
+  this.scene.add(boxHelper);
+}
+
+// Remove bounding box
+removeBoundingBox(object) {
+  if (object.userData.boundingBoxHelper) {
+    // Remove from scene
+    this.scene.remove(object.userData.boundingBoxHelper);
     
-    // Restore original materials
-    object.userData.originalMaterials.forEach(({ mesh, material }) => {
-      mesh.material = material;
-    });
-    
-    delete object.userData.originalMaterials;
+    // Clean up references
+    delete object.userData.boundingBoxHelper;
   }
+}
+
+// Update bounding boxes - called from animation loop
+updateBoundingBoxes() {
+  // Update the bounding box if there's a selected object
+  if (this.selectedObject && this.selectedObject.userData.boundingBoxHelper) {
+    // BoxHelper has an update method to recalculate the box
+    this.selectedObject.userData.boundingBoxHelper.update();
+  }
+}
   
   // Set interaction mode (translate or rotate)
   setInteractionMode(mode) {
@@ -435,32 +456,48 @@ export class InteractionManager {
     }
   }
   
-  // Update visual indicator for pin state
-  updatePinVisual(object, isPinned) {
-    // Remove existing pin indicator
-    const existingPin = object.children.find(child => child.userData.isPinIndicator);
-    if (existingPin) {
-      object.remove(existingPin);
-    }
-    
-    if (isPinned) {
-      // Create a pin indicator (red sphere above object)
-      const geometry = new THREE.SphereGeometry(0.15, 16, 16);
-      const material = new THREE.MeshBasicMaterial({ color: 0xff0000 });
-      const pinIndicator = new THREE.Mesh(geometry, material);
-      
-      // Position above object
-      const box = new THREE.Box3().setFromObject(object);
-      const height = box.max.y - box.min.y;
-      pinIndicator.position.y = height / 2 + 0.3;
-      
-      // Mark as pin indicator
-      pinIndicator.userData.isPinIndicator = true;
-      
-      // Add to object
-      object.add(pinIndicator);
-    }
+// Update pin visual with a small, subtle pin icon
+updatePinVisual(object, isPinned) {
+  // Remove existing pin indicator
+  const existingPin = object.children.find(child => child.userData.isPinIndicator);
+  if (existingPin) {
+    object.remove(existingPin);
   }
+  
+  if (isPinned) {
+    // Create a pin group
+    const pinGroup = new THREE.Group();
+    pinGroup.userData.isPinIndicator = true;
+    
+    // Pin head (small red sphere)
+    const headGeometry = new THREE.SphereGeometry(0.05, 12, 8);
+    const headMaterial = new THREE.MeshBasicMaterial({ color: 0xff3333 });
+    const head = new THREE.Mesh(headGeometry, headMaterial);
+    head.position.y = 0.08;
+    pinGroup.add(head);
+    
+    // Pin shaft (thin cylinder)
+    const shaftGeometry = new THREE.CylinderGeometry(0.01, 0.01, 0.15, 6);
+    const shaftMaterial = new THREE.MeshBasicMaterial({ color: 0xcccccc });
+    const shaft = new THREE.Mesh(shaftGeometry, shaftMaterial);
+    shaft.position.y = 0;
+    pinGroup.add(shaft);
+    
+    // Calculate position above object
+    const box = new THREE.Box3().setFromObject(object);
+    const height = box.max.y - box.min.y;
+    
+    // Position the pin above the object (closer to the surface)
+    pinGroup.position.y = height / 2 + 0.1;
+    
+    // Rotate slightly to make it more visible from common viewing angles
+    pinGroup.rotation.x = -Math.PI / 8; // Slight tilt forward
+    
+    // Add to object
+    object.add(pinGroup);
+  }
+}
+ 
   
   // Delete selected object
   deleteSelected() {
@@ -518,4 +555,48 @@ export class InteractionManager {
     this.callbacks = null;
     this.pinnedObjects.clear();
   }
+}
+
+
+// Function to create a custom pin shape
+function createPinShape() {
+  const group = new THREE.Group();
+  
+  // Pin head (a flattened sphere)
+  const headGeometry = new THREE.SphereGeometry(0.12, 16, 8);
+  const headMaterial = new THREE.MeshBasicMaterial({ color: 0xff3333 });
+  const head = new THREE.Mesh(headGeometry, headMaterial);
+  head.scale.y = 0.6; // Flatten it
+  head.position.y = 0.15;
+  group.add(head);
+  
+  // Pin shaft (cylinder)
+  const shaftGeometry = new THREE.CylinderGeometry(0.025, 0.025, 0.3, 8);
+  const shaftMaterial = new THREE.MeshBasicMaterial({ color: 0xcccccc });
+  const shaft = new THREE.Mesh(shaftGeometry, shaftMaterial);
+  shaft.position.y = -0.05;
+  group.add(shaft);
+  
+  // Pin point (cone)
+  const pointGeometry = new THREE.ConeGeometry(0.025, 0.05, 8);
+  const pointMaterial = new THREE.MeshBasicMaterial({ color: 0xcccccc });
+  const point = new THREE.Mesh(pointGeometry, pointMaterial);
+  point.position.y = -0.2;
+  point.rotation.x = Math.PI; // Point downward
+  group.add(point);
+  
+  // Add subtle shadow under the pin head
+  const shadowGeometry = new THREE.CircleGeometry(0.12, 16);
+  const shadowMaterial = new THREE.MeshBasicMaterial({ 
+    color: 0x000000, 
+    transparent: true, 
+    opacity: 0.3,
+    side: THREE.DoubleSide
+  });
+  const shadow = new THREE.Mesh(shadowGeometry, shadowMaterial);
+  shadow.position.y = 0.11;
+  shadow.rotation.x = Math.PI / 2; // Horizontal
+  group.add(shadow);
+  
+  return group;
 }

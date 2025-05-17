@@ -1,8 +1,8 @@
-// src/three/SceneManager.js
-// Core Three.js scene management with direct manipulation
+// Core Three.js scene management with direct manipulation and HDR lighting
 
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
+import { RGBELoader } from 'three/examples/jsm/loaders/RGBELoader';
 import { Room } from './objects/Room';
 import { ModelLoader } from './ModelLoader';
 import { GridHelper } from './utils/GridHelper';
@@ -17,6 +17,7 @@ export class SceneManager {
     this.interactionMode = 'translate'; // Default to translate mode
     this.undoStack = [];
     this.redoStack = [];
+    this.isLoadingHDR = false; // Track HDR loading state
     
     // Add clock for animation timing
     this.clock = new THREE.Clock();
@@ -30,17 +31,36 @@ export class SceneManager {
     this.initRoom();
     this.initGrid();
     
-    // Initialize interaction manager AFTER other components
+    // Initialize interaction manager
     this.initInteractionManager();
+    
+    // Preload the HDR environment map with some delay to ensure scene is ready
+    // but not so much delay that the user experiences a visible light change
+    setTimeout(() => {
+      this.initHDREnvironment();
+    }, 20); // Reduced from 100ms to 20ms
     
     // Start animation loop
     this.animate();
+    
+    // Add an event listener to detect if we need to re-apply HDR when tab regains focus
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible' && this.scene && this.scene.environment) {
+        // When tab becomes visible again, re-apply environment maps
+        console.log('Tab visible again, refreshing environment maps');
+        setTimeout(() => this.applyEnvironmentToObjects(true), 100);
+      }
+    });
   }
-  
+
+
   initScene() {
     this.scene = new THREE.Scene();
     this.scene.background = new THREE.Color(0xf0f0f0);
     this.scene.fog = new THREE.Fog(0xf0f0f0, 10, 50);
+    
+    // Initialize flag for tracking if environment has been applied
+    this.environmentApplied = false;
   }
   
   initCamera() {
@@ -77,6 +97,10 @@ export class SceneManager {
     // Use sRGB encoding for better color accuracy
     this.renderer.outputEncoding = THREE.sRGBEncoding;
     
+    // Add HDR tone mapping
+    this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    this.renderer.toneMappingExposure = 1.0; // Adjust between 0.5-1.5 for desired brightness
+    
     // Enable logarithmic depth buffer to significantly reduce z-fighting issues
     this.renderer.logarithmicDepthBuffer = true;
     
@@ -86,18 +110,167 @@ export class SceneManager {
     window.addEventListener('resize', this.onWindowResize.bind(this));
   }
   
-initLights() {
+  initHDREnvironment(hdrPath = '/assets/envlight/brown_photostudio_02_8k.hdr') {
+    // Store scene reference for safety
+    const scene = this.scene;
+    
+    // Early return if renderer is not initialized
+    if (!this.renderer) {
+      console.warn('Cannot load HDR: renderer not initialized');
+      return;
+    }
+    
+    console.log('Loading HDR environment map:', hdrPath);
+    
+    // Create PMREMGenerator for converting HDR to environment map
+    const pmremGenerator = new THREE.PMREMGenerator(this.renderer);
+    pmremGenerator.compileEquirectangularShader();
+    
+    // Set a loading flag
+    this.isLoadingHDR = true;
+    
+    // Dispatch event for UI updates (optional)
+    const loadStartEvent = new CustomEvent('hdr-loading-start');
+    this.container.dispatchEvent(loadStartEvent);
+    
+    // Load HDR environment map
+    new RGBELoader()
+      .setDataType(THREE.FloatType)
+      .load(hdrPath, (texture) => {
+        // Check if scene still exists (might be disposed during async loading)
+        if (!this.scene) {
+          console.warn('Cannot apply HDR: scene no longer exists');
+          texture.dispose();
+          pmremGenerator.dispose();
+          this.isLoadingHDR = false;
+          return;
+        }
+        
+        try {
+          console.log('HDR loaded, processing environment map...');
+          
+          // Generate environment map
+          const envMap = pmremGenerator.fromEquirectangular(texture).texture;
+          
+          // Set scene environment - safely
+          this.scene.environment = envMap;
+          
+          // Optionally set as background (comment out to keep fog background)
+          // this.scene.background = envMap;
+          
+          console.log('HDR environment processed successfully');
+          
+          // Apply environment map to all existing objects with force update
+          this.applyEnvironmentToObjects(true);
+          
+          // Force a render to immediately show the new lighting
+          if (this.renderer && this.scene && this.camera) {
+            this.renderer.render(this.scene, this.camera);
+          }
+          
+          // Dispatch event for UI updates (optional)
+          const loadCompleteEvent = new CustomEvent('hdr-loading-complete');
+          this.container.dispatchEvent(loadCompleteEvent);
+          
+        } catch (error) {
+          console.error('Error applying HDR environment:', error);
+        } finally {
+          // Dispose of resources
+          texture.dispose();
+          pmremGenerator.dispose();
+          this.isLoadingHDR = false;
+        }
+      }, 
+      // Add progress callback
+      (progress) => {
+        const percent = Math.round((progress.loaded / progress.total) * 100);
+        console.log(`HDR loading: ${percent}%`);
+      },
+      // Add error callback
+      (error) => {
+        console.error('Error loading HDR environment:', error);
+        this.isLoadingHDR = false;
+        
+        // Dispatch event for UI updates (optional)
+        const loadErrorEvent = new CustomEvent('hdr-loading-error', { detail: error });
+        this.container.dispatchEvent(loadErrorEvent);
+      });
+  }
+  
+  // Helper method to apply environment to objects
+  applyEnvironmentToObjects(forceUpdate = false) {
+    if (!this.scene || !this.scene.environment) {
+      console.warn('Cannot apply environment to objects: scene or environment not available');
+      return;
+    }
+    
+    console.log(`Applying environment map to objects (forceUpdate: ${forceUpdate})`);
+    
+    try {
+      // Keep track of how many materials were updated
+      let updatedMaterials = 0;
+      
+      this.scene.traverse((object) => {
+        if (object.isMesh && object.material) {
+          const materials = Array.isArray(object.material) ? object.material : [object.material];
+          
+          materials.forEach(material => {
+            // Enable environment mapping for compatible materials
+            if (material.isMeshStandardMaterial || material.isMeshPhysicalMaterial) {
+              // Set environment map
+              material.envMap = this.scene.environment;
+              material.envMapIntensity = 0.8; // Adjust as needed
+              
+              // Force update flag ensures material is fully refreshed
+              material.needsUpdate = true;
+              
+              // For a stronger update when forceUpdate is true
+              if (forceUpdate) {
+                // These operations force the material to fully refresh
+                material.version++;
+                
+                // Temporarily toggle properties to force GPU update
+                const originalRoughness = material.roughness;
+                material.roughness = 0.99;
+                material.roughness = originalRoughness;
+                
+                // Reset material to force a reevaluation
+                if (material.type === 'MeshStandardMaterial') {
+                  object.material = new THREE.MeshStandardMaterial().copy(material);
+                } else if (material.type === 'MeshPhysicalMaterial') {
+                  object.material = new THREE.MeshPhysicalMaterial().copy(material);
+                }
+              }
+              
+              updatedMaterials++;
+            }
+          });
+        }
+      });
+      
+      console.log(`Updated ${updatedMaterials} materials with environment map`);
+    } catch (error) {
+      console.error('Error applying environment to objects:', error);
+    }
+  }
+  
+  initLights() {
     // Create a lighting group to manage all lights
     this.lights = new THREE.Group();
     this.scene.add(this.lights);
 
-    // 1. Ambient light - increased for brighter overall illumination
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.4); // Increased from 0.2 to 0.4
+    // 1. Ambient light - moderate for base fill with HDR
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.3);
     this.lights.add(ambientLight);
 
-    // 2. Primary directional light (simulates sunlight from a window)
-    const mainLight = new THREE.DirectionalLight(0xffffff, 1.5); // Increased intensity from 1 to 1.5
-    mainLight.position.set(5, 8, 5); // Unchanged, good position
+    // 2. Hemisphere light for subtle up/down variation
+    const hemiLight = new THREE.HemisphereLight(0xffffff, 0xffffff, 0.3);
+    hemiLight.position.set(0, 1, 0);
+    this.lights.add(hemiLight);
+    
+    // 3. Single directional light for shadows (lower intensity with HDR)
+    const mainLight = new THREE.DirectionalLight(0xffffff, 0.5);
+    mainLight.position.set(5, 8, 5);
     mainLight.castShadow = true;
 
     // Improve shadow quality
@@ -114,63 +287,9 @@ initLights() {
     mainLight.shadow.camera.bottom = -d;
 
     // Softer shadows for a polished look
-    mainLight.shadow.radius = 3; // Increased from 2 for softer edges
+    mainLight.shadow.radius = 3;
     this.lights.add(mainLight);
-
-    // 3. Secondary fill light (opposite of main light)
-    const fillLight = new THREE.DirectionalLight(0xffffff, 0.6); // Increased from 0.4 to 0.6
-    fillLight.position.set(-5, 7, -5);
-    fillLight.castShadow = false; // No shadow from fill light
-    this.lights.add(fillLight);
-
-    // 4. Ceiling lights - brighter and more realistic room lighting
-    const createCeilingLight = (x, z) => {
-        const pointLight = new THREE.PointLight(0xffffff, 1, 12, 1); // Increased intensity from 0.6 to 1, distance from 10 to 12
-        pointLight.position.set(x, 2.8, z); // Just below ceiling
-        pointLight.castShadow = true;
-
-        // Smaller shadow map for performance
-        pointLight.shadow.mapSize.width = 512;
-        pointLight.shadow.mapSize.height = 512;
-
-        // Add a small sphere to represent the light fixture
-        // const bulb = new THREE.Mesh(
-        //     new THREE.SphereGeometry(0.05, 8, 8),
-        //     new THREE.MeshBasicMaterial({ color: 0xffffee })
-        // );
-        // bulb.position.copy(pointLight.position);
-        // this.scene.add(bulb);
-
-        return pointLight;
-    };
-
-    // Add 4 ceiling lights in a grid pattern
-    const ceilingLight1 = createCeilingLight(-3, -2);
-    const ceilingLight2 = createCeilingLight(-3, 2);
-    const ceilingLight3 = createCeilingLight(3, -2);
-    const ceilingLight4 = createCeilingLight(3, 2);
-    this.lights.add(ceilingLight1, ceilingLight2, ceilingLight3, ceilingLight4);
-
-    // 5. Product spotlight - dedicated light to highlight the product
-    const spotLight = new THREE.SpotLight(0xffffff, 2, 10, Math.PI / 4, 0.5, 1); // Intense, focused light
-    spotLight.position.set(0, 5, 3); // Position above and slightly in front of the product
-    spotLight.target.position.set(0, 0, 0); // Assuming product is at origin; adjust as needed
-    spotLight.castShadow = true;
-
-    // Shadow settings for spotlight
-    spotLight.shadow.mapSize.width = 1024;
-    spotLight.shadow.mapSize.height = 1024;
-    spotLight.shadow.camera.near = 0.5;
-    spotLight.shadow.camera.far = 20;
-    spotLight.shadow.radius = 2;
-
-    this.scene.add(spotLight.target); // Add target to scene
-    this.lights.add(spotLight);
-
-    // 6. Ground bounce light - slightly stronger for better reflection
-    const bounceLight = new THREE.HemisphereLight(0xffffff, 0xffffff, 0.5); // Increased from 0.3 to 0.5
-    this.lights.add(bounceLight);
-}
+  }
   
   initControls() {
     // Orbit controls for camera movement
@@ -201,6 +320,11 @@ initLights() {
             material.polygonOffset = true;
             material.polygonOffsetFactor = 1.0;
             material.polygonOffsetUnits = 1.0;
+          }
+          
+          // If it's a standard material, prepare for HDR
+          if (material.isMeshStandardMaterial || material.isMeshPhysicalMaterial) {
+            material.envMapIntensity = 1.0;
           }
         });
       }
@@ -331,7 +455,12 @@ initLights() {
         }
       });
     }
-    
+
+    // Update bounding boxes
+    if (this.interactionManager) {
+      this.interactionManager.updateBoundingBoxes();
+    }
+      
     // Render scene
     if (this.renderer && this.scene && this.camera) {
       try {
@@ -372,6 +501,24 @@ initLights() {
       model.userData.selectable = true;
       model.userData.type = modelType;
       model.userData.floorOffset = offsetY; // Store the floor offset for future reference
+      
+      // Configure materials for HDR lighting
+      if (this.scene && this.scene.environment) {
+        model.traverse((object) => {
+          if (object.isMesh && object.material) {
+            const materials = Array.isArray(object.material) ? object.material : [object.material];
+            
+            materials.forEach(material => {
+              // Enable environment mapping where appropriate
+              if (material.isMeshStandardMaterial || material.isMeshPhysicalMaterial) {
+                material.envMap = this.scene.environment;
+                material.envMapIntensity = 1.0; // Adjust as needed
+                material.needsUpdate = true;
+              }
+            });
+          }
+        });
+      }
       
       // Add to scene and objects array
       this.scene.add(model);
@@ -435,6 +582,23 @@ initLights() {
       // Offset position slightly
       clone.position.x += 0.5;
       clone.position.z += 0.5;
+      
+      // Apply HDR environment to the cloned object
+      if (this.scene && this.scene.environment) {
+        clone.traverse((child) => {
+          if (child.isMesh && child.material) {
+            const materials = Array.isArray(child.material) ? child.material : [child.material];
+            
+            materials.forEach(material => {
+              if (material.isMeshStandardMaterial || material.isMeshPhysicalMaterial) {
+                material.envMap = this.scene.environment;
+                material.envMapIntensity = 1.0;
+                material.needsUpdate = true;
+              }
+            });
+          }
+        });
+      }
       
       // Add to objects array and scene
       this.objects.push(clone);
@@ -581,6 +745,74 @@ initLights() {
     // Update controls
     if (this.orbitControls) {
       this.orbitControls.update();
+    }
+  }
+  
+  // Methods to control HDR environment
+  setHDRExposure(value) {
+    if (this.renderer) {
+      this.renderer.toneMappingExposure = value;
+      
+      // Force a render update to show the change immediately
+      if (this.renderer && this.scene && this.camera) {
+        this.renderer.render(this.scene, this.camera);
+      }
+    }
+  }
+  
+  setEnvironmentIntensity(value) {
+    if (!this.scene) {
+      console.warn('Cannot set environment intensity: scene not available');
+      return;
+    }
+    
+    try {
+      let updatedCount = 0;
+      this.scene.traverse((object) => {
+        if (object.isMesh && object.material) {
+          const materials = Array.isArray(object.material) ? object.material : [object.material];
+          
+          materials.forEach(material => {
+            if (material.isMeshStandardMaterial || material.isMeshPhysicalMaterial) {
+              material.envMapIntensity = value;
+              material.needsUpdate = true;
+              updatedCount++;
+            }
+          });
+        }
+      });
+      
+      console.log(`Updated environment intensity to ${value} on ${updatedCount} materials`);
+      
+      // Force a render update to show the change immediately
+      if (this.renderer && this.scene && this.camera) {
+        this.renderer.render(this.scene, this.camera);
+      }
+    } catch (error) {
+      console.error('Error setting environment intensity:', error);
+    }
+  }
+  
+  // Load a different HDR environment
+  loadHDREnvironment(hdrPath) {
+    // Reset the environment applied flag
+    this.environmentApplied = false;
+    
+    // Load the new environment
+    this.initHDREnvironment(hdrPath);
+  }
+  
+  // Force refresh of all materials with current environment map
+  refreshEnvironmentMaps() {
+    if (this.scene && this.scene.environment) {
+      this.environmentApplied = false;
+      this.applyEnvironmentToObjects(true);
+      this.environmentApplied = true;
+      
+      // Force a render to show changes immediately
+      if (this.renderer && this.scene && this.camera) {
+        this.renderer.render(this.scene, this.camera);
+      }
     }
   }
   
