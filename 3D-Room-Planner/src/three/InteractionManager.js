@@ -269,8 +269,11 @@ export class InteractionManager {
       case 'escape': // Deselect
         this.deselect();
         break;
+      default:
+        // Do nothing or optionally handle unexpected keys
+        break;
     }
-  }
+  }    
   
   // Get all selectable objects
   getSelectableObjects() {

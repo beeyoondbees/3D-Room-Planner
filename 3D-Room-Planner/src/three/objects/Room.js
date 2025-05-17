@@ -1,152 +1,189 @@
 // src/three/objects/Room.js
-// Class for creating and managing the room (walls, floor, ceiling)
+// Class for creating a room from polygon with hidden back-facing walls
 
 import * as THREE from 'three';
 
-export class Room {
-  constructor(width = 10, height = 3, depth = 8) {
-    this.width = width;
-    this.height = height;
-    this.depth = depth;
-    
-    this.group = new THREE.Group();
-    this.group.userData.selectable = false; // Room cannot be selected
-    
-    this.createFloor();
-    this.createWalls();
-    this.createCeiling();
+function isClockwise(points) {
+  let sum = 0;
+  for (let i = 0; i < points.length; i++) {
+    const current = points[i];
+    const next = points[(i + 1) % points.length];
+    sum += (next.x - current.x) * (next.z + current.z);
   }
+  return sum > 0;  // true if clockwise
+}
+
+
+export class Room {
+  constructor(height = 3) {
+    this.height = height;
+    this.group = new THREE.Group();
+    this.group.userData.selectable = false;
+    this.wallSegments = [];
+  }
+
+  buildFromPolygon(points) {
+    if (!points || points.length < 3) {
+      console.warn("Not enough points to build a polygon room.");
+      return;
+    }
+
+    // Reverse points if polygon is clockwise so we always have CCW points
+    if (isClockwise(points)) {
+      points = points.slice().reverse();
+    }
+
+    this.clearRoom();
+    this.createFloor(points);
+    this.createWalls(points);
+
+    const center = points.reduce((acc, p) => {
+      acc.x += p.x;
+      acc.z += p.z;
+      return acc;
+    }, { x: 0, z: 0 });
+
+    center.x /= points.length;
+    center.z /= points.length;
+
+    this.group.position.set(-center.x, 0, -center.z);
+  }
+
+  clearRoom() {
+    while (this.group.children.length > 0) {
+      const child = this.group.children[0];
+      this.group.remove(child);
+      if (child.geometry) child.geometry.dispose();
+      if (child.material) {
+        if (Array.isArray(child.material)) {
+          child.material.forEach(m => m.dispose());
+        } else {
+          child.material.dispose();
+        }
+      }
+    }
+    this.wallSegments = [];
+  }
+
+  createFloor(points) {
+    const shape = new THREE.Shape(points.map(p => new THREE.Vector2(p.x, p.z)));
+    const geometry = new THREE.ShapeGeometry(shape);
   
-  createFloor() {
-    // Floor geometry
-    const geometry = new THREE.PlaneGeometry(this.width, this.depth);
-    
-    // Floor material - slightly textured
+    // Flip floor upside down: rotate X by +Math.PI/2 instead of -Math.PI/2
+    geometry.rotateX(Math.PI / 2);
+  
     const texture = new THREE.TextureLoader().load('/assets/textures/room/hardwood.png');
     texture.wrapS = THREE.RepeatWrapping;
     texture.wrapT = THREE.RepeatWrapping;
-    texture.repeat.set(this.width, this.depth);
-    
+    texture.repeat.set(4, 4);
+  
     const material = new THREE.MeshStandardMaterial({
       map: texture,
       color: 0xcccccc,
       roughness: 0.8,
-      metalness: 0.2
-    });
-    
-    // Create mesh
-    this.floor = new THREE.Mesh(geometry, material);
-    this.floor.rotation.x = -Math.PI / 2; // Rotate to be horizontal
-    this.floor.position.set(0, 0, 0);
-    this.floor.receiveShadow = true;
-    this.floor.userData.isFloor = true; // For raycasting identification
-    
-    this.group.add(this.floor);
-  }
-  
-  createWalls() {
-    const wallMaterial = new THREE.MeshStandardMaterial({
-      color: 0xffffff,
-      roughness: 0.7,
-      metalness: 0.0
-    });
-    
-    // Back wall
-    const backWallGeometry = new THREE.PlaneGeometry(this.width, this.height);
-    this.backWall = new THREE.Mesh(backWallGeometry, wallMaterial);
-    this.backWall.position.set(0, this.height / 2, -this.depth / 2);
-    this.backWall.receiveShadow = true;
-    this.group.add(this.backWall);
-    
-    // Left wall
-    const leftWallGeometry = new THREE.PlaneGeometry(this.depth, this.height);
-    this.leftWall = new THREE.Mesh(leftWallGeometry, wallMaterial);
-    this.leftWall.position.set(-this.width / 2, this.height / 2, 0);
-    this.leftWall.rotation.y = Math.PI / 2;
-    this.leftWall.receiveShadow = true;
-    this.group.add(this.leftWall);
-    
-    // Right wall (optional, often kept open for better visibility)
-    const rightWallGeometry = new THREE.PlaneGeometry(this.depth, this.height);
-    this.rightWall = new THREE.Mesh(rightWallGeometry, wallMaterial);
-    this.rightWall.position.set(this.width / 2, this.height / 2, 0);
-    this.rightWall.rotation.y = -Math.PI / 2;
-    this.rightWall.receiveShadow = true;
-    this.group.add(this.rightWall);
-    
-    // Front wall
-      const frontWallGeometry = new THREE.PlaneGeometry(this.width, this.height);
-      this.frontWall = new THREE.Mesh(frontWallGeometry, wallMaterial);
-      this.frontWall.position.set(0, this.height / 2, this.depth / 2);
-      this.frontWall.rotation.y = Math.PI; // Rotate to face inward
-      this.frontWall.receiveShadow = true;
-      this.group.add(this.frontWall);
-  }
-
-
-  
-  createCeiling() {
-    // Ceiling is optional and often not included for better visibility
-    // But we'll include the code in case it's needed
-    
-    const ceilingGeometry = new THREE.PlaneGeometry(this.width, this.depth);
-    const ceilingMaterial = new THREE.MeshStandardMaterial({
-      color: 0xeeeeee,
-      roughness: 0.8,
-      metalness: 0.0,
+      metalness: 0.2,
       side: THREE.DoubleSide
     });
-    
-    this.ceiling = new THREE.Mesh(ceilingGeometry, ceilingMaterial);
-    this.ceiling.rotation.x = Math.PI / 2;
-    this.ceiling.position.set(0, this.height, 0);
-    this.ceiling.receiveShadow = true;
-    
-    // Ceiling is initially hidden for better visibility
-    this.ceiling.visible = false;
-    
-    this.group.add(this.ceiling);
+  
+    const floor = new THREE.Mesh(geometry, material);
+    floor.receiveShadow = true;
+    floor.userData.isFloor = true;
+    this.group.add(floor);
   }
   
-  resize(width, height, depth) {
-    this.width = width;
-    this.height = height;
-    this.depth = depth;
-    
-    // Remove existing elements
-    while (this.group.children.length > 0) {
-      this.group.remove(this.group.children[0]);
+
+  createWalls(points) {
+    this.wallSegments = [];
+  
+    const material = new THREE.MeshStandardMaterial({
+      color: 0xffffff,
+      roughness: 0.7,
+      metalness: 0.0,
+      side: THREE.DoubleSide  // DoubleSide so both sides render
+    });
+  
+    // Make sure polygon is counter-clockwise to keep walls facing outward
+    const clockwise = isClockwise(points);
+    if (clockwise) {
+      points = points.slice().reverse();
     }
-    
-    // Recreate with new dimensions
-    this.createFloor();
-    this.createWalls();
-    this.createCeiling();
+  
+    for (let i = 0; i < points.length; i++) {
+      const a = points[i];
+      const b = points[(i + 1) % points.length];
+  
+      // Calculate vector between points
+      const dx = b.x - a.x;
+      const dz = b.z - a.z;
+  
+      // Length of the wall segment
+      const length = Math.sqrt(dx * dx + dz * dz);
+  
+      // Create wall geometry
+      const wallGeometry = new THREE.PlaneGeometry(length, this.height);
+      const wall = new THREE.Mesh(wallGeometry, material.clone());
+  
+      // Position the wall midpoint between points, at half height
+      wall.position.set((a.x + b.x) / 2, this.height / 2, (a.z + b.z) / 2);
+  
+      // Rotate wall to align with segment direction
+      wall.rotation.y = -Math.atan2(dz, dx);
+  
+      wall.castShadow = true;
+      wall.receiveShadow = true;
+      wall.userData.isWall = true;
+  
+      // Store outward facing normal vector for visibility checks
+      wall.userData.normal = new THREE.Vector3(-dz, 0, dx).normalize();
+  
+      this.group.add(wall);
+      this.wallSegments.push(wall);
+    }
   }
   
+
+  updateWallVisibility(camera) {
+    if (!camera || !this.wallSegments) return;
+
+    const camDir = new THREE.Vector3();
+    camera.getWorldDirection(camDir);
+    camDir.y = 0;
+    camDir.normalize();
+
+    this.wallSegments.forEach(wall => {
+      const normal = wall.userData.normal;
+      const dot = normal.dot(camDir);
+      wall.visible = dot < 0;
+    });
+  }
+
   toggleCeiling() {
-    if (this.ceiling) {
-      this.ceiling.visible = !this.ceiling.visible;
-    }
+    this.group.traverse(obj => {
+      if (obj.userData.isCeiling) {
+        obj.visible = !obj.visible;
+      }
+    });
   }
-  
-  // Additional methods for room customization
+
+  setWallColor(color) {
+    this.group.traverse(obj => {
+      if (obj.material && obj.material.color) {
+        obj.material.color.set(color);
+      }
+    });
+  }
+
   setFloorTexture(texturePath) {
     const texture = new THREE.TextureLoader().load(texturePath);
     texture.wrapS = THREE.RepeatWrapping;
     texture.wrapT = THREE.RepeatWrapping;
-    texture.repeat.set(this.width, this.depth);
-    
-    this.floor.material.map = texture;
-    this.floor.material.needsUpdate = true;
-  }
-  
-  setWallColor(color) {
-    this.backWall.material.color.set(color);
-    this.leftWall.material.color.set(color);
-    // Update right wall if exists
-    if (this.rightWall) {
-      this.rightWall.material.color.set(color);
-    }
+    texture.repeat.set(4, 4);
+
+    this.group.traverse(obj => {
+      if (obj.userData.isFloor && obj.material.map) {
+        obj.material.map = texture;
+        obj.material.needsUpdate = true;
+      }
+    });
   }
 }
