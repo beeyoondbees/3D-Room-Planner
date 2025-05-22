@@ -17,12 +17,11 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 18
-          cache: 'npm'
-          cache-dependency-path: '3D-Room-Planner/package-lock.json'
+          # NO cache configuration - this was causing the error
           
       - name: Install dependencies
         working-directory: ./3D-Room-Planner
-        run: npm ci  # Use npm ci with lock file for faster, reliable installs
+        run: npm install
         
       - name: Build React App
         working-directory: ./3D-Room-Planner
