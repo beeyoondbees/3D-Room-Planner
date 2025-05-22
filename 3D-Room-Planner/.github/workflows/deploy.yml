@@ -6,24 +6,20 @@ on:
       - main
 
 jobs:
-  build:
+  deploy:
     runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v3
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v3
-        with:
-          node-version: '18'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
 
       - name: Install dependencies
-        run: npm install
         working-directory: 3D-Room-Planner
+        run: npm install
 
       - name: Build project
-        run: npm run build
         working-directory: 3D-Room-Planner
+        run: npm run build
 
       - name: Upload to S3
         uses: jakejarvis/s3-sync-action@v0.5.1
