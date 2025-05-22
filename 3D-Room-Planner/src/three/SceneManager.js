@@ -9,8 +9,8 @@ import { ModelLoader } from './ModelLoader.js';   // Assuming ModelLoader.js exi
 import { GridHelper } from './utils/GridHelper.js'; // Assuming GridHelper.js exists
 import { InteractionManager } from './InteractionManager.js'; // Assuming InteractionManager.js exists
 import { FloorDimensionEditor } from './FloorDimensionEditor';
-import React, { useState, useRef, useEffect } from 'react';
-import Toolbar from '../components/UI/Toolbar';
+// import React, { useState, useRef, useEffect } from 'react';
+// import Toolbar from '../components/UI/Toolbar';
 
 // function RoomEditor() {
 //   const [scene, setScene] = useState(null);
