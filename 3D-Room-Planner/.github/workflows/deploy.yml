@@ -13,13 +13,8 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v2
 
-      - name: Install dependencies
-        working-directory: 3D-Room-Planner
-        run: npm install
-
-      - name: Build project
-        working-directory: 3D-Room-Planner
-        run: npm run build
+      - name: Change into the correct project folder
+        run: cd 3D-Room-Planner && npm install && npm run build
 
       - name: Upload to S3
         uses: jakejarvis/s3-sync-action@v0.5.1
