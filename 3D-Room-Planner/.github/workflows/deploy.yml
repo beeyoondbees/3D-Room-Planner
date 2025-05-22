@@ -11,32 +11,18 @@ jobs:
     
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4  # Updated to latest version
+        uses: actions/checkout@v4
         
       - name: Setup Node.js
-        uses: actions/setup-node@v4  # Updated to latest version
+        uses: actions/setup-node@v4
         with:
           node-version: 18
           cache: 'npm'
-          cache-dependency-path: '3D-Room-Planner/package-lock.json'  # Specify cache path
-          
-      - name: Debug - Check directory structure
-        run: |
-          echo "Current directory:"
-          pwd
-          echo "Repository contents:"
-          ls -la
-          echo "Looking for 3D-Room-Planner directory:"
-          ls -la | grep -i room || echo "3D-Room-Planner directory not found"
-          echo "Searching for package.json files:"
-          find . -name "package.json" -type f
           
       - name: Install dependencies
-        working-directory: ./3D-Room-Planner  # Use working-directory instead of cd
-        run: npm ci  # Use npm ci for faster, reliable installs
+        run: npm ci
         
       - name: Build React App
-        working-directory: ./3D-Room-Planner
         run: npm run build
         
       - name: Upload to S3
@@ -48,7 +34,7 @@ jobs:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           AWS_REGION: ${{ secrets.AWS_REGION }}
-          SOURCE_DIR: "3D-Room-Planner/build"
+          SOURCE_DIR: "build"  # Changed from "3D-Room-Planner/build" to just "build"
           
       - name: Invalidate CloudFront Cache
         uses: chetan/invalidate-cloudfront-action@v2
