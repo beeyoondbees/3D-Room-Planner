@@ -1,4 +1,4 @@
-name: Deploy React App to S3 + CloudFront
+name: Deploy 3D Room Planner to S3 + CloudFront
 
 on:
   push:
@@ -8,22 +8,26 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-
+    
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-
+        
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 18
-
+          cache: 'npm'
+          cache-dependency-path: '3D-Room-Planner/package-lock.json'
+          
       - name: Install dependencies
-        run: npm install
-
+        working-directory: ./3D-Room-Planner
+        run: npm ci  # Use npm ci with lock file for faster, reliable installs
+        
       - name: Build React App
+        working-directory: ./3D-Room-Planner
         run: npm run build
-
+        
       - name: Upload to S3
         uses: jakejarvis/s3-sync-action@v0.5.1
         with:
@@ -33,8 +37,8 @@ jobs:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           AWS_REGION: ${{ secrets.AWS_REGION }}
-          SOURCE_DIR: "build"
-
+          SOURCE_DIR: "3D-Room-Planner/build"
+          
       - name: Invalidate CloudFront Cache
         uses: chetan/invalidate-cloudfront-action@v2
         with:
