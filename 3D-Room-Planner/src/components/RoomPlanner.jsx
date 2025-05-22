@@ -108,7 +108,6 @@ const RoomPlanner = () => {
 
     switch (action) {
       case 'toggle-view': setViewMode(viewMode === '2D' ? '3D' : '2D'); break;
-      case 'toggle-grid': setGridVisible(!isGridVisible); break;
       case 'reset-view': viewMode === '2D' ? manager.setView2D() : manager.setView3D(); break;
       case 'zoom-in': if(manager.camera) manager.camera.position.multiplyScalar(0.9); manager.orbitControls?.update(); break;
       case 'zoom-out': if(manager.camera) manager.camera.position.multiplyScalar(1.1); manager.orbitControls?.update(); break;
@@ -116,6 +115,13 @@ const RoomPlanner = () => {
       case 'redo': manager.redo(); break;
       case 'toggle-floor-dimensions': // Action for the ruler icon
         manager.toggleFloorEditor();
+        break;
+      case 'take-screenshot': // ✅ Add this case
+        manager.takeScreenshot();
+        break;
+      case 'toggle-grid':
+        manager.toggleGridVisibility(); // <- call SceneManager method
+        setGridVisible(!isGridVisible); // <- update your Zustand/global state
         break;
       default: console.warn("RoomPlanner: Unknown view action:", action); break;
     }

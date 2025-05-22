@@ -63,6 +63,12 @@ const Toolbar = ({ viewMode, onViewAction, onObjectAction, selectedObject }) => 
           tooltip="Comments"
           onClick={() => {}} // Placeholder
         />
+        <IconButton 
+        icon="camera" 
+        tooltip="Take Screenshot"
+        onClick={() => onViewAction('take-screenshot')}
+        />
+
         {/* ... other buttons ... */}
         <IconButton 
           icon="file-export" 

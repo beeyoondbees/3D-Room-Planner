@@ -140,7 +140,8 @@ export class SceneManager {
       precision: "highp",
       stencil: false,
       depth: true,
-      alpha: false
+      alpha: false,
+      preserveDrawingBuffer: true 
     });
     this.renderer.setPixelRatio(window.devicePixelRatio);
     this.renderer.setSize(this.container.clientWidth, this.container.clientHeight);
@@ -679,7 +680,22 @@ export class SceneManager {
     }
     this.undoStack.push(action);
   }
-
+  takeScreenshot() {
+    if (!this.renderer || !this.scene || !this.camera) return;
+  
+    this.renderer.render(this.scene, this.camera); // Make sure frame is up-to-date
+  
+    const dataURL = this.renderer.domElement.toDataURL('image/png');
+    const link = document.createElement('a');
+    link.href = dataURL;
+    link.download = 'room-screenshot.png';
+    link.click();
+  
+    console.log("SceneManager: Screenshot saved.");
+  }
+  
+  
+  
   setView2D() {
     this.camera.position.set(0, 15, 0);
     this.camera.lookAt(0, 0, 0);
