@@ -12,30 +12,30 @@ import { FloorDimensionEditor } from './FloorDimensionEditor';
 import React, { useState, useRef, useEffect } from 'react';
 import Toolbar from '../components/UI/Toolbar';
 
-function RoomEditor() {
-  const [scene, setScene] = useState(null);
-  const [camera, setCamera] = useState(null);
-  const [renderer, setRenderer] = useState(null);
-  const floorEditorRef = useRef(null);
+// function RoomEditor() {
+//   const [scene, setScene] = useState(null);
+//   const [camera, setCamera] = useState(null);
+//   const [renderer, setRenderer] = useState(null);
+//   const floorEditorRef = useRef(null);
 
-  useEffect(() => {
-    // After initializing scene/camera/renderer
-    floorEditorRef.current = new FloorDimensionEditor(scene, camera, renderer);
-  }, [scene, camera, renderer]);
+//   useEffect(() => {
+//     // After initializing scene/camera/renderer
+//     floorEditorRef.current = new FloorDimensionEditor(scene, camera, renderer);
+//   }, [scene, camera, renderer]);
 
-  const handleViewAction = (action) => {
-    if (action === 'toggle-floor-dimensions') {
-      floorEditorRef.current.initRoom([
-        { x: -5, z: -3 },
-        { x: 5, z: -3 },
-        { x: 5, z: 3 },
-        { x: -5, z: 3 }
-      ]);
-    }
-  };
+//   const handleViewAction = (action) => {
+//     if (action === 'toggle-floor-dimensions') {
+//       floorEditorRef.current.initRoom([
+//         { x: -5, z: -3 },
+//         { x: 5, z: -3 },
+//         { x: 5, z: 3 },
+//         { x: -5, z: 3 }
+//       ]);
+//     }
+//   };
 
-  return <Toolbar onViewAction={handleViewAction} />;
-}
+//   return <Toolbar onViewAction={handleViewAction} />;
+// }
 
 export class SceneManager {
   constructor(container) {

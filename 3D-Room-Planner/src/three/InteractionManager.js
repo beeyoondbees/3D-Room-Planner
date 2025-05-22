@@ -562,44 +562,44 @@ updatePinVisual(object, isPinned) {
 
 
 // Function to create a custom pin shape
-function createPinShape() {
-  const group = new THREE.Group();
+// function createPinShape() {
+//   const group = new THREE.Group();
   
-  // Pin head (a flattened sphere)
-  const headGeometry = new THREE.SphereGeometry(0.12, 16, 8);
-  const headMaterial = new THREE.MeshBasicMaterial({ color: 0xff3333 });
-  const head = new THREE.Mesh(headGeometry, headMaterial);
-  head.scale.y = 0.6; // Flatten it
-  head.position.y = 0.15;
-  group.add(head);
+//   // Pin head (a flattened sphere)
+//   const headGeometry = new THREE.SphereGeometry(0.12, 16, 8);
+//   const headMaterial = new THREE.MeshBasicMaterial({ color: 0xff3333 });
+//   const head = new THREE.Mesh(headGeometry, headMaterial);
+//   head.scale.y = 0.6; // Flatten it
+//   head.position.y = 0.15;
+//   group.add(head);
   
-  // Pin shaft (cylinder)
-  const shaftGeometry = new THREE.CylinderGeometry(0.025, 0.025, 0.3, 8);
-  const shaftMaterial = new THREE.MeshBasicMaterial({ color: 0xcccccc });
-  const shaft = new THREE.Mesh(shaftGeometry, shaftMaterial);
-  shaft.position.y = -0.05;
-  group.add(shaft);
+//   // Pin shaft (cylinder)
+//   const shaftGeometry = new THREE.CylinderGeometry(0.025, 0.025, 0.3, 8);
+//   const shaftMaterial = new THREE.MeshBasicMaterial({ color: 0xcccccc });
+//   const shaft = new THREE.Mesh(shaftGeometry, shaftMaterial);
+//   shaft.position.y = -0.05;
+//   group.add(shaft);
   
-  // Pin point (cone)
-  const pointGeometry = new THREE.ConeGeometry(0.025, 0.05, 8);
-  const pointMaterial = new THREE.MeshBasicMaterial({ color: 0xcccccc });
-  const point = new THREE.Mesh(pointGeometry, pointMaterial);
-  point.position.y = -0.2;
-  point.rotation.x = Math.PI; // Point downward
-  group.add(point);
+//   // Pin point (cone)
+//   const pointGeometry = new THREE.ConeGeometry(0.025, 0.05, 8);
+//   const pointMaterial = new THREE.MeshBasicMaterial({ color: 0xcccccc });
+//   const point = new THREE.Mesh(pointGeometry, pointMaterial);
+//   point.position.y = -0.2;
+//   point.rotation.x = Math.PI; // Point downward
+//   group.add(point);
   
-  // Add subtle shadow under the pin head
-  const shadowGeometry = new THREE.CircleGeometry(0.12, 16);
-  const shadowMaterial = new THREE.MeshBasicMaterial({ 
-    color: 0x000000, 
-    transparent: true, 
-    opacity: 0.3,
-    side: THREE.DoubleSide
-  });
-  const shadow = new THREE.Mesh(shadowGeometry, shadowMaterial);
-  shadow.position.y = 0.11;
-  shadow.rotation.x = Math.PI / 2; // Horizontal
-  group.add(shadow);
+//   // Add subtle shadow under the pin head
+//   const shadowGeometry = new THREE.CircleGeometry(0.12, 16);
+//   const shadowMaterial = new THREE.MeshBasicMaterial({ 
+//     color: 0x000000, 
+//     transparent: true, 
+//     opacity: 0.3,
+//     side: THREE.DoubleSide
+//   });
+//   const shadow = new THREE.Mesh(shadowGeometry, shadowMaterial);
+//   shadow.position.y = 0.11;
+//   shadow.rotation.x = Math.PI / 2; // Horizontal
+//   group.add(shadow);
   
-  return group;
-}
+//   return group;
+// }

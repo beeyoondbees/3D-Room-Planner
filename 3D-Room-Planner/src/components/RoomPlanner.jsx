@@ -1,6 +1,6 @@
 // src/components/RoomPlanner.jsx
 import React, { useEffect, useRef, useState, useCallback } from 'react';
-import * as THREE from 'three'; // Keep if directly used, e.g. for new THREE.Vector3()
+// import * as THREE from 'three'; // Keep if directly used, e.g. for new THREE.Vector3()
 import { SceneManager } from '../three/SceneManager';
 import Toolbar from './UI/Toolbar';
 import SidePanel from './UI/SidePanel'; 
