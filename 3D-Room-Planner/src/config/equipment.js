@@ -15,7 +15,7 @@ export const equipmentConfig = {
           "icon": "/assets/icons/products/F37-sprofessional-treadmill.webp"
         },
         {
-          "id": "stread-pro",
+          "id": "sTread-Pro",
           "name": "sTread Pro",
           "icon": "/assets/icons/products/sTread-Pro.webp"
         },
@@ -136,7 +136,7 @@ export const equipmentConfig = {
       ],
       "Magnetic Rowing Machine": [
         {
-          "id": "srow-rowing",
+          "id": "sRow-Rowing",
           "name": "sRow-rowing",
           "icon": "/assets/icons/products/sRow-rowing.webp"
         },
