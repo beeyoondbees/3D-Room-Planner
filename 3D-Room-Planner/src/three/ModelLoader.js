@@ -1,126 +1,120 @@
 // src/three/ModelLoader.js
-// Corrected version of your existing ModelLoader
-
 import * as THREE from 'three';
-import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js';
 
 export class ModelLoader {
   constructor() {
-    // Create the GLTF loader
-    this.gltfLoader = new GLTFLoader();
-    
-    // Model cache
-    this.modelCache = {};
-  }
-  
-  /**
-   * Load a model by type and path
-   */
-  load(modelType, modelPath, onLoad) {
-    console.log(`Loading model: ${modelType} from ${modelPath}`);
-    
-    // Check cache first
-    if (this.modelCache[modelType]) {
-      console.log(`Using cached model: ${modelType}`);
-      const clone = this.modelCache[modelType].clone();
-      onLoad(clone);
-      return;
+    this.loader = new GLTFLoader();
+    this.dracoLoader = null;
+    this.models = new Map();
+    this.animations = new Map(); // Store animations per model type
+    this.mixers = new Map(); // Store AnimationMixer per model instance
+
+    // Optional: Set up DRACOLoader for compressed models
+    try {
+      this.dracoLoader = new DRACOLoader();
+      this.dracoLoader.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.5.7/');
+      this.loader.setDRACOLoader(this.dracoLoader);
+    } catch (error) {
+      console.warn('ModelLoader: DRACOLoader setup failed, proceeding without Draco:', error);
     }
-    
-    // Load the model - this is the critical part that needed fixing
-    this.gltfLoader.load(
+  }
+
+  load(modelType, modelPath, onLoad, onProgress, onError) {
+    console.log(`ModelLoader: Loading ${modelType} from ${modelPath}`);
+    const loadStartEvent = new CustomEvent('model-loading-start', { detail: { modelType } });
+    window.dispatchEvent(loadStartEvent);
+
+    this.loader.load(
       modelPath,
       (gltf) => {
-        // IMPORTANT: Use gltf.scene, not just a custom object
         const model = gltf.scene;
-        
-        // Add needed metadata
-        model.userData.type = modelType;
-        model.userData.isModelRoot = true;
-        model.userData.selectable = true;
-        
-        // Apply shadows to all meshes
-        model.traverse((node) => {
-          if (node.isMesh) {
-            node.castShadow = true;
-            node.receiveShadow = true;
-          }
-        });
-        
-        // Cache the model
-        this.modelCache[modelType] = model.clone();
-        
-        // Process the model if needed (adjust position, etc.)
-        const box = new THREE.Box3().setFromObject(model);
-        const height = box.max.y - box.min.y;
-        model.position.y = height / 2;
-        
-        // Call the callback with the loaded model
+        model.userData.modelType = modelType;
+
+        // Store animations and create AnimationMixer
+        if (gltf.animations && gltf.animations.length > 0) {
+          this.animations.set(modelType, gltf.animations);
+          model.userData.animations = gltf.animations; // Attach animations to model
+          const mixer = new THREE.AnimationMixer(model);
+          this.mixers.set(model, mixer); // Associate mixer with model instance
+        }
+
+        this.models.set(modelType, model);
         onLoad(model);
+        const loadCompleteEvent = new CustomEvent('model-loading-completed', { detail: { modelType } });
+        window.dispatchEvent(loadCompleteEvent);
       },
       (progress) => {
-        // Progress callback if needed
-        console.log(`Loading progress: ${Math.round((progress.loaded / progress.total) * 100)}%`);
+        const percent = progress.total > 0 ? Math.round((progress.loaded / progress.total) * 100) : 0;
+        if (onProgress) onProgress(progress);
+        console.log(`ModelLoader: ${modelType} loading: ${percent}%`);
       },
       (error) => {
-        // Error handling
-        console.error(`Error loading model ${modelType}:`, error);
-        
-        // Create a fallback cube instead
-        const geometry = new THREE.BoxGeometry(1, 1, 1);
-        const material = new THREE.MeshStandardMaterial({ color: 0x888888 });
-        const cube = new THREE.Mesh(geometry, material);
-        const group = new THREE.Group();
-        group.add(cube);
-        group.userData.type = modelType;
-        group.userData.isModelRoot = true;
-        group.userData.selectable = true;
-        group.userData.isFallback = true;
-        
-        onLoad(group);
+        console.error(`ModelLoader: Error loading ${modelType}:`, error);
+        const loadErrorEvent = new CustomEvent('model-loading-error', { detail: { modelType, error } });
+        window.dispatchEvent(loadErrorEvent);
+        if (onError) onError(error);
       }
     );
   }
-  
-  /**
-   * Duplicate an existing model
-   */
-  duplicate(originalObject, onComplete) {
-    const modelType = originalObject.userData.type;
-    
-    if (this.modelCache[modelType]) {
-      // Clone from cache
-      const clone = this.modelCache[modelType].clone();
-      
-      // Copy transformation
-      clone.position.copy(originalObject.position);
-      clone.rotation.copy(originalObject.rotation);
-      clone.scale.copy(originalObject.scale);
-      
-      // Call complete callback
-      onComplete(clone);
-    } else {
-      console.warn(`Cannot duplicate model ${modelType}: not in cache`);
-      
-      // Create a simple fallback
-      const geometry = new THREE.BoxGeometry(1, 1, 1);
-      const material = new THREE.MeshStandardMaterial({ color: 0x888888 });
-      const cube = new THREE.Mesh(geometry, material);
-      const group = new THREE.Group();
-      group.add(cube);
-      
-      // Add metadata
-      group.userData.type = modelType;
-      group.userData.isModelRoot = true;
-      group.userData.selectable = true;
-      group.userData.isFallback = true;
-      
-      // Copy transformation
-      group.position.copy(originalObject.position);
-      group.rotation.copy(originalObject.rotation);
-      group.scale.copy(originalObject.scale);
-      
-      onComplete(group);
+
+  duplicate(originalModel, onDuplicate) {
+    const modelType = originalModel.userData.modelType;
+    const clonedModel = originalModel.clone(true);
+    clonedModel.userData = JSON.parse(JSON.stringify(originalModel.userData));
+
+    // Clone animations and create a new AnimationMixer for the cloned model
+    if (this.animations.has(modelType)) {
+      clonedModel.userData.animations = this.animations.get(modelType);
+      const mixer = new THREE.AnimationMixer(clonedModel);
+      this.mixers.set(clonedModel, mixer);
     }
+
+    onDuplicate(clonedModel);
+  }
+
+  disposeModel(model) {
+    if (!model) return;
+
+    // Dispose of AnimationMixer
+    const mixer = this.mixers.get(model);
+    if (mixer) {
+      mixer.stopAllAction();
+      mixer.uncacheRoot(model);
+      this.mixers.delete(model);
+    }
+
+    // Dispose geometries, materials, and textures
+    model.traverse((child) => {
+      if (child.isMesh) {
+        if (child.geometry) child.geometry.dispose();
+        if (child.material) {
+          const materials = Array.isArray(child.material) ? child.material : [child.material];
+          materials.forEach(mat => {
+            Object.values(mat).forEach(value => {
+              if (value && typeof value.dispose === 'function') value.dispose();
+            });
+            mat.dispose();
+          });
+        }
+      }
+    });
+  }
+
+  dispose() {
+    this.models.forEach((model) => this.disposeModel(model));
+    this.models.clear();
+    this.animations.clear();
+    this.mixers.forEach((mixer, model) => {
+      mixer.stopAllAction();
+      mixer.uncacheRoot(model);
+    });
+    this.mixers.clear();
+    if (this.dracoLoader) {
+      this.dracoLoader.dispose();
+      this.dracoLoader = null;
+    }
+    this.loader = null;
   }
 }

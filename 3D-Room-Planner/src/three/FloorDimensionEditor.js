@@ -172,41 +172,47 @@ export class FloorDimensionEditor {
     });
   }
   
-  _createDimensionSprite(length) {
+   _createDimensionSprite(length) {
     const text = `${length.toFixed(2)}m`;
+    const pixelRatio = window.devicePixelRatio || 1;
+  
+    const fontSize = 20;
+    const canvasWidth = 200;
+    const canvasHeight = 100;
+  
     const canvas = document.createElement('canvas');
-    const context = canvas.getContext('2d');
-    const font = this.labelStyle.font;
-    context.font = font;
-    const textMetrics = context.measureText(text);
-    
-    const canvasPadding = 10; // Padding around text
-    canvas.width = Math.max(this.labelStyle.canvasWidth, textMetrics.width + canvasPadding); // Ensure min width
-    canvas.height = this.labelStyle.canvasHeight;
-
-    context.font = font; // Re-apply font after resize
-    context.fillStyle = this.labelStyle.textColor;
-    context.textAlign = 'center';
-    context.textBaseline = 'middle';
-    context.fillText(text, canvas.width / 2, canvas.height / 2);
-
+    canvas.width = canvasWidth * pixelRatio;
+    canvas.height = canvasHeight * pixelRatio;
+  
+    const ctx = canvas.getContext('2d');
+    ctx.scale(pixelRatio, pixelRatio);
+    ctx.font = `${fontSize}px Arial`;
+    ctx.fillStyle = '#111'; // Dark font
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+  
+    // Text
+    ctx.fillStyle = '#111';
+    ctx.fillText(text, canvasWidth /2, canvasHeight / 2);
+  
     const texture = new THREE.CanvasTexture(canvas);
+    texture.minFilter = THREE.LinearFilter;
     texture.needsUpdate = true;
-
-    const material = new THREE.SpriteMaterial({ 
-      map: texture, 
+  
+    const material = new THREE.SpriteMaterial({
+      map: texture,
       transparent: true,
       depthTest: false,
-      sizeAttenuation: false // Makes sprite size fixed in screen pixels
+      sizeAttenuation: false,
     });
-
+  
     const sprite = new THREE.Sprite(material);
-    // Scale for sizeAttenuation: false. Value depends on desired screen size.
-    // (canvas.width * pixel_scale_factor)
-    sprite.scale.set(canvas.width * 0.006, canvas.height * 0.006, 1.0); 
-    sprite.renderOrder = 2; // Render labels on top of handles
+    sprite.scale.set(0.4, 0.12, 1); // Smaller, UI-friendly size
+    sprite.renderOrder = 2;
+  
     return sprite;
   }
+ 
 
   _createEdgeLabels() {
     // Dispose and remove old labels

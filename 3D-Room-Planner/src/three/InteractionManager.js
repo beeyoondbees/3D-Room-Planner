@@ -1,5 +1,3 @@
-// Direct model manipulation (click and drag)
-
 import * as THREE from 'three';
 
 export class InteractionManager {
@@ -30,8 +28,27 @@ export class InteractionManager {
     this.pointer = new THREE.Vector2();
     this.startPointer = new THREE.Vector2();
     
+    // Distance measurement properties
+    this.distanceDisplay = null;
+    this.distanceLines = null;
+    this.showDistanceIndicators = true;
+    
+    // Mode icon properties
+    this.modeIcon = null;
+    this.baseIconScale = 0.5; // Base scale for the icon
+    this.zoomFactor = 0.05; // Controls how much the icon scales with distance
+    
+    // Texture loader for SVG icons
+    this.textureLoader = new THREE.TextureLoader();
+    
+    // Load SVG textures (replace with your SVG file paths)
+    this.moveIconTexture = null;
+    this.rotateIconTexture = null;
+    this.loadIcons();
+    
     // Visual helpers
     this.createHelpers();
+    this.createDistanceDisplay();
     
     // Bind methods to instance
     this.onPointerDown = this.onPointerDown.bind(this);
@@ -43,8 +60,279 @@ export class InteractionManager {
     this.addEventListeners();
   }
 
-  
-  
+  // Load SVG icons as textures
+  loadIcons() {
+    // Replace these paths with the actual paths to your SVG files
+    const moveIconPath = 'assets/icons/move-icon.svg'; // Path to your drag (translate) SVG
+    const rotateIconPath = '/assets/icons/rotate-icon.svg'; // Path to your rotate SVG
+
+    // Load move icon texture
+    this.textureLoader.load(
+      moveIconPath,
+      (texture) => {
+        this.moveIconTexture = texture;
+        console.log('Move icon texture loaded successfully');
+      },
+      undefined,
+      (error) => {
+        console.error('Error loading move icon texture:', error);
+      }
+    );
+
+    // Load rotate icon texture
+    this.textureLoader.load(
+      rotateIconPath,
+      (texture) => {
+        this.rotateIconTexture = texture;
+        console.log('Rotate icon texture loaded successfully');
+      },
+      undefined,
+      (error) => {
+        console.error('Error loading rotate icon texture:', error);
+      }
+    );
+  }
+
+  // Create distance measurement display elements
+  createDistanceDisplay() {
+    // Create HTML overlay for distance text
+    this.createDistanceOverlay();
+    
+    // Create 3D line helpers for visual distance indication
+    this.createDistanceLines();
+  }
+
+  createDistanceOverlay() {
+    // Create overlay div for distance display
+    this.distanceOverlay = document.createElement('div');
+    this.distanceOverlay.style.cssText = `
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      background: rgba(0, 0, 0, 0.8);
+      color: white;
+      padding: 10px 15px;
+      border-radius: 8px;
+      font-family: 'Courier New', monospace;
+      font-size: 32px;
+      line-height: 1.4;
+      pointer-events: none;
+      z-index: 1000;
+      display: none;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+    `;
+    
+    // Find the canvas container and add overlay
+    const container = this.renderer.domElement.parentElement;
+    if (container) {
+      // Make sure container has relative positioning
+      if (getComputedStyle(container).position === 'static') {
+        container.style.position = 'relative';
+      }
+      container.appendChild(this.distanceOverlay);
+    }
+  }
+
+  createDistanceLines() {
+    // Create group for distance visualization lines
+    this.distanceLines = new THREE.Group();
+    this.distanceLines.userData.isDistanceIndicator = true;
+    this.scene.add(this.distanceLines);
+    
+    // Create materials for different axes
+    this.xAxisMaterial = new THREE.LineBasicMaterial({ 
+      color: 0xff0000, 
+      transparent: true, 
+      opacity: 0.7,
+      linewidth: 2 
+    });
+    this.zAxisMaterial = new THREE.LineBasicMaterial({ 
+      color: 0x0000ff, 
+      transparent: true, 
+      opacity: 0.7,
+      linewidth: 2 
+    });
+    this.totalDistanceMaterial = new THREE.LineBasicMaterial({ 
+      color: 0x00ff00, 
+      transparent: true, 
+      opacity: 0.5,
+      linewidth: 1 
+    });
+  }
+
+  updateDistanceDisplay() {
+    if (!this.isDragging || !this.selectedObject || !this.showDistanceIndicators) {
+      this.hideDistanceDisplay();
+      return;
+    }
+
+    const currentPos = this.selectedObject.position;
+    const deltaX = currentPos.x - this.objectStartPosition.x;
+    const deltaZ = currentPos.z - this.objectStartPosition.z;
+    const totalDistance = Math.sqrt(deltaX * deltaX + deltaZ * deltaZ);
+
+    // // Update HTML overlay
+    // if (this.distanceOverlay) {
+    //   this.distanceOverlay.style.display = 'block';
+    //   this.distanceOverlay.innerHTML = `
+    //     <div style="color: #ff6b6b; margin-bottom: 4px; font-size: 16px;">
+    //       <strong>X:</strong> ${deltaX.toFixed(3)}m
+    //     </div>
+    //     <div style="color: #4dabf7; margin-bottom: 4px; font-size: 16px;">
+    //       <strong>Z:</strong> ${deltaZ.toFixed(3)}m  
+    //     </div>
+    //     <div style="color: #51cf66; font-weight: bold; font-size: 18px;">
+    //       <strong>Total:</strong> ${totalDistance.toFixed(3)}m
+    //     </div>
+    //   `;
+    // }
+
+    // Update 3D visual indicators
+    this.updateDistanceLines(deltaX, deltaZ);
+  }
+
+  updateDistanceLines(deltaX, deltaZ) {
+    // Clear existing lines
+    this.clearDistanceLines();
+
+    const startPos = this.objectStartPosition;
+    const currentPos = this.selectedObject.position;
+
+    // X-axis line (red)
+    if (Math.abs(deltaX) > 0.01) {
+      const xLineGeometry = new THREE.BufferGeometry().setFromPoints([
+        new THREE.Vector3(startPos.x, startPos.y + 0.1, startPos.z),
+        new THREE.Vector3(currentPos.x, startPos.y + 0.1, startPos.z)
+      ]);
+      const xLine = new THREE.Line(xLineGeometry, this.xAxisMaterial);
+      this.distanceLines.add(xLine);
+
+      // Add X-axis distance label
+      this.addDistanceLabel(
+        new THREE.Vector3(
+          (startPos.x + currentPos.x) / 2,
+          startPos.y + 0.2,
+          startPos.z
+        ),
+        `${Math.abs(deltaX).toFixed(2)}m`,
+        0xff0000
+      );
+    }
+
+    // Z-axis line (blue)
+    if (Math.abs(deltaZ) > 0.01) {
+      const zLineGeometry = new THREE.BufferGeometry().setFromPoints([
+        new THREE.Vector3(currentPos.x, startPos.y + 0.1, startPos.z),
+        new THREE.Vector3(currentPos.x, startPos.y + 0.1, currentPos.z)
+      ]);
+      const zLine = new THREE.Line(zLineGeometry, this.zAxisMaterial);
+      this.distanceLines.add(zLine);
+
+      // Add Z-axis distance label
+      this.addDistanceLabel(
+        new THREE.Vector3(
+          currentPos.x,
+          startPos.y + 0.2,
+          (startPos.z + currentPos.z) / 2
+        ),
+        `${Math.abs(deltaZ).toFixed(2)}m`,
+        0x0000ff
+      );
+    }
+
+    // Total distance line (green, dashed)
+    const totalDistance = Math.sqrt(deltaX * deltaX + deltaZ * deltaZ);
+    if (totalDistance > 0.01) {
+      const totalLineGeometry = new THREE.BufferGeometry().setFromPoints([
+        new THREE.Vector3(startPos.x, startPos.y + 0.05, startPos.z),
+        new THREE.Vector3(currentPos.x, startPos.y + 0.05, currentPos.z)
+      ]);
+      
+      // Create dashed line material for total distance
+      const dashedMaterial = new THREE.LineDashedMaterial({
+        color: 0x00ff00,
+        transparent: true,
+        opacity: 0.6,
+        dashSize: 0.1,
+        gapSize: 0.05
+      });
+      
+      const totalLine = new THREE.Line(totalLineGeometry, dashedMaterial);
+      totalLine.computeLineDistances(); // Required for dashed lines
+      this.distanceLines.add(totalLine);
+    }
+
+    // Add markers at start and end positions
+    this.addPositionMarker(startPos, 0x888888, 'start');
+    this.addPositionMarker(currentPos, 0x00ff00, 'current');
+  }
+
+  addDistanceLabel(position, text, color) {
+    // Create a simple text sprite (or you could use CSS2DRenderer for better text)
+    const canvas = document.createElement('canvas');
+    const context = canvas.getContext('2d');
+    canvas.width = 128;
+    canvas.height = 32;
+    
+    context.fillStyle = `#${color.toString(16).padStart(6, '0')}`;
+    context.font = 'Bold 16px Arial';
+    context.textAlign = 'center';
+    context.fillText(text, 64, 20);
+    
+    const texture = new THREE.CanvasTexture(canvas);
+    const spriteMaterial = new THREE.SpriteMaterial({ map: texture, transparent: true });
+    const sprite = new THREE.Sprite(spriteMaterial);
+    
+    sprite.position.copy(position);
+    sprite.scale.set(0.5, 0.125, 1);
+    
+    this.distanceLines.add(sprite);
+  }
+
+  addPositionMarker(position, color, type) {
+    const markerGeometry = new THREE.SphereGeometry(0.03, 8, 6);
+    const markerMaterial = new THREE.MeshBasicMaterial({ 
+      color: color,
+      transparent: true,
+      opacity: type === 'start' ? 0.6 : 0.9
+    });
+    const marker = new THREE.Mesh(markerGeometry, markerMaterial);
+    
+    marker.position.set(position.x, position.y + 0.1, position.z);
+    this.distanceLines.add(marker);
+  }
+
+  clearDistanceLines() {
+    // Remove all children from distance lines group
+    while (this.distanceLines.children.length > 0) {
+      const child = this.distanceLines.children[0];
+      this.distanceLines.remove(child);
+      
+      // Dispose of geometries and materials
+      if (child.geometry) child.geometry.dispose();
+      if (child.material) {
+        if (child.material.map) child.material.map.dispose();
+        child.material.dispose();
+      }
+    }
+  }
+
+  hideDistanceDisplay() {
+    if (this.distanceOverlay) {
+      this.distanceOverlay.style.display = 'none';
+    }
+    this.clearDistanceLines();
+  }
+
+  toggleDistanceIndicators() {
+    this.showDistanceIndicators = !this.showDistanceIndicators;
+    if (!this.showDistanceIndicators) {
+      this.hideDistanceDisplay();
+    }
+    console.log(`Distance indicators: ${this.showDistanceIndicators ? 'ON' : 'OFF'}`);
+  }
+
   // When initializing
   createHelpers() {
     // Selection outline material
@@ -85,7 +373,7 @@ export class InteractionManager {
     this.renderer.domElement.removeEventListener('pointerdown', this.onPointerDown);
     this.renderer.domElement.removeEventListener('pointermove', this.onPointerMove);
     this.renderer.domElement.removeEventListener('pointerup', this.onPointerUp);
-    window.addEventListener('keydown', this.onKeyDown);
+    window.removeEventListener('keydown', this.onKeyDown);
   }
   
   setCallbacks(callbacks) {
@@ -179,6 +467,9 @@ export class InteractionManager {
       this.dragPlaneHelper.rotation.x = Math.PI / 2; // Make it horizontal
       this.dragPlaneHelper.position.y = 0; // Position at floor level
     }
+
+    // Show initial distance display
+    this.updateDistanceDisplay();
   }
   
   // Handle pointer move
@@ -195,6 +486,9 @@ export class InteractionManager {
       } else {
         this.handleTranslation();
       }
+      
+      // Update distance display
+      this.updateDistanceDisplay();
       
       // Trigger change callback
       if (this.callbacks?.onObjectChanged) {
@@ -246,6 +540,9 @@ export class InteractionManager {
       this.isDragging = false;
       this.isRotating = false;
       
+      // Hide distance display
+      this.hideDistanceDisplay();
+      
       // Re-enable orbit controls
       this.orbitControls.enabled = true;
     }
@@ -272,6 +569,9 @@ export class InteractionManager {
         break;
       case 'escape': // Deselect
         this.deselect();
+        break;
+      case 'd': // Toggle distance indicators
+        this.toggleDistanceIndicators();
         break;
       default:
         // Do nothing or optionally handle unexpected keys
@@ -315,6 +615,9 @@ export class InteractionManager {
   deselect() {
     if (!this.selectedObject) return;
     
+    // Hide distance display
+    this.hideDistanceDisplay();
+    
     // Remove highlight
     this.removeHighlight(this.selectedObject);
     
@@ -331,67 +634,89 @@ export class InteractionManager {
     }
   }
   
-// Add visual highlight to selected object
-addHighlight(object) {
-  // Create orange wireframe bounding box
-  this.createBoundingBox(object);
-}
+  // Add visual highlight to selected object
+  addHighlight(object) {
+    // Create orange wireframe bounding box
+    this.createBoundingBox(object);
+    // Create mode icon
+    this.createModeIcon(object);
+  }
 
-// Remove highlight from object
-removeHighlight(object) {
-  // Remove the bounding box
-  this.removeBoundingBox(object);
-}
+  // Remove highlight from object
+  removeHighlight(object) {
+    // Remove the bounding box
+    this.removeBoundingBox(object);
+    // Remove mode icon
+    this.removeModeIcon(object);
+  }
 
-// Create an orange wireframe bounding box around the object
-createBoundingBox(object) {
-  // Remove any existing bounding box
-  this.removeBoundingBox(object);
-  
-  // Create a BoxHelper (not Box3Helper)
-  // BoxHelper directly attaches to the object and will follow it automatically
-  const boxHelper = new THREE.BoxHelper(object, 0xe4002b); // Red color
-  // boxHelper.material.linewidth = 2; // Note: This may not work on all platforms due to WebGL limitations
-  boxHelper.material = new THREE.LineDashedMaterial({
-  color: 0xe4002b, // Line color
-  linewidth: 2, // Line thickness
-  dashSize: 0.1, // Very short dash for dot effect
-  gapSize: 0.1 // Equal gap for dot spacing
-});
-  boxHelper.material.transparent = true;
-  boxHelper.material.opacity = 0.5;
-  boxHelper.userData.isBoundingBox = true;
-  
-  // Store the box helper for later reference
-  object.userData.boundingBoxHelper = boxHelper;
-  
-  // Add the box helper to the scene
-  this.scene.add(boxHelper);
-}
-
-// Remove bounding box
-removeBoundingBox(object) {
-  if (object.userData.boundingBoxHelper) {
-    // Remove from scene
-    this.scene.remove(object.userData.boundingBoxHelper);
+  // Create an orange wireframe bounding box around the object
+  createBoundingBox(object) {
+    // Remove any existing bounding box
+    this.removeBoundingBox(object);
     
-    // Clean up references
-    delete object.userData.boundingBoxHelper;
+    // Create a BoxHelper (not Box3Helper)
+    // BoxHelper directly attaches to the object and will follow it automatically
+    const boxHelper = new THREE.BoxHelper(object, 0xe4002b); // Red color
+    boxHelper.material = new THREE.LineDashedMaterial({
+      color: 0xe4002b, // Line color
+      linewidth: 2, // Line thickness
+      dashSize: 0.1, // Very short dash for dot effect
+      gapSize: 0.1 // Equal gap for dot spacing
+    });
+    boxHelper.material.transparent = true;
+    boxHelper.material.opacity = 0.5;
+    boxHelper.userData.isBoundingBox = true;
+    
+    // Store the box helper for later reference
+    object.userData.boundingBoxHelper = boxHelper;
+    
+    // Add the box helper to the scene
+    this.scene.add(boxHelper);
   }
-}
 
-// Update bounding boxes - called from animation loop
-updateBoundingBoxes() {
-  // Update the bounding box if there's a selected object
-  if (this.selectedObject && this.selectedObject.userData.boundingBoxHelper) {
-    // BoxHelper has an update method to recalculate the box
-    this.selectedObject.userData.boundingBoxHelper.update();
+  // Remove bounding box
+  removeBoundingBox(object) {
+    if (object.userData.boundingBoxHelper) {
+      // Remove from scene
+      this.scene.remove(object.userData.boundingBoxHelper);
+      
+      // Clean up references
+      delete object.userData.boundingBoxHelper;
+    }
   }
-}
+
+  // Update bounding boxes and mode icons - called from animation loop
+  updateBoundingBoxes() {
+    // Update the bounding box if there's a selected object
+    if (this.selectedObject && this.selectedObject.userData.boundingBoxHelper) {
+      // BoxHelper has an update method to recalculate the box
+      this.selectedObject.userData.boundingBoxHelper.update();
+    }
+    // Update the mode icon scale based on camera distance
+    this.updateModeIconScale();
+  }
+
+  // Update the scale of the mode icon based on camera distance
+  updateModeIconScale() {
+    if (!this.selectedObject || !this.selectedObject.userData.modeIcon || !this.camera) return;
+
+    const iconSprite = this.selectedObject.userData.modeIcon;
+    const distance = this.camera.position.distanceTo(this.selectedObject.position);
+
+    // Calculate new scale based on distance
+    const scale = this.baseIconScale * distance * this.zoomFactor;
+
+    // Apply the new scale (maintaining aspect ratio)
+    iconSprite.scale.set(scale, scale, 1);
+  }
   
   // Set interaction mode (translate or rotate)
   setInteractionMode(mode) {
     this.interactionMode = mode;
+    
+    // Update mode icon if object is selected
+    this.updateModeIcon();
     
     // Trigger callback
     if (this.callbacks?.onModeChanged) {
@@ -459,48 +784,164 @@ updateBoundingBoxes() {
     }
   }
   
-// Update pin visual with a small, subtle pin icon
-updatePinVisual(object, isPinned) {
-  // Remove existing pin indicator
-  const existingPin = object.children.find(child => child.userData.isPinIndicator);
-  if (existingPin) {
-    object.remove(existingPin);
-  }
-  
-  if (isPinned) {
-    // Create a pin group
-    const pinGroup = new THREE.Group();
-    pinGroup.userData.isPinIndicator = true;
+  // Create mode icon based on current interaction mode
+  createModeIcon(object) {
+    this.removeModeIcon(object);
     
-    // Pin head (small red sphere)
-    const headGeometry = new THREE.SphereGeometry(0.05, 12, 8);
-    const headMaterial = new THREE.MeshBasicMaterial({ color: 0xff3333 });
-    const head = new THREE.Mesh(headGeometry, headMaterial);
-    head.position.y = 0.08;
-    pinGroup.add(head);
+    if (!object) return;
     
-    // Pin shaft (thin cylinder)
-    const shaftGeometry = new THREE.CylinderGeometry(0.01, 0.01, 0.15, 6);
-    const shaftMaterial = new THREE.MeshBasicMaterial({ color: 0xcccccc });
-    const shaft = new THREE.Mesh(shaftGeometry, shaftMaterial);
-    shaft.position.y = 0;
-    pinGroup.add(shaft);
-    
-    // Calculate position above object
+    // Calculate position at the top of the bounding box
     const box = new THREE.Box3().setFromObject(object);
     const height = box.max.y - box.min.y;
+    const iconY = height / 2; // Position exactly on top of the bounding box
     
-    // Position the pin above the object (closer to the surface)
-    pinGroup.position.y = height / 2 + 0.1;
+    let iconSprite;
     
-    // Rotate slightly to make it more visible from common viewing angles
-    pinGroup.rotation.x = -Math.PI / 8; // Slight tilt forward
+    if (this.interactionMode === 'translate') {
+      iconSprite = this.createMoveIcon();
+    } else if (this.interactionMode === 'rotate') {
+      iconSprite = this.createRotateIcon();
+    }
     
-    // Add to object
-    object.add(pinGroup);
+    if (iconSprite) {
+      iconSprite.position.set(0, iconY, 0);
+      iconSprite.userData.isModeIcon = true;
+      object.add(iconSprite);
+      object.userData.modeIcon = iconSprite;
+      // Initial scale will be updated in updateModeIconScale
+    }
   }
-}
- 
+
+  // Create move icon using SVG texture
+  createMoveIcon() {
+    // Check if the texture is loaded
+    if (!this.moveIconTexture) {
+      console.warn('Move icon texture not loaded yet, falling back to default');
+      return this.createFallbackSprite();
+    }
+
+    const spriteMaterial = new THREE.SpriteMaterial({ 
+      map: this.moveIconTexture, 
+      transparent: true,
+      depthTest: false // Ensure icon renders on top of bounding box lines
+    });
+    const sprite = new THREE.Sprite(spriteMaterial);
+
+    // Initial scale (will be adjusted dynamically)
+    sprite.scale.set(this.baseIconScale, this.baseIconScale, 1);
+
+    return sprite;
+  }
+
+  // Create rotate icon using SVG texture
+  createRotateIcon() {
+    // Check if the texture is loaded
+    if (!this.rotateIconTexture) {
+      console.warn('Rotate icon texture not loaded yet, falling back to default');
+      return this.createFallbackSprite();
+    }
+
+    const spriteMaterial = new THREE.SpriteMaterial({ 
+      map: this.rotateIconTexture, 
+      transparent: true,
+      depthTest: false // Ensure icon renders on top of bounding box lines
+    });
+    const sprite = new THREE.Sprite(spriteMaterial);
+
+    // Initial scale (will be adjusted dynamically)
+    sprite.scale.set(this.baseIconScale, this.baseIconScale, 1);
+
+    return sprite;
+  }
+
+  // Fallback sprite in case SVG fails to load
+  createFallbackSprite() {
+    const canvas = document.createElement('canvas');
+    const context = canvas.getContext('2d');
+    canvas.width = 64;
+    canvas.height = 64;
+
+    // Draw a simple placeholder (e.g., a red X)
+    context.strokeStyle = '#ff0000';
+    context.lineWidth = 4;
+    context.beginPath();
+    context.moveTo(10, 10);
+    context.lineTo(54, 54);
+    context.moveTo(54, 10);
+    context.lineTo(10, 54);
+    context.stroke();
+
+    const texture = new THREE.CanvasTexture(canvas);
+    const spriteMaterial = new THREE.SpriteMaterial({ 
+      map: texture, 
+      transparent: true,
+      depthTest: false
+    });
+    const sprite = new THREE.Sprite(spriteMaterial);
+    sprite.scale.set(this.baseIconScale, this.baseIconScale, 1);
+
+    return sprite;
+  }
+
+  // Remove mode icon from object
+  removeModeIcon(object) {
+    if (object && object.userData.modeIcon) {
+      object.remove(object.userData.modeIcon);
+      if (object.userData.modeIcon.material.map) {
+        // Note: Don't dispose the shared texture here, dispose it in the class dispose method
+      }
+      object.userData.modeIcon.material.dispose();
+      delete object.userData.modeIcon;
+    }
+  }
+
+  // Update mode icon when interaction mode changes
+  updateModeIcon() {
+    if (this.selectedObject) {
+      this.createModeIcon(this.selectedObject);
+    }
+  }
+
+  updatePinVisual(object, isPinned) {
+    // Remove existing pin indicator
+    const existingPin = object.children.find(child => child.userData.isPinIndicator);
+    if (existingPin) {
+      object.remove(existingPin);
+    }
+    
+    if (isPinned) {
+      // Create a pin group
+      const pinGroup = new THREE.Group();
+      pinGroup.userData.isPinIndicator = true;
+      
+      // Pin head (small red sphere)
+      const headGeometry = new THREE.SphereGeometry(0.05, 12, 8);
+      const headMaterial = new THREE.MeshBasicMaterial({ color: 0xff3333 });
+      const head = new THREE.Mesh(headGeometry, headMaterial);
+      head.position.y = 0.08;
+      pinGroup.add(head);
+      
+      // Pin shaft (thin cylinder)
+      const shaftGeometry = new THREE.CylinderGeometry(0.01, 0.01, 0.15, 6);
+      const shaftMaterial = new THREE.MeshBasicMaterial({ color: 0xcccccc });
+      const shaft = new THREE.Mesh(shaftGeometry, shaftMaterial);
+      shaft.position.y = 0;
+      pinGroup.add(shaft);
+      
+      // Calculate position above object
+      const box = new THREE.Box3().setFromObject(object);
+      const height = box.max.y - box.min.y;
+      
+      // Position the pin above the object (above the icon)
+      pinGroup.position.y = height / 2 + 0.2; // Adjusted to be above the icon
+      
+      // Rotate slightly to make it more visible from common viewing angles
+      pinGroup.rotation.x = -Math.PI / 8; // Slight tilt forward
+      
+      // Add to object
+      object.add(pinGroup);
+    }
+  }
   
   // Delete selected object
   deleteSelected() {
@@ -544,9 +985,27 @@ updatePinVisual(object, isPinned) {
     // Remove event listeners
     this.removeEventListeners();
     
+    // Remove distance display
+    this.hideDistanceDisplay();
+    if (this.distanceOverlay && this.distanceOverlay.parentElement) {
+      this.distanceOverlay.parentElement.removeChild(this.distanceOverlay);
+    }
+    
     // Remove helpers from scene
     if (this.dragPlaneHelper) {
       this.scene.remove(this.dragPlaneHelper);
+    }
+    if (this.distanceLines) {
+      this.clearDistanceLines();
+      this.scene.remove(this.distanceLines);
+    }
+    
+    // Dispose of textures
+    if (this.moveIconTexture) {
+      this.moveIconTexture.dispose();
+    }
+    if (this.rotateIconTexture) {
+      this.rotateIconTexture.dispose();
     }
     
     // Clear references
@@ -559,47 +1018,3 @@ updatePinVisual(object, isPinned) {
     this.pinnedObjects.clear();
   }
 }
-
-
-// Function to create a custom pin shape
-// function createPinShape() {
-//   const group = new THREE.Group();
-  
-//   // Pin head (a flattened sphere)
-//   const headGeometry = new THREE.SphereGeometry(0.12, 16, 8);
-//   const headMaterial = new THREE.MeshBasicMaterial({ color: 0xff3333 });
-//   const head = new THREE.Mesh(headGeometry, headMaterial);
-//   head.scale.y = 0.6; // Flatten it
-//   head.position.y = 0.15;
-//   group.add(head);
-  
-//   // Pin shaft (cylinder)
-//   const shaftGeometry = new THREE.CylinderGeometry(0.025, 0.025, 0.3, 8);
-//   const shaftMaterial = new THREE.MeshBasicMaterial({ color: 0xcccccc });
-//   const shaft = new THREE.Mesh(shaftGeometry, shaftMaterial);
-//   shaft.position.y = -0.05;
-//   group.add(shaft);
-  
-//   // Pin point (cone)
-//   const pointGeometry = new THREE.ConeGeometry(0.025, 0.05, 8);
-//   const pointMaterial = new THREE.MeshBasicMaterial({ color: 0xcccccc });
-//   const point = new THREE.Mesh(pointGeometry, pointMaterial);
-//   point.position.y = -0.2;
-//   point.rotation.x = Math.PI; // Point downward
-//   group.add(point);
-  
-//   // Add subtle shadow under the pin head
-//   const shadowGeometry = new THREE.CircleGeometry(0.12, 16);
-//   const shadowMaterial = new THREE.MeshBasicMaterial({ 
-//     color: 0x000000, 
-//     transparent: true, 
-//     opacity: 0.3,
-//     side: THREE.DoubleSide
-//   });
-//   const shadow = new THREE.Mesh(shadowGeometry, shadowMaterial);
-//   shadow.position.y = 0.11;
-//   shadow.rotation.x = Math.PI / 2; // Horizontal
-//   group.add(shadow);
-  
-//   return group;
-// }

@@ -117,7 +117,7 @@ export class Room {
         console.warn("Room.js - createFloor: Not enough points provided.");
         return;
     }
-    console.log("Room.js - createFloor using points:", JSON.parse(JSON.stringify(pointsToBuildWith)));
+    // console.log("Room.js - createFloor using points:", JSON.parse(JSON.stringify(pointsToBuildWith)));
     const shape = new THREE.Shape(pointsToBuildWith.map(p => new THREE.Vector2(p.x, p.z)));
     const geometry = new THREE.ShapeGeometry(shape);
     geometry.rotateX(Math.PI / 2); 
@@ -230,7 +230,7 @@ export class Room {
     this.watermarkTexture = textureLoader.load(
       this.watermarkConfig.logoPath,
       (texture) => {
-        console.log('Room.js: High-quality watermark texture loaded successfully');
+        // console.log('Room.js: High-quality watermark texture loaded successfully');
         
         // Maximum quality settings for all distances
         texture.format = THREE.RGBAFormat;
@@ -389,7 +389,7 @@ export class Room {
     // Add to room group
     this.group.add(this.watermark);
     
-    console.log(`Room.js: Distance-optimized watermark placed on wall ${wall.userData.wallIndex}`);
+    // console.log(`Room.js: Distance-optimized watermark placed on wall ${wall.userData.wallIndex}`);
   }
 
   /**

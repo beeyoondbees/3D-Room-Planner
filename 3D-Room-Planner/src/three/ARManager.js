@@ -1,32 +1,16 @@
+// src/three/ARManager.js
+export function generateQR(modelName) {
+    console.log("generateQR called for model:", modelName);
+  const arViewerUrl = `https://3d-room-planner-s3.s3.eu-north-1.amazonaws.com/ar_viewer.html?model=${modelName}`;
+  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(arViewerUrl)}`;
 
+  const modal = document.getElementById("arQrModal");
+  const image = document.getElementById("arQrImage");
 
-const modelBaseURL = "https://superb-pothos-4d9d4f.netlify.app/glb/";
-const redirectURL = "https://moonlit-alfajores-aadeab.netlify.app/";
-let currentModel = "SBike";
-  
-function loadModel(name) {
-    currentModel = name;
-
-    const glbUrl = `${modelBaseURL}${name}.glb`;
-    const usdzUrl = `${modelBaseURL}${name}.usdz`;
-
-    const viewer = document.getElementById("arViewer");
-    viewer.setAttribute("src", glbUrl);
-    viewer.setAttribute("ios-src", usdzUrl);
-
-    generateQR(); // Show QR in center when model is clicked
+  if (modal && image) {
+    image.src = qrUrl;
+    modal.style.display = "flex";
+  } else {
+    console.warn("QR modal elements not found in DOM.");
+  }
 }
-
-function generateQR() {
-    const qrImg = document.getElementById("qrCode");
-    const qrLink = document.getElementById("qrLink");
-
-    const universalURL = `${redirectURL}?model=${currentModel}`;
-
-    qrImg.src = `https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(universalURL)}&size=160x160`;
-    qrLink.href = universalURL;
-
-    document.getElementById("qrContainer").style.display = "block";
-}
-
-document.addEventListener("DOMContentLoaded", () => loadModel(currentModel));

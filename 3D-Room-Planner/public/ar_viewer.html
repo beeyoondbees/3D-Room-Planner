@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>AR Viewer</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <script type="module" src="https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js"></script>
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      background: #000;
+      height: 100%;
+      overflow: hidden;
+    }
+    model-viewer {
+      width: 100vw;
+      height: 100vh;
+      background-color: #000;
+    }
+    #ar-button {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      z-index: 10;
+      padding: 10px 16px;
+      background: #e4002b;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      font-weight: bold;
+      cursor: pointer;
+      font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+
+    <model-viewer
+    id="arViewer"
+    ar
+    ar-modes="scene-viewer quick-look webxr"
+    camera-controls
+    auto-rotate
+    environment-image="neutral"
+    src="..."
+    ios-src="..."
+    allow="camera; microphone; fullscreen; xr-spatial-tracking"
+    exposure="1"
+    shadow-intensity="1"
+    loading="eager"
+    reveal="auto">
+  </model-viewer>
+  
+
+<button id="ar-button" style="display: none;">👓 View in AR</button>
+<script>
+    const urlParams = new URLSearchParams(window.location.search);
+    const modelName = urlParams.get("model") || "sBike";
+  
+    const baseUrl = "https://3d-room-planner-s3.s3.eu-north-1.amazonaws.com/assets/models/";
+    const glbUrl = `${baseUrl}${modelName}.glb`;
+    const usdzUrl = `${baseUrl}${modelName}.usdz`;
+  
+    const viewer = document.querySelector("model-viewer");
+    const arButton = document.getElementById("ar-button");
+  
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+    const isAndroid = /android/i.test(navigator.userAgent);
+  
+    viewer.setAttribute("src", glbUrl);
+    viewer.setAttribute("ios-src", usdzUrl);
+  
+    function openAR() {
+      if (isIOS) {
+        const quickLookUrl = viewer.getAttribute("ios-src");
+        if (quickLookUrl) {
+          const a = document.createElement('a');
+          a.setAttribute('rel', 'ar');
+          a.setAttribute('href', quickLookUrl);
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+        }
+      } else if (isAndroid) {
+        viewer.activateAR();
+      }
+    }
+  
+    // Works on Android & iOS for detecting AR availability
+    viewer.addEventListener('ar-status', (event) => {
+      if (event.detail.status === 'not-presenting') {
+        arButton.style.display = 'block';
+      }
+    });
+  
+    arButton.addEventListener('click', openAR);
+  
+    // Optional auto-launch on load (Android only)
+    viewer.addEventListener('load', () => {
+      if (isAndroid) {
+        setTimeout(() => viewer.activateAR(), 100); // Safe delay to ensure upgrade
+      }
+    });
+  </script>  
+  
+</body>
+</html>
