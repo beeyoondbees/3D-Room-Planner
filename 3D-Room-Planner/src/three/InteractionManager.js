@@ -1,109 +1,226 @@
+// src/three/InteractionManager.js
+// Enhanced version of your working InteractionManager with fixes and improvements
+
 import * as THREE from 'three';
 
 export class InteractionManager {
   constructor(scene, camera, renderer, orbitControls) {
-    // Store references
     this.scene = scene;
     this.camera = camera;
     this.renderer = renderer;
     this.orbitControls = orbitControls;
     
-    // Properties
+    // Core interaction state
     this.selectedObject = null;
     this.pinnedObjects = new Set();
     this.isDragging = false;
     this.isRotating = false;
-    this.floorLevel = 0; // Default floor level
+    this.floorLevel = 0;
+    this.enabled = true; // Add enabled state for better control
     
-    // Interaction state
-    this.interactionMode = 'translate'; // 'translate', 'rotate'
+    // Interaction modes and positions
+    this.interactionMode = 'translate';
     this.dragStartPosition = new THREE.Vector3();
     this.objectStartPosition = new THREE.Vector3();
     this.objectStartRotation = new THREE.Euler();
     this.dragPlane = new THREE.Plane();
     this.dragOffset = new THREE.Vector3();
     
-    // Mouse/pointer state
+    // Raycasting
     this.raycaster = new THREE.Raycaster();
     this.pointer = new THREE.Vector2();
     this.startPointer = new THREE.Vector2();
     
-    // Distance measurement properties
+    // Distance display system
     this.distanceDisplay = null;
     this.distanceLines = null;
+    this.distanceOverlay = null; // Add missing property
     this.showDistanceIndicators = true;
     
-    // Mode icon properties
+    // Icon system with safe initialization
     this.modeIcon = null;
-    this.baseIconScale = 0.5; // Base scale for the icon
-    this.zoomFactor = 0.05; // Controls how much the icon scales with distance
+    this.baseIconScale = 0.5;
+    this.zoomFactor = 0.05;
     
-    // Texture loader for SVG icons
+    // Label scaling
+    this.baseLabelScale = 1.2;
+    this.labelZoomFactor = 0.09;
+    this.minLabelScale = 0.5;
+    
+    // Texture loading with error handling
     this.textureLoader = new THREE.TextureLoader();
-    
-    // Load SVG textures (replace with your SVG file paths)
     this.moveIconTexture = null;
     this.rotateIconTexture = null;
-    this.loadIcons();
+    this.texturesLoaded = false;
+    this.fallbackTexturesCreated = false;
     
-    // Visual helpers
+    // Callbacks
+    this.callbacks = {};
+    
+    // Initialize everything
+    this.loadIcons();
     this.createHelpers();
     this.createDistanceDisplay();
     
-    // Bind methods to instance
+    // Bind methods to preserve context
     this.onPointerDown = this.onPointerDown.bind(this);
     this.onPointerMove = this.onPointerMove.bind(this);
     this.onPointerUp = this.onPointerUp.bind(this);
     this.onKeyDown = this.onKeyDown.bind(this);
     
-    // Add event listeners
     this.addEventListeners();
+    
+    console.log('InteractionManager: Initialized successfully');
   }
 
-  // Load SVG icons as textures
   loadIcons() {
-    // Replace these paths with the actual paths to your SVG files
-    const moveIconPath = 'assets/icons/move-icon.svg'; // Path to your drag (translate) SVG
-    const rotateIconPath = '/assets/icons/rotate-icon.svg'; // Path to your rotate SVG
+    // FIXED: Use single consistent path (no duplicate loading)
+    const moveIconPath = '/assets/icons/move-icon.svg';
+    const rotateIconPath = '/assets/icons/rotate-icon.svg';
 
-    // Load move icon texture
+    // Load move icon only once
     this.textureLoader.load(
       moveIconPath,
       (texture) => {
         this.moveIconTexture = texture;
         console.log('Move icon texture loaded successfully');
+        this.checkTexturesLoaded();
       },
       undefined,
       (error) => {
-        console.error('Error loading move icon texture:', error);
+        console.warn('Error loading move icon texture, using fallback');
+        this.createFallbackMoveTexture();
+        this.checkTexturesLoaded();
       }
     );
 
-    // Load rotate icon texture
+    // Load rotate icon only once
     this.textureLoader.load(
       rotateIconPath,
       (texture) => {
         this.rotateIconTexture = texture;
         console.log('Rotate icon texture loaded successfully');
+        this.checkTexturesLoaded();
       },
       undefined,
       (error) => {
-        console.error('Error loading rotate icon texture:', error);
+        console.warn('Error loading rotate icon texture, using fallback');
+        this.createFallbackRotateTexture();
+        this.checkTexturesLoaded();
       }
     );
+
+    // Timeout fallback (reduced to 2 seconds)
+    setTimeout(() => {
+      if (!this.texturesLoaded && !this.fallbackTexturesCreated) {
+        console.log('Creating fallback textures due to timeout');
+        this.createFallbackTextures();
+      }
+    }, 2000);
   }
 
-  // Create distance measurement display elements
-  createDistanceDisplay() {
-    // Create HTML overlay for distance text
-    this.createDistanceOverlay();
+  checkTexturesLoaded() {
+    if ((this.moveIconTexture || this.fallbackTexturesCreated) && 
+        (this.rotateIconTexture || this.fallbackTexturesCreated)) {
+      this.texturesLoaded = true;
+      this.updateModeIcon();
+    }
+  }
+
+  createFallbackMoveTexture() {
+    this.moveIconTexture = this.createIconTexture('move');
+    this.fallbackTexturesCreated = true;
+  }
+
+  createFallbackRotateTexture() {
+    this.rotateIconTexture = this.createIconTexture('rotate');
+    this.fallbackTexturesCreated = true;
+  }
+
+  createFallbackTextures() {
+    if (!this.moveIconTexture) {
+      this.createFallbackMoveTexture();
+    }
+    if (!this.rotateIconTexture) {
+      this.createFallbackRotateTexture();
+    }
+    this.fallbackTexturesCreated = true;
+    this.texturesLoaded = true;
+    this.updateModeIcon();
+  }
+
+  createIconTexture(type) {
+    const canvas = document.createElement('canvas');
+    const context = canvas.getContext('2d');
+    canvas.width = 128;
+    canvas.height = 128;
+
+    // Clear canvas
+    context.clearRect(0, 0, canvas.width, canvas.height);
     
-    // Create 3D line helpers for visual distance indication
+    // Set up styling
+    context.fillStyle = 'rgba(255, 255, 255, 0.9)';
+    context.strokeStyle = '#007acc';
+    context.lineWidth = 4;
+    context.lineCap = 'round';
+    context.lineJoin = 'round';
+
+    // Draw background circle
+    context.beginPath();
+    context.arc(64, 64, 50, 0, Math.PI * 2);
+    context.fill();
+    context.stroke();
+
+    // Draw icon based on type
+    context.strokeStyle = '#007acc';
+    context.lineWidth = 6;
+    
+    if (type === 'move') {
+      // Draw move arrows (cross pattern)
+      // Horizontal arrow
+      context.beginPath();
+      context.moveTo(24, 64);
+      context.lineTo(104, 64);
+      context.moveTo(94, 54);
+      context.lineTo(104, 64);
+      context.lineTo(94, 74);
+      // Vertical arrow
+      context.moveTo(64, 24);
+      context.lineTo(64, 104);
+      context.moveTo(54, 34);
+      context.lineTo(64, 24);
+      context.lineTo(74, 34);
+      context.stroke();
+    } else {
+      // Draw rotate arrows (circular)
+      context.beginPath();
+      context.arc(64, 64, 30, 0, Math.PI * 1.5);
+      context.stroke();
+      
+      // Add arrow head
+      context.beginPath();
+      context.moveTo(64, 34);
+      context.lineTo(74, 44);
+      context.moveTo(64, 34);
+      context.lineTo(54, 44);
+      context.stroke();
+    }
+
+    return new THREE.CanvasTexture(canvas);
+  }
+
+  createDistanceDisplay() {
+    this.createDistanceOverlay();
     this.createDistanceLines();
   }
 
   createDistanceOverlay() {
-    // Create overlay div for distance display
+    // Safely create distance overlay
+    if (!this.renderer || !this.renderer.domElement) {
+      console.warn('InteractionManager: Cannot create distance overlay - renderer not available');
+      return;
+    }
+
     this.distanceOverlay = document.createElement('div');
     this.distanceOverlay.style.cssText = `
       position: absolute;
@@ -123,32 +240,36 @@ export class InteractionManager {
       border: 1px solid rgba(255, 255, 255, 0.2);
     `;
     
-    // Find the canvas container and add overlay
     const container = this.renderer.domElement.parentElement;
     if (container) {
-      // Make sure container has relative positioning
       if (getComputedStyle(container).position === 'static') {
         container.style.position = 'relative';
       }
       container.appendChild(this.distanceOverlay);
+    } else {
+      console.warn('InteractionManager: No container found for distance overlay');
     }
   }
 
   createDistanceLines() {
-    // Create group for distance visualization lines
+    if (!this.scene) {
+      console.warn('InteractionManager: Cannot create distance lines - scene not available');
+      return;
+    }
+
     this.distanceLines = new THREE.Group();
     this.distanceLines.userData.isDistanceIndicator = true;
     this.scene.add(this.distanceLines);
     
-    // Create materials for different axes
+    // Create materials with safe disposal tracking
     this.xAxisMaterial = new THREE.LineBasicMaterial({ 
-      color: 0xff0000, 
+      color: 0xff6b6b, 
       transparent: true, 
       opacity: 0.7,
       linewidth: 2 
     });
     this.zAxisMaterial = new THREE.LineBasicMaterial({ 
-      color: 0x0000ff, 
+      color: 0x77aaff, 
       transparent: true, 
       opacity: 0.7,
       linewidth: 2 
@@ -172,34 +293,18 @@ export class InteractionManager {
     const deltaZ = currentPos.z - this.objectStartPosition.z;
     const totalDistance = Math.sqrt(deltaX * deltaX + deltaZ * deltaZ);
 
-    // // Update HTML overlay
-    // if (this.distanceOverlay) {
-    //   this.distanceOverlay.style.display = 'block';
-    //   this.distanceOverlay.innerHTML = `
-    //     <div style="color: #ff6b6b; margin-bottom: 4px; font-size: 16px;">
-    //       <strong>X:</strong> ${deltaX.toFixed(3)}m
-    //     </div>
-    //     <div style="color: #4dabf7; margin-bottom: 4px; font-size: 16px;">
-    //       <strong>Z:</strong> ${deltaZ.toFixed(3)}m  
-    //     </div>
-    //     <div style="color: #51cf66; font-weight: bold; font-size: 18px;">
-    //       <strong>Total:</strong> ${totalDistance.toFixed(3)}m
-    //     </div>
-    //   `;
-    // }
-
-    // Update 3D visual indicators
     this.updateDistanceLines(deltaX, deltaZ);
   }
 
   updateDistanceLines(deltaX, deltaZ) {
-    // Clear existing lines
     this.clearDistanceLines();
+
+    if (!this.selectedObject || !this.distanceLines) return;
 
     const startPos = this.objectStartPosition;
     const currentPos = this.selectedObject.position;
 
-    // X-axis line (red)
+    // X-axis line
     if (Math.abs(deltaX) > 0.01) {
       const xLineGeometry = new THREE.BufferGeometry().setFromPoints([
         new THREE.Vector3(startPos.x, startPos.y + 0.1, startPos.z),
@@ -208,7 +313,6 @@ export class InteractionManager {
       const xLine = new THREE.Line(xLineGeometry, this.xAxisMaterial);
       this.distanceLines.add(xLine);
 
-      // Add X-axis distance label
       this.addDistanceLabel(
         new THREE.Vector3(
           (startPos.x + currentPos.x) / 2,
@@ -216,11 +320,11 @@ export class InteractionManager {
           startPos.z
         ),
         `${Math.abs(deltaX).toFixed(2)}m`,
-        0xff0000
+        0xff6b6b
       );
     }
 
-    // Z-axis line (blue)
+    // Z-axis line
     if (Math.abs(deltaZ) > 0.01) {
       const zLineGeometry = new THREE.BufferGeometry().setFromPoints([
         new THREE.Vector3(currentPos.x, startPos.y + 0.1, startPos.z),
@@ -229,7 +333,6 @@ export class InteractionManager {
       const zLine = new THREE.Line(zLineGeometry, this.zAxisMaterial);
       this.distanceLines.add(zLine);
 
-      // Add Z-axis distance label
       this.addDistanceLabel(
         new THREE.Vector3(
           currentPos.x,
@@ -237,11 +340,11 @@ export class InteractionManager {
           (startPos.z + currentPos.z) / 2
         ),
         `${Math.abs(deltaZ).toFixed(2)}m`,
-        0x0000ff
+        0x77aaff
       );
     }
 
-    // Total distance line (green, dashed)
+    // Total distance line
     const totalDistance = Math.sqrt(deltaX * deltaX + deltaZ * deltaZ);
     if (totalDistance > 0.01) {
       const totalLineGeometry = new THREE.BufferGeometry().setFromPoints([
@@ -249,7 +352,6 @@ export class InteractionManager {
         new THREE.Vector3(currentPos.x, startPos.y + 0.05, currentPos.z)
       ]);
       
-      // Create dashed line material for total distance
       const dashedMaterial = new THREE.LineDashedMaterial({
         color: 0x00ff00,
         transparent: true,
@@ -259,35 +361,81 @@ export class InteractionManager {
       });
       
       const totalLine = new THREE.Line(totalLineGeometry, dashedMaterial);
-      totalLine.computeLineDistances(); // Required for dashed lines
+      totalLine.computeLineDistances();
       this.distanceLines.add(totalLine);
     }
 
-    // Add markers at start and end positions
+    // Position markers
     this.addPositionMarker(startPos, 0x888888, 'start');
     this.addPositionMarker(currentPos, 0x00ff00, 'current');
   }
 
   addDistanceLabel(position, text, color) {
-    // Create a simple text sprite (or you could use CSS2DRenderer for better text)
     const canvas = document.createElement('canvas');
     const context = canvas.getContext('2d');
-    canvas.width = 128;
-    canvas.height = 32;
+    canvas.width = 512;
+    canvas.height = 192;
+
+    // Set font size to 50px with correct syntax
+    context.font = "54px Helvetica, Arial, sans-serif";
+    const textMetrics = context.measureText(text);
+    const textWidth = textMetrics.width;
+
+    // Define a standard box size (in canvas pixels)
+    const standardBoxWidth = 280;
+    const standardBoxHeight = 95;
+    const cornerRadius = 10;
+
+    // Calculate the position to center the box on the canvas
+    const boxX = (canvas.width - standardBoxWidth) / 2;
+    const boxY = (canvas.height - standardBoxHeight) / 2;
+
+    // Draw background box with standard size
+    const backgroundColor = `#${color.toString(16).padStart(6, '0')}`;
+    context.fillStyle = backgroundColor;
+    context.globalAlpha = 0.8;
+    context.beginPath();
     
-    context.fillStyle = `#${color.toString(16).padStart(6, '0')}`;
-    context.font = 'Bold 16px Arial';
+    // Use a fallback if roundRect is not available
+    if (context.roundRect) {
+      context.roundRect(boxX, boxY, standardBoxWidth, standardBoxHeight, cornerRadius);
+    } else {
+      // Fallback for older browsers
+      context.rect(boxX, boxY, standardBoxWidth, standardBoxHeight);
+    }
+    context.fill();
+    context.globalAlpha = 1.0;
+
+    // Draw text, centered in the standard box
+    context.fillStyle = '#ffffff';
     context.textAlign = 'center';
-    context.fillText(text, 64, 20);
-    
+    context.textBaseline = 'middle';
+    context.fillText(text, canvas.width / 2, canvas.height / 2);
+
+    // Create sprite
     const texture = new THREE.CanvasTexture(canvas);
     const spriteMaterial = new THREE.SpriteMaterial({ map: texture, transparent: true });
     const sprite = new THREE.Sprite(spriteMaterial);
-    
+
     sprite.position.copy(position);
-    sprite.scale.set(0.5, 0.125, 1);
-    
+    sprite.scale.set(this.baseLabelScale, this.baseLabelScale * (canvas.height / canvas.width), 1);
+    sprite.userData.isDistanceLabel = true;
+
     this.distanceLines.add(sprite);
+  }
+
+  updateLabelScales() {
+    if (!this.camera || !this.distanceLines) return;
+
+    this.distanceLines.traverse((child) => {
+      if (child.userData.isDistanceLabel) {
+        const distance = this.camera.position.distanceTo(child.position);
+        let scale = this.baseLabelScale * distance * this.labelZoomFactor;
+        scale = Math.max(scale, this.minLabelScale);
+        const aspectRatio = child.scale.y / child.scale.x;
+        child.scale.set(scale, scale * aspectRatio, 1);
+      }
+    });
   }
 
   addPositionMarker(position, color, type) {
@@ -304,18 +452,26 @@ export class InteractionManager {
   }
 
   clearDistanceLines() {
-    // Remove all children from distance lines group
-    while (this.distanceLines.children.length > 0) {
-      const child = this.distanceLines.children[0];
+    if (!this.distanceLines) return;
+
+    // Safely dispose of all children
+    const children = [...this.distanceLines.children]; // Create a copy to avoid mutation issues
+    children.forEach(child => {
       this.distanceLines.remove(child);
       
-      // Dispose of geometries and materials
-      if (child.geometry) child.geometry.dispose();
+      // Dispose geometry
+      if (child.geometry) {
+        child.geometry.dispose();
+      }
+      
+      // Dispose materials and textures
       if (child.material) {
-        if (child.material.map) child.material.map.dispose();
+        if (child.material.map) {
+          child.material.map.dispose();
+        }
         child.material.dispose();
       }
-    }
+    });
   }
 
   hideDistanceDisplay() {
@@ -333,9 +489,12 @@ export class InteractionManager {
     console.log(`Distance indicators: ${this.showDistanceIndicators ? 'ON' : 'OFF'}`);
   }
 
-  // When initializing
   createHelpers() {
-    // Selection outline material
+    if (!this.scene) {
+      console.warn('InteractionManager: Cannot create helpers - scene not available');
+      return;
+    }
+
     this.outlineMaterial = new THREE.MeshBasicMaterial({
       color: 0x00a2ff,
       side: THREE.BackSide,
@@ -343,244 +502,293 @@ export class InteractionManager {
       opacity: 0.3
     });
     
-    // Helper for showing dragging plane (invisible during normal operation)
     this.dragPlaneHelper = new THREE.Mesh(
       new THREE.PlaneGeometry(100, 100),
       new THREE.MeshBasicMaterial({
         color: 0xffff00,
         side: THREE.DoubleSide,
         transparent: true,
-        opacity: 0.0, // Invisible by default
+        opacity: 0.0,
         visible: false
       })
     );
     this.scene.add(this.dragPlaneHelper);
     
-    // Ground plane for ensuring objects don't go below floor
     this.groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -this.floorLevel);
   }
   
   addEventListeners() {
-    // Add DOM event listeners
-    this.renderer.domElement.addEventListener('pointerdown', this.onPointerDown);
-    this.renderer.domElement.addEventListener('pointermove', this.onPointerMove);
-    this.renderer.domElement.addEventListener('pointerup', this.onPointerUp);
+    if (!this.renderer || !this.renderer.domElement) {
+      console.warn('InteractionManager: Cannot add event listeners - renderer not available');
+      return;
+    }
+
+    const domElement = this.renderer.domElement;
+    domElement.addEventListener('pointerdown', this.onPointerDown);
+    domElement.addEventListener('pointermove', this.onPointerMove);
+    domElement.addEventListener('pointerup', this.onPointerUp);
     window.addEventListener('keydown', this.onKeyDown);
   }
   
-  // Clean up event listeners
   removeEventListeners() {
-    this.renderer.domElement.removeEventListener('pointerdown', this.onPointerDown);
-    this.renderer.domElement.removeEventListener('pointermove', this.onPointerMove);
-    this.renderer.domElement.removeEventListener('pointerup', this.onPointerUp);
+    if (this.renderer && this.renderer.domElement) {
+      const domElement = this.renderer.domElement;
+      domElement.removeEventListener('pointerdown', this.onPointerDown);
+      domElement.removeEventListener('pointermove', this.onPointerMove);
+      domElement.removeEventListener('pointerup', this.onPointerUp);
+    }
     window.removeEventListener('keydown', this.onKeyDown);
   }
   
   setCallbacks(callbacks) {
-    this.callbacks = callbacks;
+    this.callbacks = callbacks || {};
+    
+    // FIXED: Support for duplication callbacks
+    if (callbacks?.onObjectDuplicated) {
+      console.log('InteractionManager: Duplication callback registered');
+    }
+    if (callbacks?.onDuplicationFailed) {
+      console.log('InteractionManager: Duplication failed callback registered');
+    }
+  }
+
+  // Add method for updating from outside (like SceneManager)
+  update(delta) {
+    // Update any time-based interactions
+    // Called from SceneManager animation loop
+    
+    // Update animation mixers for all objects if needed
+    if (this.scene) {
+      this.scene.traverse((object) => {
+        if (object.userData.mixer) {
+          object.userData.mixer.update(delta);
+        }
+      });
+    }
   }
   
   setFloorLevel(level) {
     this.floorLevel = level;
-    this.groundPlane.constant = -this.floorLevel;
+    if (this.groundPlane) {
+      this.groundPlane.constant = -this.floorLevel;
+    }
+  }
+
+  // Add enable/disable methods for better control
+  enable() {
+    this.enabled = true;
+  }
+
+  disable() {
+    this.enabled = false;
+    this.deselect();
   }
   
-  // Handle pointer down event
   onPointerDown(event) {
-    // Skip if not left click or if modifier keys are pressed
-    if (event.button !== 0 || event.ctrlKey || event.metaKey) return;
+    if (!this.enabled || event.button !== 0 || event.ctrlKey || event.metaKey) return;
     
-    // Calculate normalized device coordinates
-    const rect = this.renderer.domElement.getBoundingClientRect();
-    this.pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
-    this.pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
-    
-    // Store starting position
-    this.startPointer.copy(this.pointer);
-    
-    // Set up raycasting
-    this.raycaster.setFromCamera(this.pointer, this.camera);
-    
-    // Check for intersections with selectable objects
-    const selectableObjects = this.getSelectableObjects();
-    const intersects = this.raycaster.intersectObjects(selectableObjects, true);
-    
-    if (intersects.length > 0) {
-      // Find the root model
-      let selected = intersects[0].object;
-      while (selected.parent && !selected.userData.isModelRoot) {
-        selected = selected.parent;
-      }
+    try {
+      const rect = this.renderer.domElement.getBoundingClientRect();
+      this.pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+      this.pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
       
-      // If clicked on same object, start dragging
-      if (this.selectedObject === selected) {
-        // Only allow dragging if not pinned
-        if (!this.isPinned(selected)) {
-          this.startDrag(selected, intersects[0].point);
+      this.startPointer.copy(this.pointer);
+      
+      this.raycaster.setFromCamera(this.pointer, this.camera);
+      
+      const selectableObjects = this.getSelectableObjects();
+      const intersects = this.raycaster.intersectObjects(selectableObjects, true);
+      
+      if (intersects.length > 0) {
+        let selected = intersects[0].object;
+        while (selected.parent && !selected.userData.isModelRoot) {
+          selected = selected.parent;
+        }
+        
+        if (this.selectedObject === selected) {
+          if (!this.isPinned(selected)) {
+            this.startDrag(selected, intersects[0].point);
+          }
+        } else {
+          this.select(selected);
+        }
+        
+        if (this.orbitControls) {
+          this.orbitControls.enabled = false;
         }
       } else {
-        // Otherwise select new object
-        this.select(selected);
+        this.deselect();
+        if (this.orbitControls) {
+          this.orbitControls.enabled = true;
+        }
       }
-      
-      // Disable orbit controls during interaction
-      this.orbitControls.enabled = false;
-    } else {
-      // Clicked on empty space - deselect
-      this.deselect();
-
-      // Ensure orbit controls are enabled for empty space clicks
-      this.orbitControls.enabled = true;
+    } catch (error) {
+      console.error('InteractionManager: Error in onPointerDown:', error);
     }
   }
   
-  // Start dragging an object
   startDrag(object, hitPoint) {
     if (!object || this.isPinned(object)) return;
     
-    // Set up dragging state
-    this.isDragging = true;
-    this.isRotating = this.interactionMode === 'rotate';
-    
-    // Store starting positions
-    this.dragStartPosition.copy(hitPoint);
-    this.objectStartPosition.copy(object.position);
-    this.objectStartRotation.copy(object.rotation);
-    
-    // For translation: Set up drag plane based on camera view
-    if (!this.isRotating) {
-      // Always use a horizontal (floor) plane for dragging - exactly at y=0
-      const planeNormal = new THREE.Vector3(0, 1, 0); // Y-up plane (floor)
-      const floorPoint = new THREE.Vector3(0, 0, 0); // Point on the floor
+    try {
+      this.isDragging = true;
+      this.isRotating = this.interactionMode === 'rotate';
       
-      // Set up the drag plane
-      this.dragPlane.setFromNormalAndCoplanarPoint(planeNormal, floorPoint);
+      this.dragStartPosition.copy(hitPoint);
+      this.objectStartPosition.copy(object.position);
+      this.objectStartRotation.copy(object.rotation);
       
-      // Calculate offset from hit point to object position (XZ plane only)
-      this.dragOffset = new THREE.Vector3(
-        hitPoint.x - object.position.x,
-        0, // No vertical offset
-        hitPoint.z - object.position.z
-      );
-      
-      // For debugging - visualize the drag plane
-      this.dragPlaneHelper.rotation.x = Math.PI / 2; // Make it horizontal
-      this.dragPlaneHelper.position.y = 0; // Position at floor level
-    }
+      if (!this.isRotating) {
+        const planeNormal = new THREE.Vector3(0, 1, 0);
+        const floorPoint = new THREE.Vector3(0, 0, 0);
+        
+        this.dragPlane.setFromNormalAndCoplanarPoint(planeNormal, floorPoint);
+        
+        this.dragOffset = new THREE.Vector3(
+          hitPoint.x - object.position.x,
+          0,
+          hitPoint.z - object.position.z
+        );
+        
+        if (this.dragPlaneHelper) {
+          this.dragPlaneHelper.rotation.x = Math.PI / 2;
+          this.dragPlaneHelper.position.y = 0;
+        }
+      }
 
-    // Show initial distance display
-    this.updateDistanceDisplay();
-  }
-  
-  // Handle pointer move
-  onPointerMove(event) {
-    // Update pointer position
-    const rect = this.renderer.domElement.getBoundingClientRect();
-    this.pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
-    this.pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
-    
-    // Handle dragging
-    if (this.isDragging && this.selectedObject && !this.isPinned(this.selectedObject)) {
-      if (this.isRotating) {
-        this.handleRotation();
-      } else {
-        this.handleTranslation();
-      }
-      
-      // Update distance display
       this.updateDistanceDisplay();
+    } catch (error) {
+      console.error('InteractionManager: Error in startDrag:', error);
+    }
+  }
+  
+  onPointerMove(event) {
+    if (!this.enabled) return;
+
+    try {
+      const rect = this.renderer.domElement.getBoundingClientRect();
+      this.pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+      this.pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
       
-      // Trigger change callback
-      if (this.callbacks?.onObjectChanged) {
-        this.callbacks.onObjectChanged(this.selectedObject);
+      if (this.isDragging && this.selectedObject && !this.isPinned(this.selectedObject)) {
+        if (this.isRotating) {
+          this.handleRotation();
+        } else {
+          this.handleTranslation();
+        }
+        
+        this.updateDistanceDisplay();
+        
+        if (this.callbacks?.onObjectChanged) {
+          this.callbacks.onObjectChanged(this.selectedObject);
+        }
       }
+    } catch (error) {
+      console.error('InteractionManager: Error in onPointerMove:', error);
     }
   }
   
-  // Handle translation (position) dragging
   handleTranslation() {
-    // Create ray from camera through mouse
-    this.raycaster.setFromCamera(this.pointer, this.camera);
-    
-    // Find intersection with the floor plane
-    const intersection = new THREE.Vector3();
-    if (this.raycaster.ray.intersectPlane(this.dragPlane, intersection)) {
-      // Get the current Y position (height) - we want to maintain this
-      const currentY = this.selectedObject.position.y;
+    try {
+      this.raycaster.setFromCamera(this.pointer, this.camera);
       
-      // Calculate new position with offset (only in XZ plane)
-      const newPosition = new THREE.Vector3(
-        intersection.x - this.dragOffset.x,
-        currentY, // Keep current height
-        intersection.z - this.dragOffset.z
-      );
-      
-      // Update object position (sliding along the floor)
-      this.selectedObject.position.copy(newPosition);
+      const intersection = new THREE.Vector3();
+      if (this.raycaster.ray.intersectPlane(this.dragPlane, intersection)) {
+        const currentY = this.selectedObject.position.y;
+        
+        const newPosition = new THREE.Vector3(
+          intersection.x - this.dragOffset.x,
+          currentY,
+          intersection.z - this.dragOffset.z
+        );
+        
+        this.selectedObject.position.copy(newPosition);
+      }
+    } catch (error) {
+      console.error('InteractionManager: Error in handleTranslation:', error);
     }
   }
   
-  // Handle rotation dragging
   handleRotation() {
-    // Calculate rotation based on X movement
-    const deltaX = this.pointer.x - this.startPointer.x;
-    
-    // Apply a rotation sensitivity factor
-    const rotationSensitivity = 5.0;
-    const rotationAngle = deltaX * rotationSensitivity;
-    
-    // Apply rotation around Y axis (up/down)
-    this.selectedObject.rotation.y = this.objectStartRotation.y + rotationAngle;
-  }
-  
-  // End dragging on pointer up
-  onPointerUp() {
-    if (this.isDragging && this.selectedObject) {
-      // End dragging state
-      this.isDragging = false;
-      this.isRotating = false;
+    try {
+      const deltaX = this.pointer.x - this.startPointer.x;
+      const rotationSensitivity = 5.0;
+      const rotationAngle = deltaX * rotationSensitivity;
       
-      // Hide distance display
-      this.hideDistanceDisplay();
-      
-      // Re-enable orbit controls
-      this.orbitControls.enabled = true;
+      this.selectedObject.rotation.y = this.objectStartRotation.y + rotationAngle;
+    } catch (error) {
+      console.error('InteractionManager: Error in handleRotation:', error);
     }
   }
   
-  // Handle keyboard shortcuts
+  onPointerUp() {
+    if (!this.enabled) return;
+
+    try {
+      if (this.isDragging && this.selectedObject) {
+        this.isDragging = false;
+        this.isRotating = false;
+        
+        this.hideDistanceDisplay();
+        
+        if (this.orbitControls) {
+          this.orbitControls.enabled = true;
+        }
+      }
+    } catch (error) {
+      console.error('InteractionManager: Error in onPointerUp:', error);
+    }
+  }
+  
   onKeyDown(event) {
-    // Skip if no object selected
-    if (!this.selectedObject) return;
+    if (!this.enabled) return;
     
-    switch (event.key.toLowerCase()) {
-      case 't': // Translation mode
-        this.setInteractionMode('translate');
-        break;
-      case 'r': // Rotation mode
-        this.setInteractionMode('rotate');
-        break;
-      case 'p': // Toggle pin
-        this.togglePin(this.selectedObject);
-        break;
-      case 'delete': // Delete
-      case 'backspace':
-        this.deleteSelected();
-        break;
-      case 'escape': // Deselect
-        this.deselect();
-        break;
-      case 'd': // Toggle distance indicators
-        this.toggleDistanceIndicators();
-        break;
-      default:
-        // Do nothing or optionally handle unexpected keys
-        break;
+    try {
+      switch (event.key.toLowerCase()) {
+        case 't':
+          if (this.selectedObject) this.setInteractionMode('translate');
+          break;
+        case 'r':
+          if (this.selectedObject) this.setInteractionMode('rotate');
+          break;
+        case 'p':
+          if (this.selectedObject) this.togglePin(this.selectedObject);
+          break;
+        case 'delete':
+        case 'backspace':
+          if (this.selectedObject) this.deleteSelected();
+          break;
+        case 'escape':
+          this.deselect();
+          break;
+        case 'd':
+          // FIXED: Handle both duplicate (for models only) and distance indicators
+          if ((event.ctrlKey || event.metaKey) && this.selectedObject) {
+            event.preventDefault();
+            if (this.isModel(this.selectedObject)) {
+              this.duplicateSelected();
+            } else {
+              console.log('InteractionManager: Cannot duplicate - selected object is not a model');
+              // Optional: Show user feedback
+              if (this.callbacks?.onDuplicationFailed) {
+                this.callbacks.onDuplicationFailed(this.selectedObject, 'Not a model');
+              }
+            }
+          } else {
+            this.toggleDistanceIndicators();
+          }
+          break;
+        default:
+          break;
+      }
+    } catch (error) {
+      console.error('InteractionManager: Error in onKeyDown:', error);
     }
   }    
   
-  // Get all selectable objects
   getSelectableObjects() {
+    if (!this.scene) return [];
+
     const selectableObjects = [];
     
     this.scene.traverse((object) => {
@@ -592,188 +800,193 @@ export class InteractionManager {
     return selectableObjects;
   }
   
-  // Select an object
   select(object) {
     if (this.selectedObject === object) return;
     
-    // Deselect previous
-    this.deselect();
-    
-    // Set as selected
-    this.selectedObject = object;
-    
-    // Add highlight
-    this.addHighlight(object);
-    
-    // Trigger callback
-    if (this.callbacks?.onObjectSelected) {
-      this.callbacks.onObjectSelected(object);
+    try {
+      this.deselect();
+      
+      this.selectedObject = object;
+      
+      this.addHighlight(object);
+      
+      if (this.callbacks?.onObjectSelected) {
+        this.callbacks.onObjectSelected(object);
+      }
+    } catch (error) {
+      console.error('InteractionManager: Error in select:', error);
     }
   }
   
-  // Deselect current object
   deselect() {
     if (!this.selectedObject) return;
     
-    // Hide distance display
-    this.hideDistanceDisplay();
-    
-    // Remove highlight
-    this.removeHighlight(this.selectedObject);
-    
-    // Store reference before clearing
-    const previouslySelected = this.selectedObject;
-    this.selectedObject = null;
-    
-    // End any dragging
-    this.isDragging = false;
-    
-    // Trigger callback
-    if (this.callbacks?.onObjectDeselected) {
-      this.callbacks.onObjectDeselected(previouslySelected);
+    try {
+      this.hideDistanceDisplay();
+      
+      this.removeHighlight(this.selectedObject);
+      
+      const previouslySelected = this.selectedObject;
+      this.selectedObject = null;
+      
+      this.isDragging = false;
+      
+      if (this.callbacks?.onObjectDeselected) {
+        this.callbacks.onObjectDeselected(previouslySelected);
+      }
+    } catch (error) {
+      console.error('InteractionManager: Error in deselect:', error);
     }
   }
   
-  // Add visual highlight to selected object
   addHighlight(object) {
-    // Create orange wireframe bounding box
-    this.createBoundingBox(object);
-    // Create mode icon
-    this.createModeIcon(object);
+    try {
+      this.createBoundingBox(object);
+      this.createModeIcon(object);
+    } catch (error) {
+      console.error('InteractionManager: Error in addHighlight:', error);
+    }
   }
 
-  // Remove highlight from object
   removeHighlight(object) {
-    // Remove the bounding box
-    this.removeBoundingBox(object);
-    // Remove mode icon
-    this.removeModeIcon(object);
+    try {
+      this.removeBoundingBox(object);
+      this.removeModeIcon(object);
+    } catch (error) {
+      console.error('InteractionManager: Error in removeHighlight:', error);
+    }
   }
 
-  // Create an orange wireframe bounding box around the object
   createBoundingBox(object) {
-    // Remove any existing bounding box
-    this.removeBoundingBox(object);
-    
-    // Create a BoxHelper (not Box3Helper)
-    // BoxHelper directly attaches to the object and will follow it automatically
-    const boxHelper = new THREE.BoxHelper(object, 0xe4002b); // Red color
-    boxHelper.material = new THREE.LineDashedMaterial({
-      color: 0xe4002b, // Line color
-      linewidth: 2, // Line thickness
-      dashSize: 0.1, // Very short dash for dot effect
-      gapSize: 0.1 // Equal gap for dot spacing
-    });
-    boxHelper.material.transparent = true;
-    boxHelper.material.opacity = 0.5;
-    boxHelper.userData.isBoundingBox = true;
-    
-    // Store the box helper for later reference
-    object.userData.boundingBoxHelper = boxHelper;
-    
-    // Add the box helper to the scene
-    this.scene.add(boxHelper);
-  }
+    if (!object || !this.scene) return;
 
-  // Remove bounding box
-  removeBoundingBox(object) {
-    if (object.userData.boundingBoxHelper) {
-      // Remove from scene
-      this.scene.remove(object.userData.boundingBoxHelper);
+    try {
+      this.removeBoundingBox(object);
       
-      // Clean up references
-      delete object.userData.boundingBoxHelper;
+      const boxHelper = new THREE.BoxHelper(object, 0xe4002b);
+      boxHelper.material = new THREE.LineDashedMaterial({
+        color: 0xe4002b,
+        linewidth: 2,
+        dashSize: 0.1,
+        gapSize: 0.1
+      });
+      boxHelper.material.transparent = true;
+      boxHelper.material.opacity = 0.5;
+      boxHelper.userData.isBoundingBox = true;
+      
+      object.userData.boundingBoxHelper = boxHelper;
+      
+      this.scene.add(boxHelper);
+    } catch (error) {
+      console.error('InteractionManager: Error creating bounding box:', error);
     }
   }
 
-  // Update bounding boxes and mode icons - called from animation loop
+  removeBoundingBox(object) {
+    if (!object) return;
+
+    try {
+      if (object.userData.boundingBoxHelper) {
+        if (this.scene) {
+          this.scene.remove(object.userData.boundingBoxHelper);
+        }
+        
+        // Dispose of materials
+        if (object.userData.boundingBoxHelper.material) {
+          object.userData.boundingBoxHelper.material.dispose();
+        }
+        
+        delete object.userData.boundingBoxHelper;
+      }
+    } catch (error) {
+      console.error('InteractionManager: Error removing bounding box:', error);
+    }
+  }
+
   updateBoundingBoxes() {
-    // Update the bounding box if there's a selected object
-    if (this.selectedObject && this.selectedObject.userData.boundingBoxHelper) {
-      // BoxHelper has an update method to recalculate the box
-      this.selectedObject.userData.boundingBoxHelper.update();
+    try {
+      if (this.selectedObject && this.selectedObject.userData.boundingBoxHelper) {
+        this.selectedObject.userData.boundingBoxHelper.update();
+      }
+      this.updateModeIconScale();
+      this.updateLabelScales();
+    } catch (error) {
+      console.error('InteractionManager: Error updating bounding boxes:', error);
     }
-    // Update the mode icon scale based on camera distance
-    this.updateModeIconScale();
   }
 
-  // Update the scale of the mode icon based on camera distance
   updateModeIconScale() {
     if (!this.selectedObject || !this.selectedObject.userData.modeIcon || !this.camera) return;
 
-    const iconSprite = this.selectedObject.userData.modeIcon;
-    const distance = this.camera.position.distanceTo(this.selectedObject.position);
-
-    // Calculate new scale based on distance
-    const scale = this.baseIconScale * distance * this.zoomFactor;
-
-    // Apply the new scale (maintaining aspect ratio)
-    iconSprite.scale.set(scale, scale, 1);
-  }
-  
-  // Set interaction mode (translate or rotate)
-  setInteractionMode(mode) {
-    this.interactionMode = mode;
-    
-    // Update mode icon if object is selected
-    this.updateModeIcon();
-    
-    // Trigger callback
-    if (this.callbacks?.onModeChanged) {
-      this.callbacks.onModeChanged(mode);
+    try {
+      const iconSprite = this.selectedObject.userData.modeIcon;
+      const distance = this.camera.position.distanceTo(this.selectedObject.position);
+      const scale = this.baseIconScale * distance * this.zoomFactor;
+      iconSprite.scale.set(scale, scale, 1);
+    } catch (error) {
+      console.error('InteractionManager: Error updating mode icon scale:', error);
     }
   }
   
-  // Get the height of an object (for floor constraints)
-  getObjectHeight(object) {
-    const box = new THREE.Box3().setFromObject(object);
-    return box.max.y - box.min.y;
+  setInteractionMode(mode) {
+    try {
+      this.interactionMode = mode;
+      this.updateModeIcon();
+      if (this.callbacks?.onModeChanged) {
+        this.callbacks.onModeChanged(mode);
+      }
+    } catch (error) {
+      console.error('InteractionManager: Error setting interaction mode:', error);
+    }
   }
   
-  // Check if object is pinned
+  getObjectHeight(object) {
+    if (!object) return 0;
+    
+    try {
+      const box = new THREE.Box3().setFromObject(object);
+      return box.max.y - box.min.y;
+    } catch (error) {
+      console.error('InteractionManager: Error getting object height:', error);
+      return 0;
+    }
+  }
+  
   isPinned(object) {
+    if (!object) return false;
     return this.pinnedObjects.has(object.uuid);
   }
   
-  // Pin an object
   pinObject(object) {
     if (!object) return;
     
-    // Add to pinned set
-    this.pinnedObjects.add(object.uuid);
-    
-    // Update object state
-    object.userData.isPinned = true;
-    
-    // Add visual indicator
-    this.updatePinVisual(object, true);
-    
-    // Trigger callback
-    if (this.callbacks?.onObjectPinned) {
-      this.callbacks.onObjectPinned(object);
+    try {
+      this.pinnedObjects.add(object.uuid);
+      object.userData.isPinned = true;
+      this.updatePinVisual(object, true);
+      if (this.callbacks?.onObjectPinned) {
+        this.callbacks.onObjectPinned(object);
+      }
+    } catch (error) {
+      console.error('InteractionManager: Error pinning object:', error);
     }
   }
   
-  // Unpin an object
   unpinObject(object) {
     if (!object) return;
     
-    // Remove from pinned set
-    this.pinnedObjects.delete(object.uuid);
-    
-    // Update object state
-    object.userData.isPinned = false;
-    
-    // Remove visual indicator
-    this.updatePinVisual(object, false);
-    
-    // Trigger callback
-    if (this.callbacks?.onObjectUnpinned) {
-      this.callbacks.onObjectUnpinned(object);
+    try {
+      this.pinnedObjects.delete(object.uuid);
+      object.userData.isPinned = false;
+      this.updatePinVisual(object, false);
+      if (this.callbacks?.onObjectUnpinned) {
+        this.callbacks.onObjectUnpinned(object);
+      }
+    } catch (error) {
+      console.error('InteractionManager: Error unpinning object:', error);
     }
   }
   
-  // Toggle pin state
   togglePin(object) {
     if (!object) return;
     
@@ -784,118 +997,117 @@ export class InteractionManager {
     }
   }
   
-  // Create mode icon based on current interaction mode
   createModeIcon(object) {
-    this.removeModeIcon(object);
-    
     if (!object) return;
-    
-    // Calculate position at the top of the bounding box
-    const box = new THREE.Box3().setFromObject(object);
-    const height = box.max.y - box.min.y;
-    const iconY = height / 2; // Position exactly on top of the bounding box
-    
-    let iconSprite;
-    
-    if (this.interactionMode === 'translate') {
-      iconSprite = this.createMoveIcon();
-    } else if (this.interactionMode === 'rotate') {
-      iconSprite = this.createRotateIcon();
-    }
-    
-    if (iconSprite) {
-      iconSprite.position.set(0, iconY, 0);
-      iconSprite.userData.isModeIcon = true;
-      object.add(iconSprite);
-      object.userData.modeIcon = iconSprite;
-      // Initial scale will be updated in updateModeIconScale
-    }
-  }
 
-  // Create move icon using SVG texture
-  createMoveIcon() {
-    // Check if the texture is loaded
-    if (!this.moveIconTexture) {
-      console.warn('Move icon texture not loaded yet, falling back to default');
-      return this.createFallbackSprite();
-    }
-
-    const spriteMaterial = new THREE.SpriteMaterial({ 
-      map: this.moveIconTexture, 
-      transparent: true,
-      depthTest: false // Ensure icon renders on top of bounding box lines
-    });
-    const sprite = new THREE.Sprite(spriteMaterial);
-
-    // Initial scale (will be adjusted dynamically)
-    sprite.scale.set(this.baseIconScale, this.baseIconScale, 1);
-
-    return sprite;
-  }
-
-  // Create rotate icon using SVG texture
-  createRotateIcon() {
-    // Check if the texture is loaded
-    if (!this.rotateIconTexture) {
-      console.warn('Rotate icon texture not loaded yet, falling back to default');
-      return this.createFallbackSprite();
-    }
-
-    const spriteMaterial = new THREE.SpriteMaterial({ 
-      map: this.rotateIconTexture, 
-      transparent: true,
-      depthTest: false // Ensure icon renders on top of bounding box lines
-    });
-    const sprite = new THREE.Sprite(spriteMaterial);
-
-    // Initial scale (will be adjusted dynamically)
-    sprite.scale.set(this.baseIconScale, this.baseIconScale, 1);
-
-    return sprite;
-  }
-
-  // Fallback sprite in case SVG fails to load
-  createFallbackSprite() {
-    const canvas = document.createElement('canvas');
-    const context = canvas.getContext('2d');
-    canvas.width = 64;
-    canvas.height = 64;
-
-    // Draw a simple placeholder (e.g., a red X)
-    context.strokeStyle = '#ff0000';
-    context.lineWidth = 4;
-    context.beginPath();
-    context.moveTo(10, 10);
-    context.lineTo(54, 54);
-    context.moveTo(54, 10);
-    context.lineTo(10, 54);
-    context.stroke();
-
-    const texture = new THREE.CanvasTexture(canvas);
-    const spriteMaterial = new THREE.SpriteMaterial({ 
-      map: texture, 
-      transparent: true,
-      depthTest: false
-    });
-    const sprite = new THREE.Sprite(spriteMaterial);
-    sprite.scale.set(this.baseIconScale, this.baseIconScale, 1);
-
-    return sprite;
-  }
-
-  // Remove mode icon from object
-  removeModeIcon(object) {
-    if (object && object.userData.modeIcon) {
-      object.remove(object.userData.modeIcon);
-      if (object.userData.modeIcon.material.map) {
-        // Note: Don't dispose the shared texture here, dispose it in the class dispose method
+    try {
+      this.removeModeIcon(object);
+      
+      const box = new THREE.Box3().setFromObject(object);
+      const height = box.max.y - box.min.y;
+      const iconY = height / 2;
+      
+      let iconSprite;
+      if (this.interactionMode === 'translate') {
+        iconSprite = this.createMoveIcon();
+      } else if (this.interactionMode === 'rotate') {
+        iconSprite = this.createRotateIcon();
       }
-      object.userData.modeIcon.material.dispose();
-      delete object.userData.modeIcon;
+      
+      if (iconSprite) {
+        iconSprite.position.set(0, iconY, 0);
+        iconSprite.userData.isModeIcon = true;
+        object.add(iconSprite);
+        object.userData.modeIcon = iconSprite;
+      }
+    } catch (error) {
+      console.error('InteractionManager: Error creating mode icon:', error);
     }
   }
 
-  // Update mode icon when interaction mode changes
+  createMoveIcon() {
+    if (!this.moveIconTexture) {
+      console.warn('Move icon texture not loaded yet, using fallback');
+      return this.createFallbackSprite('move');
+    }
+    
+    try {
+      const spriteMaterial = new THREE.SpriteMaterial({ 
+        map: this.moveIconTexture, 
+        transparent: true,
+        depthTest: false
+      });
+      const sprite = new THREE.Sprite(spriteMaterial);
+      sprite.scale.set(this.baseIconScale, this.baseIconScale, 1);
+      return sprite;
+    } catch (error) {
+      console.error('InteractionManager: Error creating move icon:', error);
+      return this.createFallbackSprite('move');
+    }
+  }
+
+  createRotateIcon() {
+    if (!this.rotateIconTexture) {
+      console.warn('Rotate icon texture not loaded yet, using fallback');
+      return this.createFallbackSprite('rotate');
+    }
+    
+    try {
+      const spriteMaterial = new THREE.SpriteMaterial({ 
+        map: this.rotateIconTexture, 
+        transparent: true,
+        depthTest: false
+      });
+      const sprite = new THREE.Sprite(spriteMaterial);
+      sprite.scale.set(this.baseIconScale, this.baseIconScale, 1);
+      return sprite;
+    } catch (error) {
+      console.error('InteractionManager: Error creating rotate icon:', error);
+      return this.createFallbackSprite('rotate');
+    }
+  }
+
+  createFallbackSprite(type = 'move') {
+    try {
+      const texture = this.createIconTexture(type);
+      const spriteMaterial = new THREE.SpriteMaterial({ 
+        map: texture, 
+        transparent: true,
+        depthTest: false
+      });
+      const sprite = new THREE.Sprite(spriteMaterial);
+      sprite.scale.set(this.baseIconScale, this.baseIconScale, 1);
+      return sprite;
+    } catch (error) {
+      console.error('InteractionManager: Error creating fallback sprite:', error);
+      return null;
+    }
+  }
+
+  // FIXED: This was the source of the original error
+  removeModeIcon(object) {
+    if (!object) return;
+
+    try {
+      if (object.userData && object.userData.modeIcon) {
+        // Safe removal with proper checks
+        object.remove(object.userData.modeIcon);
+        
+        // FIXED: Safe material and texture disposal
+        if (object.userData.modeIcon.material) {
+          if (object.userData.modeIcon.material.map) {
+            object.userData.modeIcon.material.map.dispose();
+          }
+          object.userData.modeIcon.material.dispose();
+        }
+        
+        delete object.userData.modeIcon;
+      }
+    } catch (error) {
+      console.error('InteractionManager: Error removing mode icon:', error);
+    }
+  }
+
   updateModeIcon() {
     if (this.selectedObject) {
       this.createModeIcon(this.selectedObject);
@@ -903,118 +1115,456 @@ export class InteractionManager {
   }
 
   updatePinVisual(object, isPinned) {
-    // Remove existing pin indicator
-    const existingPin = object.children.find(child => child.userData.isPinIndicator);
-    if (existingPin) {
-      object.remove(existingPin);
-    }
-    
-    if (isPinned) {
-      // Create a pin group
-      const pinGroup = new THREE.Group();
-      pinGroup.userData.isPinIndicator = true;
+    if (!object) return;
+
+    try {
+      const existingPin = object.children.find(child => child.userData.isPinIndicator);
+      if (existingPin) {
+        object.remove(existingPin);
+        
+        // Dispose of pin geometry and materials
+        existingPin.traverse((child) => {
+          if (child.geometry) child.geometry.dispose();
+          if (child.material) child.material.dispose();
+        });
+      }
       
-      // Pin head (small red sphere)
-      const headGeometry = new THREE.SphereGeometry(0.05, 12, 8);
-      const headMaterial = new THREE.MeshBasicMaterial({ color: 0xff3333 });
-      const head = new THREE.Mesh(headGeometry, headMaterial);
-      head.position.y = 0.08;
-      pinGroup.add(head);
-      
-      // Pin shaft (thin cylinder)
-      const shaftGeometry = new THREE.CylinderGeometry(0.01, 0.01, 0.15, 6);
-      const shaftMaterial = new THREE.MeshBasicMaterial({ color: 0xcccccc });
-      const shaft = new THREE.Mesh(shaftGeometry, shaftMaterial);
-      shaft.position.y = 0;
-      pinGroup.add(shaft);
-      
-      // Calculate position above object
-      const box = new THREE.Box3().setFromObject(object);
-      const height = box.max.y - box.min.y;
-      
-      // Position the pin above the object (above the icon)
-      pinGroup.position.y = height / 2 + 0.2; // Adjusted to be above the icon
-      
-      // Rotate slightly to make it more visible from common viewing angles
-      pinGroup.rotation.x = -Math.PI / 8; // Slight tilt forward
-      
-      // Add to object
-      object.add(pinGroup);
+      if (isPinned) {
+        const pinGroup = new THREE.Group();
+        pinGroup.userData.isPinIndicator = true;
+        
+        const headGeometry = new THREE.SphereGeometry(0.05, 12, 8);
+        const headMaterial = new THREE.MeshBasicMaterial({ color: 0xff3333 });
+        const head = new THREE.Mesh(headGeometry, headMaterial);
+        head.position.y = 0.08;
+        pinGroup.add(head);
+        
+        const shaftGeometry = new THREE.CylinderGeometry(0.01, 0.01, 0.15, 6);
+        const shaftMaterial = new THREE.MeshBasicMaterial({ color: 0xcccccc });
+        const shaft = new THREE.Mesh(shaftGeometry, shaftMaterial);
+        shaft.position.y = 0;
+        pinGroup.add(shaft);
+        
+        const box = new THREE.Box3().setFromObject(object);
+        const height = box.max.y - box.min.y;
+        
+        pinGroup.position.y = height / 2 + 0.2;
+        pinGroup.rotation.x = -Math.PI / 8;
+        
+        object.add(pinGroup);
+      }
+    } catch (error) {
+      console.error('InteractionManager: Error updating pin visual:', error);
     }
   }
   
-  // Delete selected object
   deleteSelected() {
     if (!this.selectedObject) return;
     
-    const objectToDelete = this.selectedObject;
-    
-    // Deselect first
-    this.deselect();
-    
-    // Remove from pinned objects if needed
-    this.pinnedObjects.delete(objectToDelete.uuid);
-    
-    // Remove from scene
-    this.scene.remove(objectToDelete);
-    
-    // Trigger callback
-    if (this.callbacks?.onObjectDeleted) {
-      this.callbacks.onObjectDeleted(objectToDelete);
+    try {
+      const objectToDelete = this.selectedObject;
+      this.deselect();
+      this.pinnedObjects.delete(objectToDelete.uuid);
+      
+      if (this.scene) {
+        this.scene.remove(objectToDelete);
+      }
+      
+      if (this.callbacks?.onObjectDeleted) {
+        this.callbacks.onObjectDeleted(objectToDelete);
+      }
+    } catch (error) {
+      console.error('InteractionManager: Error deleting selected object:', error);
     }
   }
   
-  // Rotate object by specific angle (for UI buttons)
   rotateObject(object, angleDegrees) {
     if (!object || this.isPinned(object)) return;
     
-    // Convert to radians
-    const angleRadians = THREE.MathUtils.degToRad(angleDegrees);
+    try {
+      const angleRadians = THREE.MathUtils.degToRad(angleDegrees);
+      object.rotation.y += angleRadians;
+      
+      if (this.callbacks?.onObjectChanged) {
+        this.callbacks.onObjectChanged(object);
+      }
+    } catch (error) {
+      console.error('InteractionManager: Error rotating object:', error);
+    }
+  }
+
+  duplicateSelected() {
+    if (!this.selectedObject) return;
     
-    // Rotate around Y axis
-    object.rotation.y += angleRadians;
+    // FIXED: Only allow duplication of models, not other objects
+    if (!this.isModel(this.selectedObject)) {
+      console.log('InteractionManager: Selected object is not a model, skipping duplication');
+      return;
+    }
     
-    // Trigger callback
-    if (this.callbacks?.onObjectChanged) {
-      this.callbacks.onObjectChanged(object);
+    try {
+      console.log('InteractionManager: Duplicating selected model...');
+      
+      // FIXED: Proper model duplication with animation preservation
+      const originalObject = this.selectedObject;
+      
+      // Clone the object (this clones geometry, materials, etc.)
+      const duplicatedObject = originalObject.clone(true);
+      
+      // Generate new UUID to avoid conflicts
+      duplicatedObject.uuid = THREE.MathUtils.generateUUID();
+      
+      // FIXED: Ensure materials are properly cloned to avoid sharing
+      this.cloneMaterials(duplicatedObject);
+      
+      // Preserve important userData
+      duplicatedObject.userData = {
+        ...originalObject.userData,
+        isModelRoot: originalObject.userData.isModelRoot,
+        selectable: originalObject.userData.selectable,
+        type: originalObject.userData.type,
+        originalName: originalObject.userData.originalName,
+        // Don't copy pinned state - new object should be unpinned
+        isPinned: false
+      };
+      
+      // FIXED: Handle animation preservation with proper track rebinding
+      if (originalObject.userData.mixer && originalObject.userData.animations) {
+        console.log('InteractionManager: Preserving animations for duplicated object');
+        
+        // Create new mixer for the duplicated object
+        const newMixer = new THREE.AnimationMixer(duplicatedObject);
+        duplicatedObject.userData.mixer = newMixer;
+        
+        // FIXED: Properly clone and rebind animation clips
+        if (originalObject.userData.animations && originalObject.userData.animations.length > 0) {
+          const newAnimations = [];
+          const newActions = {};
+          
+          originalObject.userData.animations.forEach((originalClip) => {
+            try {
+              // FIXED: Clone the animation clip with proper track rebinding
+              const clonedClip = this.cloneAnimationClip(originalClip, originalObject, duplicatedObject);
+              
+              if (clonedClip && clonedClip.tracks && clonedClip.tracks.length > 0) {
+                newAnimations.push(clonedClip);
+                
+                // Create action for the cloned clip
+                const action = newMixer.clipAction(clonedClip);
+                newActions[clonedClip.name] = action;
+                
+                // Copy the current state from the original action
+                const originalAction = originalObject.userData.actions[originalClip.name];
+                if (originalAction) {
+                  action.enabled = originalAction.enabled;
+                  action.paused = originalAction.paused;
+                  action.loop = originalAction.loop;
+                  action.clampWhenFinished = originalAction.clampWhenFinished;
+                  
+                  // If the original was playing, start the new one too
+                  if (originalAction.isRunning()) {
+                    action.play();
+                    action.time = originalAction.time; // Sync timing
+                  }
+                }
+                
+                console.log(`InteractionManager: Successfully cloned animation: ${clonedClip.name}`);
+              } else {
+                console.warn(`InteractionManager: Failed to clone animation: ${originalClip.name}`);
+              }
+            } catch (error) {
+              console.error(`InteractionManager: Error cloning animation ${originalClip.name}:`, error);
+            }
+          });
+          
+          duplicatedObject.userData.animations = newAnimations;
+          duplicatedObject.userData.actions = newActions;
+          
+          console.log(`InteractionManager: Successfully copied ${newAnimations.length}/${originalObject.userData.animations.length} animations to duplicate`);
+        }
+      }
+      
+      // Position the duplicate slightly offset from the original
+      const offset = 2.0; // 2 units offset
+      duplicatedObject.position.copy(originalObject.position);
+      duplicatedObject.position.x += offset;
+      
+      // Keep the same rotation and scale
+      duplicatedObject.rotation.copy(originalObject.rotation);
+      duplicatedObject.scale.copy(originalObject.scale);
+      
+      // Add to scene
+      if (this.scene) {
+        this.scene.add(duplicatedObject);
+      }
+      
+      // Select the new duplicate
+      this.select(duplicatedObject);
+      
+      // Notify callbacks
+      if (this.callbacks?.onObjectDuplicated) {
+        this.callbacks.onObjectDuplicated(duplicatedObject, originalObject);
+      } else if (this.callbacks?.onObjectChanged) {
+        // Fallback to general change callback
+        this.callbacks.onObjectChanged(duplicatedObject);
+      }
+      
+      console.log('InteractionManager: Model duplicated successfully with preserved animations');
+      
+    } catch (error) {
+      console.error('InteractionManager: Error duplicating model:', error);
+      
+      // Notify callback of failure
+      if (this.callbacks?.onDuplicationFailed) {
+        this.callbacks.onDuplicationFailed(this.selectedObject, error.message);
+      }
+    }
+  }
+
+  // FIXED: Helper method to check if object is a duplicatable model
+  isModel(object) {
+    if (!object || !object.userData) return false;
+    
+    // Check if object has model-specific properties
+    const hasModelRoot = object.userData.isModelRoot === true;
+    const hasModelType = object.userData.type === 'model' || object.userData.type === 'gltf';
+    const hasOriginalName = object.userData.originalName && object.userData.originalName.length > 0;
+    const isSelectable = object.userData.selectable === true;
+    
+    // Must be a selectable model root with proper identification
+    return hasModelRoot && isSelectable && (hasModelType || hasOriginalName);
+  }
+
+  // Helper method to get information about what can be duplicated
+  getDuplicatableObjects() {
+    const duplicatableObjects = [];
+    
+    if (this.scene) {
+      this.scene.traverse((object) => {
+        if (this.isModel(object)) {
+          duplicatableObjects.push({
+            object: object,
+            name: object.userData.originalName || object.name || 'Unnamed Model',
+            type: object.userData.type || 'model'
+          });
+        }
+      });
+    }
+    
+    return duplicatableObjects;
+  }
+
+  // Check if currently selected object can be duplicated
+  canDuplicateSelected() {
+    return this.selectedObject && this.isModel(this.selectedObject);
+  }
+
+  // FIXED: Helper method to properly clone materials
+  cloneMaterials(object) {
+    try {
+      object.traverse((child) => {
+        if (child.isMesh && child.material) {
+          if (Array.isArray(child.material)) {
+            // Handle multiple materials
+            child.material = child.material.map(material => material.clone());
+          } else {
+            // Handle single material
+            child.material = child.material.clone();
+          }
+        }
+      });
+    } catch (error) {
+      console.error('InteractionManager: Error cloning materials:', error);
+    }
+  }
+
+  // FIXED: Helper method to properly clone animation clips with track rebinding
+  cloneAnimationClip(originalClip, originalObject, duplicatedObject) {
+    try {
+      if (!originalClip || !originalClip.tracks || originalClip.tracks.length === 0) {
+        console.warn('InteractionManager: Invalid animation clip:', originalClip);
+        return null;
+      }
+
+      // Create a mapping from original object hierarchy to duplicated object hierarchy
+      const objectMap = new Map();
+      
+      // Build the mapping by traversing both hierarchies
+      const originalObjects = [];
+      const duplicatedObjects = [];
+      
+      originalObject.traverse((child) => {
+        originalObjects.push(child);
+      });
+      
+      duplicatedObject.traverse((child) => {
+        duplicatedObjects.push(child);
+      });
+      
+      // Map corresponding objects (assuming same hierarchy structure)
+      for (let i = 0; i < Math.min(originalObjects.length, duplicatedObjects.length); i++) {
+        objectMap.set(originalObjects[i], duplicatedObjects[i]);
+      }
+
+      // Clone the tracks with proper object references
+      const newTracks = [];
+      
+      for (const originalTrack of originalClip.tracks) {
+        try {
+          // FIXED: Rebuild track name to reference the duplicated object
+          let newTrackName = originalTrack.name;
+          
+          // Parse the track name to find the object reference
+          const trackParts = originalTrack.name.split('.');
+          if (trackParts.length >= 2) {
+            const objectName = trackParts[0];
+            const propertyName = trackParts.slice(1).join('.');
+            
+            // Find the corresponding object in the duplicated hierarchy
+            let targetObject = null;
+            duplicatedObject.traverse((child) => {
+              if (child.name === objectName || child.uuid === objectName) {
+                targetObject = child;
+              }
+            });
+            
+            if (targetObject) {
+              // Rebuild the track name with the new object reference
+              newTrackName = `${targetObject.name}.${propertyName}`;
+            }
+          }
+          
+          // Create a new track with the same type and data
+          let newTrack;
+          
+          if (originalTrack.constructor === THREE.VectorKeyframeTrack) {
+            newTrack = new THREE.VectorKeyframeTrack(
+              newTrackName,
+              originalTrack.times.slice(), // Clone times array
+              originalTrack.values.slice(), // Clone values array
+              originalTrack.interpolation
+            );
+          } else if (originalTrack.constructor === THREE.QuaternionKeyframeTrack) {
+            newTrack = new THREE.QuaternionKeyframeTrack(
+              newTrackName,
+              originalTrack.times.slice(),
+              originalTrack.values.slice(),
+              originalTrack.interpolation
+            );
+          } else if (originalTrack.constructor === THREE.NumberKeyframeTrack) {
+            newTrack = new THREE.NumberKeyframeTrack(
+              newTrackName,
+              originalTrack.times.slice(),
+              originalTrack.values.slice(),
+              originalTrack.interpolation
+            );
+          } else if (originalTrack.constructor === THREE.ColorKeyframeTrack) {
+            newTrack = new THREE.ColorKeyframeTrack(
+              newTrackName,
+              originalTrack.times.slice(),
+              originalTrack.values.slice(),
+              originalTrack.interpolation
+            );
+          } else if (originalTrack.constructor === THREE.BooleanKeyframeTrack) {
+            newTrack = new THREE.BooleanKeyframeTrack(
+              newTrackName,
+              originalTrack.times.slice(),
+              originalTrack.values.slice()
+            );
+          } else if (originalTrack.constructor === THREE.StringKeyframeTrack) {
+            newTrack = new THREE.StringKeyframeTrack(
+              newTrackName,
+              originalTrack.times.slice(),
+              originalTrack.values.slice(),
+              originalTrack.interpolation
+            );
+          } else {
+            // Fallback: try to clone using the track's constructor
+            console.warn('InteractionManager: Unknown track type, attempting generic clone:', originalTrack.constructor.name);
+            newTrack = new originalTrack.constructor(
+              newTrackName,
+              originalTrack.times.slice(),
+              originalTrack.values.slice(),
+              originalTrack.interpolation
+            );
+          }
+          
+          if (newTrack) {
+            newTracks.push(newTrack);
+          }
+          
+        } catch (trackError) {
+          console.error('InteractionManager: Error cloning track:', originalTrack.name, trackError);
+        }
+      }
+      
+      if (newTracks.length === 0) {
+        console.warn('InteractionManager: No valid tracks created for animation clip');
+        return null;
+      }
+      
+      // Create the new animation clip
+      const newClip = new THREE.AnimationClip(
+        originalClip.name + '_clone_' + duplicatedObject.uuid.substring(0, 8),
+        originalClip.duration,
+        newTracks,
+        originalClip.blendMode
+      );
+      
+      return newClip;
+      
+    } catch (error) {
+      console.error('InteractionManager: Error cloning animation clip:', error);
+      return null;
     }
   }
   
-  // Dispose resources
   dispose() {
-    // Remove event listeners
-    this.removeEventListeners();
-    
-    // Remove distance display
-    this.hideDistanceDisplay();
-    if (this.distanceOverlay && this.distanceOverlay.parentElement) {
-      this.distanceOverlay.parentElement.removeChild(this.distanceOverlay);
+    try {
+      console.log('InteractionManager: Starting disposal...');
+      
+      this.removeEventListeners();
+      this.hideDistanceDisplay();
+      
+      // Remove distance overlay from DOM
+      if (this.distanceOverlay && this.distanceOverlay.parentElement) {
+        this.distanceOverlay.parentElement.removeChild(this.distanceOverlay);
+      }
+      
+      // Clean up Three.js objects
+      if (this.dragPlaneHelper && this.scene) {
+        this.scene.remove(this.dragPlaneHelper);
+        if (this.dragPlaneHelper.geometry) this.dragPlaneHelper.geometry.dispose();
+        if (this.dragPlaneHelper.material) this.dragPlaneHelper.material.dispose();
+      }
+      
+      if (this.distanceLines && this.scene) {
+        this.clearDistanceLines();
+        this.scene.remove(this.distanceLines);
+      }
+      
+      // Dispose materials
+      if (this.xAxisMaterial) this.xAxisMaterial.dispose();
+      if (this.zAxisMaterial) this.zAxisMaterial.dispose();
+      if (this.totalDistanceMaterial) this.totalDistanceMaterial.dispose();
+      if (this.outlineMaterial) this.outlineMaterial.dispose();
+      
+      // Dispose textures
+      if (this.moveIconTexture) this.moveIconTexture.dispose();
+      if (this.rotateIconTexture) this.rotateIconTexture.dispose();
+      
+      // Clear references
+      this.scene = null;
+      this.camera = null;
+      this.renderer = null;
+      this.orbitControls = null;
+      this.selectedObject = null;
+      this.callbacks = null;
+      this.pinnedObjects.clear();
+      
+      console.log('InteractionManager: Disposal complete');
+    } catch (error) {
+      console.error('InteractionManager: Error during disposal:', error);
     }
-    
-    // Remove helpers from scene
-    if (this.dragPlaneHelper) {
-      this.scene.remove(this.dragPlaneHelper);
-    }
-    if (this.distanceLines) {
-      this.clearDistanceLines();
-      this.scene.remove(this.distanceLines);
-    }
-    
-    // Dispose of textures
-    if (this.moveIconTexture) {
-      this.moveIconTexture.dispose();
-    }
-    if (this.rotateIconTexture) {
-      this.rotateIconTexture.dispose();
-    }
-    
-    // Clear references
-    this.scene = null;
-    this.camera = null;
-    this.renderer = null;
-    this.orbitControls = null;
-    this.selectedObject = null;
-    this.callbacks = null;
-    this.pinnedObjects.clear();
   }
 }

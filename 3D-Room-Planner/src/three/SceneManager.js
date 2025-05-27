@@ -1,41 +1,15 @@
 // src/three/SceneManager.js
-// Core Three.js scene management with direct manipulation and HDR lighting
+// Complete Three.js scene management with working duplication and error handling
+// Replace your existing SceneManager.js with this complete version
 
 import * as THREE from 'three';
-import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'; // Ensure .js extension for modules
-import { RGBELoader } from 'three/examples/jsm/loaders/RGBELoader.js';    // For HDR environment maps
-import { Room } from './objects/Room.js';         // Assuming Room.js exists and exports Room class
-import { ModelLoader } from './ModelLoader.js';   // Assuming ModelLoader.js exists
-import { GridHelper } from './utils/GridHelper.js'; // Assuming GridHelper.js exists
-import { InteractionManager } from './InteractionManager.js'; // Assuming InteractionManager.js exists
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+import { RGBELoader } from 'three/examples/jsm/loaders/RGBELoader.js';
+import { Room } from './objects/Room.js';
+import { ModelLoader } from './ModelLoader.js';
+import { GridHelper } from './utils/GridHelper.js';
+import { InteractionManager } from './InteractionManager.js';
 import { FloorDimensionEditor } from './FloorDimensionEditor';
-// import React, { useState, useRef, useEffect } from 'react';
-// import Toolbar from '../components/UI/Toolbar';
-
-// function RoomEditor() {
-//   const [scene, setScene] = useState(null);
-//   const [camera, setCamera] = useState(null);
-//   const [renderer, setRenderer] = useState(null);
-//   const floorEditorRef = useRef(null);
-
-//   useEffect(() => {
-//     // After initializing scene/camera/renderer
-//     floorEditorRef.current = new FloorDimensionEditor(scene, camera, renderer);
-//   }, [scene, camera, renderer]);
-
-//   const handleViewAction = (action) => {
-//     if (action === 'toggle-floor-dimensions') {
-//       floorEditorRef.current.initRoom([
-//         { x: -5, z: -3 },
-//         { x: 5, z: -3 },
-//         { x: 5, z: 3 },
-//         { x: -5, z: 3 }
-//       ]);
-//     }
-//   };
-
-//   return <Toolbar onViewAction={handleViewAction} />;
-// }
 
 export class SceneManager {
   constructor(container) {
@@ -49,91 +23,111 @@ export class SceneManager {
     this.isLoadingHDR = false;
     this.debug = true;
     this.clock = new THREE.Clock();
-    this.room = null; // Initialize room property
+    this.room = null;
     this.floorDimensionEditorInstance = null;
     this.grid = null;
-    this.orbitControls = null; // Initialize orbitControls
-    // this.grid = null;
+    this.orbitControls = null;
     this.mixers = new Map(); // Store AnimationMixers for animated models
+    this.isInitialized = false;
+    this.initializationPromise = null;
+
+    // Bind methods
     this.onWindowResize = this.onWindowResize.bind(this);
     this.animate = this.animate.bind(this);
     this.onPointerDown = this.onPointerDown.bind(this);
+    this.onVisibilityChange = this.onVisibilityChange.bind(this);
 
-    // Initialize Three.js components
-    this.initScene();
-    this.initCamera();
-    this.initRenderer();
-    this.initGrid();
-    this.initLights(); // Lights are initialized before HDR, HDR might adjust/replace some
-    this.initControls();
-    if (this.scene && this.camera && this.renderer && this.orbitControls) {
-      this.floorDimensionEditorInstance = new FloorDimensionEditor(
-          this.scene, this.camera, this.renderer, this.orbitControls
-      );
-  } else {
-      console.error("SceneManager: Could not initialize FloorDimensionEditor due to missing dependencies (scene, camera, renderer, or orbitControls).");
+    // Start initialization
+    this.initializationPromise = this.initialize();
+
+    // Make globally accessible for debugging (development only)
+    if (typeof window !== 'undefined' && this.debug) {
+      window.sceneManager = this;
+    }
   }
-    this.initRoom();
-    // this.initGrid();
-    this.initInteractionManager();
 
-    // Preload the HDR environment map
-    // Delay slightly to ensure the renderer and scene are fully set up.
-    setTimeout(() => {
-      this.initHDREnvironment();
-    }, 50); // Small delay
+  async initialize() {
+    try {
+      console.log('SceneManager: Starting initialization...');
 
-    // Add event listeners
-    window.addEventListener('resize', this.onWindowResize);
-    if (this.container) { // Ensure container exists before adding listener
-        this.container.addEventListener('pointerdown', this.onPointerDown);
-    }
+      // Initialize Three.js components in order
+      this.initScene();
+      this.initCamera();
+      this.initRenderer();
+      this.initLights();
+      this.initControls();
+      this.initGrid();
+      this.initRoom();
+      this.initInteractionManager();
 
-
-    // Listen for model loading events for debugging
-    if (this.debug) {
-      window.addEventListener('model-loading-completed', (event) => {
-        console.log('SceneManager: Model loaded:', event.detail.modelType);
-      });
-      window.addEventListener('model-loading-error', (event) => {
-        console.error('SceneManager: Model loading error:', event.detail.error);
-      });
-    }
-
-    
-
-    // Start animation loop
-    this.animate();
-
-    // Add an event listener to detect if we need to re-apply HDR when tab regains focus
-    document.addEventListener('visibilitychange', () => {
-      if (document.visibilityState === 'visible' && this.scene && this.scene.environment) {
-        console.log('SceneManager: Tab visible again, refreshing environment maps.');
-        // A timeout can help ensure the rendering context is fully restored
-        setTimeout(() => this.applyEnvironmentToObjects(true), 100);
+      // Initialize floor dimension editor
+      if (this.scene && this.camera && this.renderer && this.orbitControls) {
+        try {
+          this.floorDimensionEditorInstance = new FloorDimensionEditor(
+            this.scene, this.camera, this.renderer, this.orbitControls
+          );
+        } catch (error) {
+          console.warn("SceneManager: FloorDimensionEditor initialization failed:", error);
+        }
+      } else {
+        console.error("SceneManager: Could not initialize FloorDimensionEditor due to missing dependencies.");
       }
-    });
+
+      // Add event listeners
+      this.addEventListeners();
+
+      // Load HDR environment asynchronously
+      try {
+        await this.initHDREnvironment();
+      } catch (error) {
+        console.warn('SceneManager: HDR loading failed, continuing without HDR:', error);
+      }
+
+      // Start animation loop
+      this.animate();
+
+      this.isInitialized = true;
+      console.log('SceneManager: Initialization complete');
+
+      // Dispatch ready event
+      if (this.container) {
+        this.container.dispatchEvent(new CustomEvent('scene-ready'));
+      }
+
+    } catch (error) {
+      console.error('SceneManager: Initialization failed:', error);
+      throw error;
+    }
   }
 
   initScene() {
     this.scene = new THREE.Scene();
-    this.scene.background = new THREE.Color(0xf0f0f0); // Default background
-    // this.scene.fog = new THREE.Fog(0xf0f0f0, 10, 50);   // Default fog
-    this.environmentApplied = false; // Flag for tracking if environment has been applied
+    this.scene.background = new THREE.Color(0xf0f0f0);
+    this.environmentApplied = false;
   }
 
   initCamera() {
+    if (!this.container) {
+      console.error('SceneManager: Container not available for camera initialization');
+      return;
+    }
+
     this.camera = new THREE.PerspectiveCamera(
-      45, // FOV
-      this.container.clientWidth / this.container.clientHeight, // Aspect ratio
-      0.1, // Near clipping plane
-      1000 // Far clipping plane
+      45,
+      this.container.clientWidth / this.container.clientHeight,
+      0.1,
+      1000
     );
     this.camera.position.set(5, 5, 10);
     this.camera.lookAt(0, 0, 0);
   }
 
   initRenderer() {
+    if (!this.container) {
+      console.error('SceneManager: Container not available for renderer initialization');
+      return;
+    }
+
     this.renderer = new THREE.WebGLRenderer({
       antialias: true,
       powerPreference: "high-performance",
@@ -143,6 +137,7 @@ export class SceneManager {
       alpha: false,
       preserveDrawingBuffer: true 
     });
+    
     this.renderer.setPixelRatio(window.devicePixelRatio);
     this.renderer.setSize(this.container.clientWidth, this.container.clientHeight);
 
@@ -151,89 +146,93 @@ export class SceneManager {
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
     // Physically correct lighting
-    this.renderer.physicallyCorrectLights = true; // Deprecated in newer Three.js, but might be needed for older versions.
-                                                 // Modern physically based rendering is inherent.
+    this.renderer.physicallyCorrectLights = true;
 
     // Color space and Tone Mapping for HDR
-    this.renderer.outputColorSpace = THREE.SRGBColorSpace; // Correct way to set output encoding
-    this.renderer.toneMapping = THREE.ACESFilmicToneMapping; // Good general-purpose tone mapping
-    this.renderer.toneMappingExposure = 1.0; // Adjust exposure for HDR (0.5-1.5 is a common range)
+    this.renderer.outputColorSpace = THREE.SRGBColorSpace;
+    this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    this.renderer.toneMappingExposure = 1.0;
 
     // Logarithmic depth buffer to reduce z-fighting
     this.renderer.logarithmicDepthBuffer = true;
 
-    if (this.container) {
-        this.container.appendChild(this.renderer.domElement);
-    } else {
-        console.error("SceneManager: Container not found for renderer.");
-    }
+    this.container.appendChild(this.renderer.domElement);
   }
 
-  initHDREnvironment(hdrPath = '/assets/envlight/white-studio-lighting_4K.hdr') {
-    if (!this.renderer) {
-      console.warn('SceneManager: Cannot load HDR - renderer not initialized.');
-      return;
-    }
-    if (this.isLoadingHDR) {
-        console.warn('SceneManager: HDR loading already in progress.');
+  async initHDREnvironment(hdrPath = '/assets/envlight/white-studio-lighting_4K.hdr') {
+    return new Promise((resolve, reject) => {
+      if (!this.renderer) {
+        reject(new Error('Renderer not initialized'));
         return;
-    }
+      }
 
-    console.log('SceneManager: Loading HDR environment map:', hdrPath);
-    this.isLoadingHDR = true;
+      if (this.isLoadingHDR) {
+        console.warn('SceneManager: HDR loading already in progress.');
+        resolve();
+        return;
+      }
 
-    const pmremGenerator = new THREE.PMREMGenerator(this.renderer);
-    pmremGenerator.compileEquirectangularShader();
+      console.log('SceneManager: Loading HDR environment map:', hdrPath);
+      this.isLoadingHDR = true;
 
-    const loadStartEvent = new CustomEvent('hdr-loading-start');
-    if (this.container) this.container.dispatchEvent(loadStartEvent);
+      const pmremGenerator = new THREE.PMREMGenerator(this.renderer);
+      pmremGenerator.compileEquirectangularShader();
 
-    new RGBELoader()
-      .setDataType(THREE.FloatType) // or THREE.HalfFloatType
-      .load(hdrPath, (texture) => {
-        if (!this.scene) { // Scene might have been disposed
-          console.warn('SceneManager: Cannot apply HDR - scene no longer exists.');
-          texture.dispose();
-          pmremGenerator.dispose();
-          this.isLoadingHDR = false;
-          return;
-        }
-        try {
-          console.log('SceneManager: HDR loaded, processing environment map...');
-          const envMap = pmremGenerator.fromEquirectangular(texture).texture;
-          this.scene.environment = envMap;
-          // this.scene.background = envMap; // Optional: set HDR as background
-          console.log('SceneManager: HDR environment processed and applied to scene.');
+      const loadStartEvent = new CustomEvent('hdr-loading-start');
+      if (this.container) this.container.dispatchEvent(loadStartEvent);
 
-          this.applyEnvironmentToObjects(true); // Force update to all materials
-          this.environmentApplied = true;
+      new RGBELoader()
+        .setDataType(THREE.FloatType)
+        .load(
+          hdrPath,
+          (texture) => {
+            try {
+              if (!this.scene) {
+                throw new Error('Scene disposed during HDR loading');
+              }
 
+              console.log('SceneManager: HDR loaded, processing environment map...');
+              const envMap = pmremGenerator.fromEquirectangular(texture).texture;
+              this.scene.environment = envMap;
+              
+              this.applyEnvironmentToObjects(true);
+              this.environmentApplied = true;
 
-          if (this.renderer && this.scene && this.camera) { // Force a render
-            this.renderer.render(this.scene, this.camera);
+              if (this.renderer && this.scene && this.camera) {
+                this.renderer.render(this.scene, this.camera);
+              }
+
+              const loadCompleteEvent = new CustomEvent('hdr-loading-complete');
+              if (this.container) this.container.dispatchEvent(loadCompleteEvent);
+
+              console.log('SceneManager: HDR environment loaded successfully');
+              resolve(envMap);
+
+            } catch (error) {
+              console.error('SceneManager: Error processing HDR:', error);
+              reject(error);
+            } finally {
+              texture.dispose();
+              pmremGenerator.dispose();
+              this.isLoadingHDR = false;
+            }
+          },
+          (progress) => {
+            const percent = progress.total > 0 ? Math.round((progress.loaded / progress.total) * 100) : 0;
+            if (this.debug) console.log(`SceneManager: HDR loading: ${percent}%`);
+          },
+          (error) => {
+            console.error('SceneManager: Error loading HDR environment:', error);
+            pmremGenerator.dispose();
+            this.isLoadingHDR = false;
+            
+            const loadErrorEvent = new CustomEvent('hdr-loading-error', { detail: error });
+            if (this.container) this.container.dispatchEvent(loadErrorEvent);
+            
+            reject(error);
           }
-
-          const loadCompleteEvent = new CustomEvent('hdr-loading-complete');
-          if (this.container) this.container.dispatchEvent(loadCompleteEvent);
-
-        } catch (error) {
-          console.error('SceneManager: Error applying HDR environment:', error);
-        } finally {
-          texture.dispose();
-          pmremGenerator.dispose();
-          this.isLoadingHDR = false;
-        }
-      },
-      (progress) => {
-        const percent = progress.total > 0 ? Math.round((progress.loaded / progress.total) * 100) : 0;
-        // console.log(`SceneManager: HDR loading: ${percent}%`);
-      },
-      (error) => {
-        console.error('SceneManager: Error loading HDR environment:', error);
-        this.isLoadingHDR = false;
-        const loadErrorEvent = new CustomEvent('hdr-loading-error', { detail: error });
-        if (this.container) this.container.dispatchEvent(loadErrorEvent);
-      });
+        );
+    });
   }
 
   applyEnvironmentToObjects(forceUpdate = false) {
@@ -242,8 +241,7 @@ export class SceneManager {
       return;
     }
     if (this.environmentApplied && !forceUpdate) {
-        // console.log('SceneManager: Environment already applied, skipping unless forced.');
-        return;
+      return;
     }
 
     console.log(`SceneManager: Applying environment map to objects (forceUpdate: ${forceUpdate})`);
@@ -254,7 +252,7 @@ export class SceneManager {
         materials.forEach(material => {
           if (material.isMeshStandardMaterial || material.isMeshPhysicalMaterial) {
             material.envMap = this.scene.environment;
-            material.envMapIntensity = 0.8; // Default intensity, can be adjusted
+            material.envMapIntensity = 0.8;
             material.needsUpdate = true;
             updatedMaterials++;
           }
@@ -262,26 +260,24 @@ export class SceneManager {
       }
     });
     console.log(`SceneManager: Updated ${updatedMaterials} materials with environment map.`);
-    this.environmentApplied = true; // Mark as applied
+    this.environmentApplied = true;
   }
 
   initLights() {
     this.lights = new THREE.Group();
     this.scene.add(this.lights);
 
-    // With HDR, traditional lights are often for fill, specific highlights, or shadows.
-    // 1. Ambient light - moderate for base fill with HDR
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.3); // Lower intensity with HDR
+    // Ambient light - moderate for base fill with HDR
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.3);
     this.lights.add(ambientLight);
 
-    // 2. Hemisphere light for subtle up/down color variation and soft fill
-    const hemiLight = new THREE.HemisphereLight(0xffffff, 0x888888, 0.3); // Sky, Ground, Intensity
-    hemiLight.position.set(0, 1, 0); // Optional: position it
+    // Hemisphere light for subtle up/down color variation
+    const hemiLight = new THREE.HemisphereLight(0xffffff, 0x888888, 0.3);
+    hemiLight.position.set(0, 1, 0);
     this.lights.add(hemiLight);
     
-    // 3. Single directional light primarily for casting shadows if needed.
-    // HDR provides the main illumination and reflections.
-    const mainLight = new THREE.DirectionalLight(0xffffff, 0.5); // Lower intensity
+    // Directional light primarily for casting shadows
+    const mainLight = new THREE.DirectionalLight(0xffffff, 0.5);
     mainLight.position.set(5, 8, 5);
     mainLight.castShadow = true;
     mainLight.shadow.mapSize.width = 2048;
@@ -293,76 +289,87 @@ export class SceneManager {
     mainLight.shadow.camera.right = d;
     mainLight.shadow.camera.top = d;
     mainLight.shadow.camera.bottom = -d;
-    mainLight.shadow.radius = 3; // Softer shadows
+    mainLight.shadow.radius = 3;
     this.lights.add(mainLight);
   }
 
   initControls() {
     if (this.camera && this.renderer && this.renderer.domElement) {
-        this.orbitControls = new OrbitControls(this.camera, this.renderer.domElement);
-        this.orbitControls.enableDamping = true;
-        this.orbitControls.dampingFactor = 0.1;
-        this.orbitControls.screenSpacePanning = false;
-        this.orbitControls.minDistance = 1; // Adjusted minDistance
-        this.orbitControls.maxDistance = 50; // Adjusted maxDistance
-        this.orbitControls.maxPolarAngle = Math.PI / 2 - 0.05; // Prevent going too far below horizon
+      this.orbitControls = new OrbitControls(this.camera, this.renderer.domElement);
+      this.orbitControls.enableDamping = true;
+      this.orbitControls.dampingFactor = 0.1;
+      this.orbitControls.screenSpacePanning = false;
+      this.orbitControls.minDistance = 1;
+      this.orbitControls.maxDistance = 50;
+      this.orbitControls.maxPolarAngle = Math.PI / 2 - 0.05;
     } else {
-        console.error("SceneManager: Camera or renderer not ready for OrbitControls.");
+      console.error("SceneManager: Camera or renderer not ready for OrbitControls.");
     }
   }
 
   initRoom() {
     const defaultRoomPoints = [
-        { x: -5, z: -3 }, { x: 5, z: -3 },
-        { x: 5, z: 3 },  { x: -5, z: 3 }
+      { x: -5, z: -3 }, { x: 5, z: -3 },
+      { x: 5, z: 3 },  { x: -5, z: 3 }
     ];
     
-    // Assuming your Room constructor takes height, or you call buildFromPolygon
-    // Your original Room constructor was: new Room(10, 2.5, 8) which seems like dimensions not just height.
-    // The provided Room.js takes height. Let's use that.
-    this.room = new Room(2.5); // Pass default height
-    this.room.buildFromPolygon(defaultRoomPoints, false);
+    try {
+      this.room = new Room(2.5);
+      this.room.buildFromPolygon(defaultRoomPoints, false);
 
-    if (this.room.group) {
-      this.room.group.traverse((object) => { /* ... your material setup ... */ });
-      this.scene.add(this.room.group);
-    } else {
-      console.warn("SceneManager: Room group not found after initialization.");
+      if (this.room.group) {
+        this.room.group.traverse((object) => {
+          // Setup room materials if needed
+        });
+        this.scene.add(this.room.group);
+      } else {
+        console.warn("SceneManager: Room group not found after initialization.");
+      }
+    } catch (error) {
+      console.error("SceneManager: Failed to initialize room:", error);
     }
+    
     this.floorLevel = 0; 
-    window.roomInstance = this.room; // Make globally accessible IF NEEDED, but prefer direct calls
+    
+    // Make room globally accessible if needed
+    if (typeof window !== 'undefined') {
+      window.roomInstance = this.room;
+    }
 
-    // Your existing logic for window.selectedShapeFromPopup
+    // Handle popup selection
     requestAnimationFrame(() => {
-      if (window.selectedShapeFromPopup && typeof window.loadShapeFromTemplate === 'function') {
+      if (typeof window !== 'undefined' && window.selectedShapeFromPopup && typeof window.loadShapeFromTemplate === 'function') {
         console.log("SceneManager: Triggering loadShapeFromTemplate:", window.selectedShapeFromPopup);
-        window.loadShapeFromTemplate(window.selectedShapeFromPopup); // This function needs to be defined globally or accessible
+        window.loadShapeFromTemplate(window.selectedShapeFromPopup);
         delete window.selectedShapeFromPopup;
-      } else if (window.selectedShapeFromPopup) { /* ... warning ... */ }
+      }
     });
   }
 
   initGrid() {
-    if (!this.scene ) return;
-    this.grid = new GridHelper(30, 30, 0.5); // size, divisions, centerLineColor, gridColor
-    if (this.grid.grid) {
-      this.grid.grid.visible = true; // show by default
-      this.scene.add(this.grid.grid);
+    if (!this.scene) return;
+    
+    try {
+      this.grid = new GridHelper(30, 30, 0.5);
+      if (this.grid.grid) {
+        this.grid.grid.visible = true;
+        this.scene.add(this.grid.grid);
+      }
+    } catch (error) {
+      console.error("SceneManager: Failed to initialize grid:", error);
     }
   }
 
- 
-  
   toggleGridVisibility() {
     if (this.grid && this.grid.grid) {
       this.grid.grid.visible = !this.grid.grid.visible;
       console.log(`SceneManager: Grid is now ${this.grid.grid.visible ? 'visible' : 'hidden'}`);
     }
   }
-  
 
   initInteractionManager() {
     if (this.scene && this.camera && this.renderer && this.orbitControls) {
+      try {
         this.interactionManager = new InteractionManager(
           this.scene,
           this.camera,
@@ -379,12 +386,12 @@ export class SceneManager {
             this.selectedObject = null;
             if (this.container) this.container.dispatchEvent(new CustomEvent('object-deselected'));
           },
-          onObjectChanged: (object, previousState) => { // Assuming InteractionManager can provide previousState
+          onObjectChanged: (object, previousState) => {
             this.addToUndoStack({
               type: 'transform',
               object: object,
-              previousProperties: previousState, // State BEFORE the change
-              newProperties: this.getObjectState(object) // State AFTER the change
+              previousProperties: previousState,
+              newProperties: this.getObjectState(object)
             });
           },
           onObjectPinned: (object) => {
@@ -394,7 +401,7 @@ export class SceneManager {
             if (this.container) this.container.dispatchEvent(new CustomEvent('object-unpinned', { detail: object }));
           },
           onObjectDeleted: (object) => {
-            const originalState = this.getObjectState(object); // Get state before filtering
+            const originalState = this.getObjectState(object);
             this.objects = this.objects.filter(obj => obj !== object);
             this.addToUndoStack({ type: 'remove', object: object, properties: originalState });
           },
@@ -403,8 +410,30 @@ export class SceneManager {
             if (this.container) this.container.dispatchEvent(new CustomEvent('mode-changed', { detail: mode }));
           }
         });
+      } catch (error) {
+        console.error("SceneManager: Failed to initialize InteractionManager:", error);
+      }
     } else {
-        console.error("SceneManager: Dependencies for InteractionManager not ready.");
+      console.error("SceneManager: Dependencies for InteractionManager not ready.");
+    }
+  }
+
+  addEventListeners() {
+    window.addEventListener('resize', this.onWindowResize);
+    document.addEventListener('visibilitychange', this.onVisibilityChange);
+    
+    if (this.container) {
+      this.container.addEventListener('pointerdown', this.onPointerDown);
+    }
+
+    // Listen for model loading events for debugging
+    if (this.debug && typeof window !== 'undefined') {
+      window.addEventListener('model-loading-completed', (event) => {
+        console.log('SceneManager: Model loaded:', event.detail.modelType);
+      });
+      window.addEventListener('model-loading-error', (event) => {
+        console.error('SceneManager: Model loading error:', event.detail.error);
+      });
     }
   }
 
@@ -417,142 +446,431 @@ export class SceneManager {
   }
   
   onPointerDown(event) {
-    // This can be a placeholder or used for scene-wide interactions
-    // if not handled entirely by InteractionManager.
-    // console.log('SceneManager: Pointer down on container', event);
+    // Placeholder for scene-wide interactions
+  }
+
+  onVisibilityChange() {
+    if (document.visibilityState === 'visible' && this.scene && this.scene.environment) {
+      console.log('SceneManager: Tab visible again, refreshing environment maps.');
+      setTimeout(() => this.applyEnvironmentToObjects(true), 100);
+    }
   }
 
   animate() {
     this.animationFrameId = requestAnimationFrame(this.animate);
-    const delta = this.clock.getDelta();
-
-     // Update all animation mixers
-    this.mixers.forEach((mixer) => {
-      mixer.update(delta);
-    });
-
-    if (this.orbitControls) {
-      this.orbitControls.update(delta); // Pass delta if damping or other time-dependent features are used
-    }
-
-    // Apply environment map to newly added objects if not yet applied
-    if (this.scene && this.scene.environment && !this.environmentApplied && !this.isLoadingHDR) {
-        this.applyEnvironmentToObjects();
-    }
     
-    if (this.interactionManager && typeof this.interactionManager.update === 'function') {
-        this.interactionManager.update(delta); // If InteractionManager has an update loop
-    }
-    if (this.interactionManager && typeof this.interactionManager.updateBoundingBoxes === 'function') {
-        this.interactionManager.updateBoundingBoxes();
-    }
+    if (!this.isInitialized) return;
 
+    try {
+      const delta = this.clock.getDelta();
 
-    if (this.room && typeof this.room.updateWallVisibility === 'function') {
-      this.room.updateWallVisibility(this.camera);
-    }
+      // Update animation mixers
+      this.mixers.forEach((mixer) => {
+        mixer.update(delta);
+      });
 
-    if (this.renderer && this.scene && this.camera) {
-      try {
-        this.renderer.render(this.scene, this.camera);
-      } catch (error) {
-        console.warn('SceneManager: Error during rendering:', error);
+      if (this.orbitControls) {
+        this.orbitControls.update();
       }
+
+      // Apply environment map to newly added objects if not yet applied
+      if (this.scene && this.scene.environment && !this.environmentApplied && !this.isLoadingHDR) {
+        this.applyEnvironmentToObjects();
+      }
+      
+      // Update interaction manager safely
+      if (this.interactionManager) {
+        try {
+          if (typeof this.interactionManager.update === 'function') {
+            this.interactionManager.update(delta);
+          }
+          if (typeof this.interactionManager.updateBoundingBoxes === 'function') {
+            this.interactionManager.updateBoundingBoxes();
+          }
+        } catch (error) {
+          console.warn('SceneManager: Error updating interaction manager:', error);
+        }
+      }
+
+      if (this.room && typeof this.room.updateWallVisibility === 'function') {
+        this.room.updateWallVisibility(this.camera);
+      }
+
+      if (this.renderer && this.scene && this.camera) {
+        this.renderer.render(this.scene, this.camera);
+      }
+
+    } catch (error) {
+      console.warn('SceneManager: Error in animation loop:', error);
     }
   }
 
-  addModel(modelType, initialPosition = null) {
-    console.log(`SceneManager: Adding model: ${modelType}`);
-    const modelPath = `/assets/models/${modelType}.glb`;
-
-    this.modelLoader.load(modelType, modelPath, (model) => {
-      let targetXZPosition = new THREE.Vector3();
-      if (!initialPosition) {
-        const roomCenter = new THREE.Vector3();
-        if (this.room && this.room.group) {
-          this.room.group.getWorldPosition(roomCenter);
-        }
-        targetXZPosition.set(roomCenter.x, 0, roomCenter.z);
-      } else {
-        targetXZPosition.set(initialPosition.x, 0, initialPosition.z);
+  async addModel(modelType, initialPosition = null) {
+    try {
+      if (!this.isInitialized) {
+        await this.initializationPromise;
       }
 
-      model.position.set(targetXZPosition.x, 0, targetXZPosition.z); // Temp Y for bbox
-      model.updateMatrixWorld(true);
-      const tempBox = new THREE.Box3().setFromObject(model);
-      const yOffsetToPlaceBottomAtZero = -tempBox.min.y;
-      model.position.set(
-        targetXZPosition.x,
-        this.floorLevel + yOffsetToPlaceBottomAtZero,
-        targetXZPosition.z
-      );
+      console.log(`SceneManager: Adding model: ${modelType}`);
+      const modelPath = `/assets/models/${modelType}.glb`;
 
-      model.userData.isModelRoot = true;
-      model.userData.selectable = true;
-      model.userData.type = modelType;
-      model.userData.finalYPosition = model.position.y;
+      return new Promise((resolve, reject) => {
+        this.modelLoader.load(modelType, modelPath, 
+          (model) => {
+            try {
+              this.processLoadedModel(model, modelType, initialPosition);
+              resolve(model);
+            } catch (error) {
+              console.error(`Error processing model ${modelType}:`, error);
+              reject(error);
+            }
+          },
+          undefined, // onProgress
+          (error) => {
+            console.error(`Failed to load model ${modelType}:`, error);
+            reject(error);
+          }
+        );
+      });
 
-      // Handle animations
-      if (model.userData.animations && model.userData.animations.length > 0) {
-        const mixer = new THREE.AnimationMixer(model);
-        this.mixers.set(model, mixer);
+    } catch (error) {
+      console.error(`SceneManager: Error in addModel for ${modelType}:`, error);
+      throw error;
+    }
+  }
+
+  processLoadedModel(model, modelType, initialPosition) {
+    // Calculate position
+    let targetXZPosition = new THREE.Vector3();
+    if (!initialPosition) {
+      const roomCenter = new THREE.Vector3();
+      if (this.room?.group) {
+        this.room.group.getWorldPosition(roomCenter);
       }
+      targetXZPosition.set(roomCenter.x, 0, roomCenter.z);
+    } else {
+      targetXZPosition.set(initialPosition.x, 0, initialPosition.z);
+    }
 
-      // Configure materials for HDR lighting
-      if (this.scene && this.scene.environment) {
-        model.traverse((object) => {
-          if (object.isMesh && object.material) {
-            const materials = Array.isArray(object.material) ? object.material : [object.material];
-            materials.forEach(material => {
-              if (material.isMeshStandardMaterial || material.isMeshPhysicalMaterial) {
-                material.envMap = this.scene.environment;
-                material.envMapIntensity = 1.0; // Consistent with applyEnvironmentToObjects
-                material.needsUpdate = true;
-              }
-            });
+    // Position model properly on floor
+    this.positionModelOnFloor(model, targetXZPosition);
+
+    // Setup model properties
+    model.userData = {
+      isModelRoot: true,
+      selectable: true,
+      type: modelType,
+      finalYPosition: model.position.y,
+      ...model.userData // Preserve any existing userData
+    };
+
+    // Handle animations
+    this.setupModelAnimations(model);
+
+    // Apply HDR lighting
+    this.applyHDRToModel(model);
+
+    // Add to scene
+    this.scene.add(model);
+    this.objects.push(model);
+    
+    // Add to undo stack
+    this.addToUndoStack({ 
+      type: 'add', 
+      object: model, 
+      properties: this.getObjectState(model) 
+    });
+    
+    // Select the new model
+    this.selectObject(model);
+    
+    console.log(`SceneManager: Model ${modelType} added successfully`);
+  }
+
+  positionModelOnFloor(model, targetPosition) {
+    model.position.set(targetPosition.x, 0, targetPosition.z);
+    model.updateMatrixWorld(true);
+    
+    const tempBox = new THREE.Box3().setFromObject(model);
+    const yOffsetToPlaceBottomAtZero = -tempBox.min.y;
+    
+    model.position.set(
+      targetPosition.x,
+      this.floorLevel + yOffsetToPlaceBottomAtZero,
+      targetPosition.z
+    );
+  }
+
+  setupModelAnimations(model) {
+    if (model.userData.animations?.length > 0) {
+      const mixer = new THREE.AnimationMixer(model);
+      this.mixers.set(model, mixer);
+      console.log(`Animations setup for ${model.userData.type}:`, model.userData.animations.length);
+    }
+  }
+
+  applyHDRToModel(model) {
+    if (!this.scene?.environment) {
+      this.environmentApplied = false;
+      return;
+    }
+
+    model.traverse((object) => {
+      if (object.isMesh && object.material) {
+        const materials = Array.isArray(object.material) ? object.material : [object.material];
+        materials.forEach(material => {
+          if (material.isMeshStandardMaterial || material.isMeshPhysicalMaterial) {
+            material.envMap = this.scene.environment;
+            material.envMapIntensity = 1.0;
+            material.needsUpdate = true;
           }
         });
-      } else if (!this.isLoadingHDR) { // If HDR is not loading and not set, mark environment as not applied
-          this.environmentApplied = false;
       }
-
-
-      this.scene.add(model);
-      this.objects.push(model);
-      this.addToUndoStack({ type: 'add', object: model, properties: this.getObjectState(model) });
-      this.selectObject(model);
-      console.log(`SceneManager: Model ${modelType} added. Position:`, model.position);
     });
   }
 
+  // ===== DUPLICATION SYSTEM =====
+  duplicateObject(objectToDuplicate) {
+    objectToDuplicate = objectToDuplicate || this.selectedObject;
+    if (!objectToDuplicate) {
+      console.warn('SceneManager: No object to duplicate');
+      return;
+    }
+
+    console.log('SceneManager: Starting object duplication for:', objectToDuplicate.userData?.type);
+
+    try {
+      // Method 1: Use ModelLoader's duplicate method if available
+      if (this.modelLoader && typeof this.modelLoader.duplicate === 'function') {
+        this.modelLoader.duplicate(objectToDuplicate, (clone) => {
+          this.finalizeClone(clone, objectToDuplicate);
+        });
+      } else {
+        // Method 2: Fallback cloning
+        console.warn('SceneManager: ModelLoader.duplicate not available, using fallback cloning');
+        this.fallbackDuplicate(objectToDuplicate);
+      }
+
+    } catch (error) {
+      console.error('SceneManager: Duplication failed:', error);
+      
+      // Method 3: Emergency fallback
+      console.log('SceneManager: Attempting emergency duplication...');
+      this.emergencyDuplicate(objectToDuplicate);
+    }
+  }
+
+  fallbackDuplicate(sourceObject) {
+    try {
+      const clone = sourceObject.clone(true);
+      this.cloneMaterials(clone);
+      this.finalizeClone(clone, sourceObject);
+      console.log('SceneManager: Fallback duplication successful');
+    } catch (error) {
+      console.error('SceneManager: Fallback duplication failed:', error);
+      this.emergencyDuplicate(sourceObject);
+    }
+  }
+
+  emergencyDuplicate(sourceObject) {
+    try {
+      console.log('SceneManager: Using emergency duplication method');
+      
+      const clone = sourceObject.clone(true);
+      
+      // Position offset
+      clone.position.copy(sourceObject.position);
+      clone.position.x += 1.0;
+      clone.position.z += 1.0;
+
+      // Clone materials manually
+      clone.traverse((child) => {
+        if (child.isMesh && child.material) {
+          if (Array.isArray(child.material)) {
+            child.material = child.material.map(mat => mat.clone());
+          } else {
+            child.material = child.material.clone();
+          }
+        }
+      });
+
+      // Copy userData
+      clone.userData = {
+        ...JSON.parse(JSON.stringify(sourceObject.userData)),
+        isModelRoot: true,
+        selectable: true,
+        isClone: true,
+        cloneId: THREE.MathUtils.generateUUID()
+      };
+
+      // Handle animations
+      if (sourceObject.userData.animations && sourceObject.userData.animations.length > 0) {
+        const mixer = new THREE.AnimationMixer(clone);
+        this.mixers.set(clone, mixer);
+      }
+
+      // Apply HDR environment
+      this.applyHDRToClone(clone);
+
+      // Add to scene
+      this.scene.add(clone);
+      this.objects.push(clone);
+      
+      this.addToUndoStack({ 
+        type: 'add', 
+        object: clone, 
+        properties: this.getObjectState(clone) 
+      });
+      
+      this.selectObject(clone);
+      
+      console.log('SceneManager: Emergency duplication completed');
+      return clone;
+
+    } catch (error) {
+      console.error('SceneManager: Emergency duplication failed:', error);
+      
+      if (this.container) {
+        this.container.dispatchEvent(new CustomEvent('duplication-error', {
+          detail: {
+            message: 'Failed to duplicate object. Please try selecting the object again.',
+            error: error.message
+          }
+        }));
+      }
+    }
+  }
+
+  finalizeClone(clone, sourceObject) {
+    // Position the clone with offset
+    clone.position.copy(sourceObject.position);
+    clone.rotation.copy(sourceObject.rotation);
+    clone.scale.copy(sourceObject.scale);
+    
+    // Offset position so clone doesn't overlap original
+    clone.position.x += 1.0;
+    clone.position.z += 1.0;
+
+    // Ensure clone is properly positioned on floor
+    this.positionModelOnFloor(clone, clone.position);
+
+    // Set up userData
+    clone.userData = {
+      ...JSON.parse(JSON.stringify(sourceObject.userData)),
+      isModelRoot: true,
+      selectable: true,
+      isPinned: false,
+      isClone: true,
+      cloneId: THREE.MathUtils.generateUUID(),
+      parentId: sourceObject.userData.cloneId || sourceObject.uuid
+    };
+
+    // Handle animations for cloned object
+    if (clone.userData.animations && clone.userData.animations.length > 0) {
+      const mixer = new THREE.AnimationMixer(clone);
+      this.mixers.set(clone, mixer);
+    }
+
+    // Apply HDR environment to the cloned object
+    this.applyHDRToClone(clone);
+
+    // Add to scene and tracking
+    this.scene.add(clone);
+    this.objects.push(clone);
+    
+    this.addToUndoStack({ 
+      type: 'add', 
+      object: clone, 
+      properties: this.getObjectState(clone) 
+    });
+    
+    this.selectObject(clone);
+    
+    console.log("SceneManager: Object duplicated successfully:", clone.userData.type);
+  }
+
+  cloneMaterials(object) {
+    const materialMap = new Map();
+
+    object.traverse((child) => {
+      if (child.isMesh && child.material) {
+        if (Array.isArray(child.material)) {
+          child.material = child.material.map(material => {
+            return this.getClonedMaterial(material, materialMap);
+          });
+        } else {
+          child.material = this.getClonedMaterial(child.material, materialMap);
+        }
+      }
+    });
+  }
+
+  getClonedMaterial(material, materialMap) {
+    if (materialMap.has(material.uuid)) {
+      return materialMap.get(material.uuid);
+    }
+
+    const clonedMaterial = material.clone();
+    materialMap.set(material.uuid, clonedMaterial);
+    return clonedMaterial;
+  }
+
+  applyHDRToClone(model) {
+    if (!this.scene?.environment) {
+      this.environmentApplied = false;
+      return;
+    }
+
+    model.traverse((object) => {
+      if (object.isMesh && object.material) {
+        const materials = Array.isArray(object.material) ? object.material : [object.material];
+        materials.forEach(material => {
+          if (material.isMeshStandardMaterial || material.isMeshPhysicalMaterial) {
+            material.envMap = this.scene.environment;
+            material.envMapIntensity = 1.0;
+            material.needsUpdate = true;
+          }
+        });
+      }
+    });
+  }
+
+  // ===== OBJECT MANIPULATION =====
   selectObject(object) {
     if (this.interactionManager) this.interactionManager.select(object);
   }
+
   deselectObject() {
     if (this.interactionManager) this.interactionManager.deselect();
   }
+
   setInteractionMode(mode) {
     this.interactionMode = mode;
     if (this.interactionManager) this.interactionManager.setInteractionMode(mode);
   }
+
   pinObject(object) {
     if (this.interactionManager) this.interactionManager.pinObject(object || this.selectedObject);
   }
+
   unpinObject(object) {
     if (this.interactionManager) this.interactionManager.unpinObject(object || this.selectedObject);
   }
+
   togglePin(object) {
     object = object || this.selectedObject;
     if (object && this.interactionManager) this.interactionManager.togglePin(object);
   }
+
   rotateObject(object, angleDegrees) {
     object = object || this.selectedObject;
     if (object && this.interactionManager) this.interactionManager.rotateObject(object, angleDegrees);
   }
-  setTransformMode(mode) { // Assumes this.transformControls is part of InteractionManager or separate
+
+  setTransformMode(mode) {
     this.transformMode = mode;
     if (this.interactionManager && typeof this.interactionManager.setTransformMode === 'function') {
-        this.interactionManager.setTransformMode(mode);
+      this.interactionManager.setTransformMode(mode);
     } else if (this.selectedObject && this.transformControls) {
       this.transformControls.setMode(mode);
     } else {
@@ -560,59 +878,13 @@ export class SceneManager {
     }
   }
 
-  duplicateObject(objectToDuplicate) {
-    objectToDuplicate = objectToDuplicate || this.selectedObject;
-    if (!objectToDuplicate) return;
-
-    this.modelLoader.duplicate(objectToDuplicate, (clone) => {
-      clone.position.copy(objectToDuplicate.position);
-      clone.rotation.copy(objectToDuplicate.rotation);
-      clone.scale.copy(objectToDuplicate.scale);
-      clone.position.x += 0.5;
-      clone.position.z += 0.5;
-
-      clone.userData = JSON.parse(JSON.stringify(objectToDuplicate.userData));
-      clone.userData.isModelRoot = true;
-      clone.userData.selectable = true;
-
-      // Handle animations for cloned object
-      if (clone.userData.animations && clone.userData.animations.length > 0) {
-        const mixer = new THREE.AnimationMixer(clone);
-        this.mixers.set(clone, mixer);
-      }
-
-      // Apply HDR environment to the cloned object's materials
-      if (this.scene && this.scene.environment) {
-        clone.traverse((child) => {
-          if (child.isMesh && child.material) {
-            const materials = Array.isArray(child.material) ? child.material : [child.material];
-            materials.forEach(material => {
-              if (material.isMeshStandardMaterial || material.isMeshPhysicalMaterial) {
-                material.envMap = this.scene.environment;
-                material.envMapIntensity = 1.0;
-                material.needsUpdate = true;
-              }
-            });
-          }
-        });
-      } else if (!this.isLoadingHDR) {
-          this.environmentApplied = false;
-      }
-
-
-      this.objects.push(clone);
-      this.scene.add(clone);
-      this.addToUndoStack({ type: 'add', object: clone, properties: this.getObjectState(clone) });
-      this.selectObject(clone);
-      console.log("SceneManager: Object duplicated:", clone);
-    });
-  }
-
-   removeObject(objectToRemove) {
+  removeObject(objectToRemove) {
     objectToRemove = objectToRemove || this.selectedObject;
     if (!objectToRemove) return;
+    
     const state = this.getObjectState(objectToRemove);
     this.addToUndoStack({ type: 'remove', object: objectToRemove, properties: state });
+    
     if (this.selectedObject === objectToRemove) this.deselectObject();
 
     // Stop and remove animation mixer
@@ -628,37 +900,38 @@ export class SceneManager {
     console.log("SceneManager: Object removed:", objectToRemove);
   }
 
-   toggleAnimation(object) {
-      object = object || this.selectedObject;
-      if (!object || !this.mixers.has(object)) {
-        console.warn('SceneManager: No animations available for this object.');
-        return;
-      }
-  
-      const mixer = this.mixers.get(object);
-      const animations = object.userData.animations;
-  
-      if (!mixer || !animations || animations.length === 0) {
-        console.warn('SceneManager: Mixer or animations not found.');
-        return;
-      }
-  
-      // Check if an animation is currently playing
-      const currentAction = mixer._actions.find(action => action.isRunning());
-      if (currentAction) {
-        currentAction.stop();
-        console.log('SceneManager: Animation stopped for object:', object.userData.type);
-      } else {
-        // Play the first animation
-        const clip = animations[0];
-        const action = mixer.clipAction(clip);
-        action.setLoop(THREE.LoopRepeat);
-        action.clampWhenFinished = false;
-        action.play();
-        console.log('SceneManager: Animation started for object:', object.userData.type, clip.name);
-      }
+  toggleAnimation(object) {
+    object = object || this.selectedObject;
+    if (!object || !this.mixers.has(object)) {
+      console.warn('SceneManager: No animations available for this object.');
+      return;
     }
 
+    const mixer = this.mixers.get(object);
+    const animations = object.userData.animations;
+
+    if (!mixer || !animations || animations.length === 0) {
+      console.warn('SceneManager: Mixer or animations not found.');
+      return;
+    }
+
+    // Check if an animation is currently playing
+    const currentAction = mixer._actions.find(action => action.isRunning());
+    if (currentAction) {
+      currentAction.stop();
+      console.log('SceneManager: Animation stopped for object:', object.userData.type);
+    } else {
+      // Play the first animation
+      const clip = animations[0];
+      const action = mixer.clipAction(clip);
+      action.setLoop(THREE.LoopRepeat);
+      action.clampWhenFinished = false;
+      action.play();
+      console.log('SceneManager: Animation started for object:', object.userData.type, clip.name);
+    }
+  }
+
+  // ===== STATE MANAGEMENT =====
   getObjectState(object) {
     return {
       position: object.position.clone(),
@@ -667,6 +940,7 @@ export class SceneManager {
       userData: JSON.parse(JSON.stringify(object.userData))
     };
   }
+
   applyObjectState(object, state) {
     object.position.copy(state.position);
     object.rotation.copy(state.rotation);
@@ -676,119 +950,122 @@ export class SceneManager {
   }
 
   addToUndoStack(action) {
-    // For 'transform', action should contain { type, object, previousProperties, newProperties }
     this.undoStack.push(action);
     this.redoStack = [];
     console.log("SceneManager: Action added to undo stack:", action.type, this.undoStack.length);
   }
 
   undo() {
-      if (this.undoStack.length === 0) {
-        console.log("SceneManager: Undo stack empty.");
-        return;
-      }
-      const action = this.undoStack.pop();
-      console.log("SceneManager: Undoing action:", action.type);
-  
-      switch (action.type) {
-        case 'add':
-          this.scene.remove(action.object);
-          this.objects = this.objects.filter(obj => obj !== action.object);
-          if (this.selectedObject === action.object) this.deselectObject();
-          if (this.mixers.has(action.object)) {
-            const mixer = this.mixers.get(action.object);
-            mixer.stopAllAction();
-            mixer.uncacheRoot(action.object);
-            this.mixers.delete(action.object);
-          }
-          break;
-        case 'remove':
-          this.scene.add(action.object);
-          this.objects.push(action.object);
-          this.applyObjectState(action.object, action.properties);
-          if (action.object.userData.animations && action.object.userData.animations.length > 0) {
-            const mixer = new THREE.AnimationMixer(action.object);
-            this.mixers.set(action.object, mixer);
-          }
-          break;
-        case 'transform':
-          this.applyObjectState(action.object, action.previousProperties);
-          if (this.interactionManager) this.interactionManager.updateControlsForObject(action.object);
-          break;
-        default:
-          console.warn('SceneManager: Unknown action type for undo:', action.type);
-          this.redoStack.push(action);
-          return;
-      }
-      this.redoStack.push(action);
+    if (this.undoStack.length === 0) {
+      console.log("SceneManager: Undo stack empty.");
+      return;
     }
-  
-    redo() {
-      if (this.redoStack.length === 0) {
-        console.log("SceneManager: Redo stack empty.");
+    
+    const action = this.undoStack.pop();
+    console.log("SceneManager: Undoing action:", action.type);
+
+    switch (action.type) {
+      case 'add':
+        this.scene.remove(action.object);
+        this.objects = this.objects.filter(obj => obj !== action.object);
+        if (this.selectedObject === action.object) this.deselectObject();
+        if (this.mixers.has(action.object)) {
+          const mixer = this.mixers.get(action.object);
+          mixer.stopAllAction();
+          mixer.uncacheRoot(action.object);
+          this.mixers.delete(action.object);
+        }
+        break;
+      case 'remove':
+        this.scene.add(action.object);
+        this.objects.push(action.object);
+        this.applyObjectState(action.object, action.properties);
+        if (action.object.userData.animations && action.object.userData.animations.length > 0) {
+          const mixer = new THREE.AnimationMixer(action.object);
+          this.mixers.set(action.object, mixer);
+        }
+        break;
+      case 'transform':
+        this.applyObjectState(action.object, action.previousProperties);
+        if (this.interactionManager && typeof this.interactionManager.updateControlsForObject === 'function') {
+          this.interactionManager.updateControlsForObject(action.object);
+        }
+        break;
+      default:
+        console.warn('SceneManager: Unknown action type for undo:', action.type);
+        this.redoStack.push(action);
         return;
-      }
-      const action = this.redoStack.pop();
-      console.log("SceneManager: Redoing action:", action.type);
-  
-      switch (action.type) {
-        case 'add':
-          this.scene.add(action.object);
-          this.objects.push(action.object);
-          this.applyObjectState(action.object, action.properties);
-          if (action.object.userData.animations && action.object.userData.animations.length > 0) {
-            const mixer = new THREE.AnimationMixer(action.object);
-            this.mixers.set(action.object, mixer);
-          }
-          break;
-        case 'remove':
-          this.scene.remove(action.object);
-          this.objects = this.objects.filter(obj => obj !== action.object);
-          if (this.selectedObject === action.object) this.deselectObject();
-          if (this.mixers.has(action.object)) {
-            const mixer = this.mixers.get(action.object);
-            mixer.stopAllAction();
-            mixer.uncacheRoot(action.object);
-            this.mixers.delete(action.object);
-          }
-          break;
-        case 'transform':
-          this.applyObjectState(action.object, action.newProperties);
-          if (this.interactionManager) this.interactionManager.updateControlsForObject(action.object);
-          break;
-        default:
-          console.warn('SceneManager: Unknown action type for redo:', action.type);
-          this.undoStack.push(action);
-          return;
-      }
-      this.undoStack.push(action);
     }
+    this.redoStack.push(action);
+  }
 
+  redo() {
+    if (this.redoStack.length === 0) {
+      console.log("SceneManager: Redo stack empty.");
+      return;
+    }
+    
+    const action = this.redoStack.pop();
+    console.log("SceneManager: Redoing action:", action.type);
 
+    switch (action.type) {
+      case 'add':
+        this.scene.add(action.object);
+        this.objects.push(action.object);
+        this.applyObjectState(action.object, action.properties);
+        if (action.object.userData.animations && action.object.userData.animations.length > 0) {
+          const mixer = new THREE.AnimationMixer(action.object);
+          this.mixers.set(action.object, mixer);
+        }
+        break;
+      case 'remove':
+        this.scene.remove(action.object);
+        this.objects = this.objects.filter(obj => obj !== action.object);
+        if (this.selectedObject === action.object) this.deselectObject();
+        if (this.mixers.has(action.object)) {
+          const mixer = this.mixers.get(action.object);
+          mixer.stopAllAction();
+          mixer.uncacheRoot(action.object);
+          this.mixers.delete(action.object);
+        }
+        break;
+      case 'transform':
+        this.applyObjectState(action.object, action.newProperties);
+        if (this.interactionManager && typeof this.interactionManager.updateControlsForObject === 'function') {
+          this.interactionManager.updateControlsForObject(action.object);
+        }
+        break;
+      default:
+        console.warn('SceneManager: Unknown action type for redo:', action.type);
+        this.undoStack.push(action);
+        return;
+    }
+    this.undoStack.push(action);
+  }
+
+  // ===== VIEW CONTROLS =====
   takeScreenshot() {
     if (!this.renderer || !this.scene || !this.camera) return;
-  
-    this.renderer.render(this.scene, this.camera); // Make sure frame is up-to-date
-  
+
+    this.renderer.render(this.scene, this.camera);
+
     const dataURL = this.renderer.domElement.toDataURL('image/png');
     const link = document.createElement('a');
     link.href = dataURL;
     link.download = 'room-screenshot.png';
     link.click();
-  
+
     console.log("SceneManager: Screenshot saved.");
   }
-  
-  
-  
+
   setView2D() {
     this.camera.position.set(0, 15, 0);
     this.camera.lookAt(0, 0, 0);
     this.camera.rotation.set(-Math.PI / 2, 0, 0);
     if (this.orbitControls) {
       this.orbitControls.target.set(0, 0, 0);
-      this.orbitControls.maxPolarAngle = 0.01; // Almost straight down
-      this.orbitControls.minPolarAngle = 0; // Almost straight down
+      this.orbitControls.maxPolarAngle = 0.01;
+      this.orbitControls.minPolarAngle = 0;
       this.orbitControls.enableRotate = false;
       this.orbitControls.screenSpacePanning = true;
       this.orbitControls.update();
@@ -816,6 +1093,7 @@ export class SceneManager {
       if (this.renderer && this.scene && this.camera) this.renderer.render(this.scene, this.camera);
     }
   }
+
   setEnvironmentIntensity(value) {
     if (!this.scene) return;
     const intensity = Number(value);
@@ -835,171 +1113,321 @@ export class SceneManager {
     console.log(`SceneManager: Updated envMapIntensity to ${intensity} on ${updatedCount} materials`);
     if (this.renderer && this.scene && this.camera) this.renderer.render(this.scene, this.camera);
   }
+
   loadHDREnvironment(hdrPath) {
-    this.environmentApplied = false; // Reset flag so new env is applied
+    this.environmentApplied = false;
     this.initHDREnvironment(hdrPath);
   }
+
   refreshEnvironmentMaps() {
     if (this.scene && this.scene.environment) {
-      this.applyEnvironmentToObjects(true); // Force update
+      this.applyEnvironmentToObjects(true);
       if (this.renderer && this.scene && this.camera) this.renderer.render(this.scene, this.camera);
     }
   }
+
   toggleFloorEditor() {
     if (!this.floorDimensionEditorInstance) {
-        console.error("SceneManager: FloorDimensionEditor instance not available.");
-        return;
+      console.error("SceneManager: FloorDimensionEditor instance not available.");
+      return;
     }
     if (!this.room || typeof this.room.getCurrentPoints !== 'function' || !this.room.group) {
-        console.error("SceneManager: Room instance, getCurrentPoints method, or room.group not available.");
-        return;
+      console.error("SceneManager: Room instance, getCurrentPoints method, or room.group not available.");
+      return;
     }
 
     if (this.floorDimensionEditorInstance.isActive) {
-        this.floorDimensionEditorInstance.clearEditor();
-        if (this.interactionManager && typeof this.interactionManager.enable === 'function') {
-            this.interactionManager.enable();
-        } else if (this.interactionManager) { 
-            this.interactionManager.enabled = true; 
-        }
-        if (this.orbitControls) this.orbitControls.enabled = true;
+      this.floorDimensionEditorInstance.clearEditor();
+      if (this.interactionManager && typeof this.interactionManager.enable === 'function') {
+        this.interactionManager.enable();
+      } else if (this.interactionManager) { 
+        this.interactionManager.enabled = true; 
+      }
+      if (this.orbitControls) this.orbitControls.enabled = true;
     } else {
-        const localRoomPoints = this.room.getCurrentPoints(); // These are local to room.group's origin
+      const localRoomPoints = this.room.getCurrentPoints();
 
-        if (localRoomPoints && localRoomPoints.length >= 3) {
-            // --- Convert local room points to world space ---
-            const roomGroupWorldPosition = new THREE.Vector3();
-            this.room.group.getWorldPosition(roomGroupWorldPosition); // Get world position of the room group
+      if (localRoomPoints && localRoomPoints.length >= 3) {
+        const roomGroupWorldPosition = new THREE.Vector3();
+        this.room.group.getWorldPosition(roomGroupWorldPosition);
 
-            // Note: If room.group has rotation/scale, a simple addition is not enough.
-            // We need to apply the group's full world matrix to each point.
-            // However, your Room.js only sets group.position, not rotation or scale.
-            // So, direct addition of the group's world position should work for now.
-            // If room.group could be rotated/scaled, you'd do:
-            // const worldPoint = new THREE.Vector3(localPoint.x, 0, localPoint.z).applyMatrix4(this.room.group.matrixWorld);
-            // initialPointsForEditor.push({ x: worldPoint.x, z: worldPoint.z });
+        const initialPointsForEditor = localRoomPoints.map(localPoint => {
+          const worldPoint = new THREE.Vector3(localPoint.x, 0, localPoint.z);
+          worldPoint.applyMatrix4(this.room.group.matrixWorld); 
+          return { x: worldPoint.x, z: worldPoint.z };
+        });
+        
+        console.log("SceneManager: Local room points:", JSON.parse(JSON.stringify(localRoomPoints)));
+        console.log("SceneManager: Room group world position:", roomGroupWorldPosition);
+        console.log("SceneManager: Passing these WORLD points to FloorDimensionEditor:", JSON.parse(JSON.stringify(initialPointsForEditor)));
 
-            const initialPointsForEditor = localRoomPoints.map(localPoint => {
-                // Assuming points are in XZ plane locally at Y=0 within the group
-                const worldPoint = new THREE.Vector3(localPoint.x, 0, localPoint.z);
-                // Transform point from room.group's local space to world space
-                worldPoint.applyMatrix4(this.room.group.matrixWorld); 
-                return { x: worldPoint.x, z: worldPoint.z };
-            });
-            
-            console.log("SceneManager: Local room points:", JSON.parse(JSON.stringify(localRoomPoints)));
-            console.log("SceneManager: Room group world position:", roomGroupWorldPosition);
-            console.log("SceneManager: Passing these WORLD points to FloorDimensionEditor:", JSON.parse(JSON.stringify(initialPointsForEditor)));
-
-            if (this.interactionManager && typeof this.interactionManager.disable === 'function') {
-                this.interactionManager.disable();
-                if(typeof this.interactionManager.deselect === 'function') this.interactionManager.deselect();
-            } else if (this.interactionManager) {
-                 this.interactionManager.enabled = false;
-                 if(typeof this.interactionManager.deselect === 'function') this.interactionManager.deselect();
-            }
-            
-            this.floorDimensionEditorInstance.initEditor(initialPointsForEditor, (updatedWorldPoints) => {
-                console.log("SceneManager: Floor points updated by editor (these are WORLD points):", updatedWorldPoints);
-                if (this.room && typeof this.room.buildFromPolygon === 'function' && this.room.group) {
-                    
-                    // --- Convert updated world points back to room.group's local space ---
-                    const inverseRoomGroupMatrix = new THREE.Matrix4();
-                    inverseRoomGroupMatrix.copy(this.room.group.matrixWorld).invert();
-
-                    const newLocalPoints = updatedWorldPoints.map(worldPoint => {
-                        const localP = new THREE.Vector3(worldPoint.x, 0, worldPoint.z); // Assuming Y is 0 for floor points
-                        localP.applyMatrix4(inverseRoomGroupMatrix);
-                        return { x: localP.x, z: localP.z };
-                    });
-                    
-                    console.log("SceneManager: Converted back to LOCAL points for buildFromPolygon:", newLocalPoints);
-                    this.room.buildFromPolygon(newLocalPoints, false); 
-                    
-                    if (this.container) {
-                        this.container.dispatchEvent(new CustomEvent('room-shape-updated', { 
-                            detail: { points: updatedWorldPoints.map(p => ({...p})) } 
-                        }));
-                    }
-                }
-            });
-        } else {
-            console.warn("SceneManager: Current room has insufficient points to activate floor editor.", localRoomPoints);
+        if (this.interactionManager && typeof this.interactionManager.disable === 'function') {
+          this.interactionManager.disable();
+          if(typeof this.interactionManager.deselect === 'function') this.interactionManager.deselect();
+        } else if (this.interactionManager) {
+          this.interactionManager.enabled = false;
+          if(typeof this.interactionManager.deselect === 'function') this.interactionManager.deselect();
         }
+        
+        this.floorDimensionEditorInstance.initEditor(initialPointsForEditor, (updatedWorldPoints) => {
+          console.log("SceneManager: Floor points updated by editor (these are WORLD points):", updatedWorldPoints);
+          if (this.room && typeof this.room.buildFromPolygon === 'function' && this.room.group) {
+            
+            const inverseRoomGroupMatrix = new THREE.Matrix4();
+            inverseRoomGroupMatrix.copy(this.room.group.matrixWorld).invert();
+
+            const newLocalPoints = updatedWorldPoints.map(worldPoint => {
+              const localP = new THREE.Vector3(worldPoint.x, 0, worldPoint.z);
+              localP.applyMatrix4(inverseRoomGroupMatrix);
+              return { x: localP.x, z: localP.z };
+            });
+            
+            console.log("SceneManager: Converted back to LOCAL points for buildFromPolygon:", newLocalPoints);
+            this.room.buildFromPolygon(newLocalPoints, false); 
+            
+            if (this.container) {
+              this.container.dispatchEvent(new CustomEvent('room-shape-updated', { 
+                detail: { points: updatedWorldPoints.map(p => ({...p})) } 
+              }));
+            }
+          }
+        });
+      } else {
+        console.warn("SceneManager: Current room has insufficient points to activate floor editor.", localRoomPoints);
+      }
     }
   }
 
-  // 
+  // ===== UTILITY METHODS =====
+  async waitForInitialization() {
+    if (this.isInitialized) return;
+    return this.initializationPromise;
+  }
 
+  async loadModelSafely(modelType, position) {
+    try {
+      await this.waitForInitialization();
+      return await this.addModel(modelType, position);
+    } catch (error) {
+      console.error(`Failed to load model ${modelType}:`, error);
+      throw error;
+    }
+  }
 
-  dispose() {
-    console.log("Disposing SceneManager...");
-    if (this.animationFrameId) {
-      cancelAnimationFrame(this.animationFrameId);
-      this.animationFrameId = null;
+  testDuplication() {
+    if (!this.selectedObject) {
+      console.log('SceneManager: No object selected for duplication test');
+      return false;
     }
 
-    window.removeEventListener('resize', this.onWindowResize);
-    if (this.container) {
-      this.container.removeEventListener('pointerdown', this.onPointerDown);
+    console.group('🔍 Duplication Test');
+    
+    console.log('Selected object:', this.selectedObject.userData?.type);
+    console.log('ModelLoader available:', !!this.modelLoader);
+    console.log('ModelLoader.duplicate method:', typeof this.modelLoader?.duplicate);
+    
+    try {
+      this.duplicateObject();
+      console.log('✅ Duplication test completed');
+      console.groupEnd();
+      return true;
+    } catch (error) {
+      console.error('❌ Duplication test failed:', error);
+      console.groupEnd();
+      return false;
     }
+  }
 
-    // Dispose animation mixers
-    this.mixers.forEach((mixer, model) => {
-      mixer.stopAllAction();
-      mixer.uncacheRoot(model);
-    });
-    this.mixers.clear();
-
-    if (this.interactionManager) {
-      this.interactionManager.dispose();
-      this.interactionManager = null;
-    }
-
-    if (this.orbitControls) {
-      this.orbitControls.dispose();
-      this.orbitControls = null;
-    }
-
-    this.objects.forEach(obj => {
-      if (obj.parent) {
-        obj.parent.remove(obj);
+  // Add keyboard shortcut support
+  initKeyboardShortcuts() {
+    document.addEventListener('keydown', (event) => {
+      if (event.target.tagName === 'INPUT' || event.target.tagName === 'TEXTAREA') return;
+      
+      if ((event.ctrlKey || event.metaKey) && event.key === 'd') {
+        event.preventDefault();
+        this.duplicateObject();
       }
-      this.modelLoader.disposeModel(obj);
+      
+      if ((event.ctrlKey || event.metaKey) && event.key === 'z') {
+        event.preventDefault();
+        this.undo();
+      }
+      
+      if ((event.ctrlKey || event.metaKey) && event.key === 'y') {
+        event.preventDefault();
+        this.redo();
+      }
+      
+      if (event.key === 'Delete' && this.selectedObject) {
+        event.preventDefault();
+        this.removeObject();
+      }
     });
-    this.objects = [];
+  }
 
-    if (this.room && this.room.group && typeof this.room.dispose === 'function') {
-      this.room.dispose();
+  // ===== DISPOSAL =====
+  async dispose() {
+    console.log("Disposing SceneManager...");
+    
+    try {
+      // Stop animation loop
+      if (this.animationFrameId) {
+        cancelAnimationFrame(this.animationFrameId);
+        this.animationFrameId = null;
+      }
+
+      // Remove event listeners
+      window.removeEventListener('resize', this.onWindowResize);
+      document.removeEventListener('visibilitychange', this.onVisibilityChange);
+      
+      if (this.container) {
+        this.container.removeEventListener('pointerdown', this.onPointerDown);
+      }
+
+      // Wait for any ongoing HDR loading to complete
+      if (this.isLoadingHDR) {
+        console.log("Waiting for HDR loading to complete before disposal...");
+        await new Promise(resolve => {
+          const checkInterval = setInterval(() => {
+            if (!this.isLoadingHDR) {
+              clearInterval(checkInterval);
+              resolve();
+            }
+          }, 100);
+        });
+      }
+
+      // Dispose animation mixers
+      this.mixers.forEach((mixer, model) => {
+        mixer.stopAllAction();
+        mixer.uncacheRoot(model);
+      });
+      this.mixers.clear();
+
+      // Dispose managers
+      if (this.interactionManager) {
+        this.interactionManager.dispose();
+        this.interactionManager = null;
+      }
+
+      if (this.floorDimensionEditorInstance) {
+        if (typeof this.floorDimensionEditorInstance.dispose === 'function') {
+          this.floorDimensionEditorInstance.dispose();
+        }
+        this.floorDimensionEditorInstance = null;
+      }
+
+      // Dispose controls
+      if (this.orbitControls) {
+        this.orbitControls.dispose();
+        this.orbitControls = null;
+      }
+
+      // Dispose objects
+      this.objects.forEach(obj => {
+        this.disposeObject(obj);
+      });
+      this.objects = [];
+
+      // Dispose scene components
+      this.disposeRoom();
+      this.disposeGrid();
+      this.disposeLights();
+      this.disposeScene();
+      this.disposeRenderer();
+
+      // Clear references
+      this.camera = null;
+      this.container = null;
+      this.undoStack = [];
+      this.redoStack = [];
+      
+      if (this.modelLoader) {
+        this.modelLoader.dispose();
+        this.modelLoader = null;
+      }
+
+      this.isInitialized = false;
+      console.log("SceneManager disposed successfully");
+
+    } catch (error) {
+      console.error("Error during SceneManager disposal:", error);
     }
-    this.room = null;
+  }
 
-    if (this.grid && this.grid.grid && typeof this.grid.dispose === 'function') {
-      this.grid.dispose();
-    } else if (this.grid && this.grid.grid) {
-      if (this.grid.grid.parent) this.grid.grid.parent.remove(this.grid.grid);
-      if (this.grid.grid.geometry) this.grid.grid.geometry.dispose();
-      if (this.grid.grid.material) this.grid.grid.material.dispose();
+  disposeObject(obj) {
+    if (obj.parent) {
+      obj.parent.remove(obj);
     }
-    this.grid = null;
+    
+    obj.traverse((child) => {
+      if (child.geometry) {
+        child.geometry.dispose();
+      }
+      if (child.material) {
+        if (Array.isArray(child.material)) {
+          child.material.forEach(material => material.dispose());
+        } else {
+          child.material.dispose();
+        }
+      }
+    });
+  }
 
+  disposeRoom() {
+    if (this.room) {
+      if (typeof this.room.dispose === 'function') {
+        this.room.dispose();
+      } else if (this.room.group) {
+        this.disposeObject(this.room.group);
+      }
+      this.room = null;
+    }
+  }
+
+  disposeGrid() {
+    if (this.grid) {
+      if (typeof this.grid.dispose === 'function') {
+        this.grid.dispose();
+      } else if (this.grid.grid) {
+        this.disposeObject(this.grid.grid);
+      }
+      this.grid = null;
+    }
+  }
+
+  disposeLights() {
     if (this.lights) {
       this.lights.traverse(light => {
         if (light.dispose) light.dispose();
       });
-      if (this.lights.parent) this.lights.parent.remove(this.lights);
+      if (this.lights.parent) {
+        this.lights.parent.remove(this.lights);
+      }
+      this.lights = null;
     }
-    this.lights = null;
+  }
 
+  disposeScene() {
     if (this.scene) {
       while (this.scene.children.length > 0) {
-        this.scene.remove(this.scene.children[0]);
+        const child = this.scene.children[0];
+        this.scene.remove(child);
+        this.disposeObject(child);
       }
-      if (this.scene.fog) this.scene.fog = null;
-      if (this.scene.background) this.scene.background = null;
+      
+      if (this.scene.environment) {
+        this.scene.environment.dispose();
+        this.scene.environment = null;
+      }
+      
+      this.scene.background = null;
+      this.scene.fog = null;
+      this.scene = null;
     }
-    this.scene = null;
+  }
 
+  disposeRenderer() {
     if (this.renderer) {
       this.renderer.dispose();
       if (this.container && this.renderer.domElement && this.container.contains(this.renderer.domElement)) {
@@ -1007,13 +1435,10 @@ export class SceneManager {
       }
       this.renderer = null;
     }
-
-    this.camera = null;
-    this.container = null;
-    this.undoStack = [];
-    this.redoStack = [];
-    this.modelLoader.dispose();
-
-    console.log("SceneManager disposed.");
   }
+}
+
+// Export for global access in development
+if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
+  window.SceneManager = SceneManager;
 }
