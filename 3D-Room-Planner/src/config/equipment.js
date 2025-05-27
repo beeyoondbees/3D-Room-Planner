@@ -54,7 +54,7 @@ export const equipmentConfig = {
         {
           "id": "sWalk-Lite-Plus",
           "name": "sWalk Lite Plus",
-          "icon": "/assets/icons/products/swalkliteplus.webp"
+          "icon": "/assets/icons/products/sWalk-Lite-Plus.webp"
         },
         {
           "id": "sPad1000",

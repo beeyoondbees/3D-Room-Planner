@@ -30,6 +30,9 @@ const RoomPlanner = () => {
   const [showSidePanel, setShowSidePanel] = useState(true);
   const [activeButton, setActiveButton] = useState(null);
 
+  // window.sceneManager = manager;
+
+
   useEffect(() => {
     if (!containerRef.current || sceneManagerRef.current) {
       return;
@@ -39,6 +42,7 @@ const RoomPlanner = () => {
     console.log("RoomPlanner: Initializing SceneManager...");
     const manager = new SceneManager(currentContainer);
     sceneManagerRef.current = manager;
+    window.sceneManager = manager;
 
     const handleObjectSelected = (event) => setSelectedObject(event.detail);
     const handleObjectDeselected = () => setSelectedObject(null);

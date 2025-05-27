@@ -9,6 +9,7 @@ export class InteractionManager {
     this.orbitControls = orbitControls;
     
     // Properties
+    
     this.selectedObject = null;
     this.pinnedObjects = new Set();
     this.isDragging = false;
@@ -31,6 +32,7 @@ export class InteractionManager {
     // Distance measurement properties
     this.distanceDisplay = null;
     this.distanceLines = null;
+    this._previousTransformState = null;
     this.showDistanceIndicators = true;
     
     // Mode icon properties
@@ -387,90 +389,92 @@ export class InteractionManager {
   
   // Handle pointer down event
   onPointerDown(event) {
-    // Skip if not left click or if modifier keys are pressed
     if (event.button !== 0 || event.ctrlKey || event.metaKey) return;
-    
-    // Calculate normalized device coordinates
+  
     const rect = this.renderer.domElement.getBoundingClientRect();
     this.pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
     this.pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
-    
-    // Store starting position
+  
     this.startPointer.copy(this.pointer);
-    
-    // Set up raycasting
     this.raycaster.setFromCamera(this.pointer, this.camera);
-    
-    // Check for intersections with selectable objects
+  
     const selectableObjects = this.getSelectableObjects();
     const intersects = this.raycaster.intersectObjects(selectableObjects, true);
-    
+  
     if (intersects.length > 0) {
-      // Find the root model
       let selected = intersects[0].object;
       while (selected.parent && !selected.userData.isModelRoot) {
         selected = selected.parent;
       }
-      
-      // If clicked on same object, start dragging
+  
       if (this.selectedObject === selected) {
-        // Only allow dragging if not pinned
         if (!this.isPinned(selected)) {
+          // ✅ Cache previous state
+          this._previousTransformState = {
+            position: selected.position.clone(),
+            rotation: selected.rotation.clone(),
+            scale: selected.scale.clone(),
+            userData: JSON.parse(JSON.stringify(selected.userData || {}))
+          };
           this.startDrag(selected, intersects[0].point);
         }
       } else {
-        // Otherwise select new object
         this.select(selected);
       }
-      
-      // Disable orbit controls during interaction
+  
       this.orbitControls.enabled = false;
     } else {
-      // Clicked on empty space - deselect
       this.deselect();
-
-      // Ensure orbit controls are enabled for empty space clicks
       this.orbitControls.enabled = true;
     }
   }
   
-  // Start dragging an object
-  startDrag(object, hitPoint) {
-    if (!object || this.isPinned(object)) return;
-    
-    // Set up dragging state
-    this.isDragging = true;
-    this.isRotating = this.interactionMode === 'rotate';
-    
-    // Store starting positions
-    this.dragStartPosition.copy(hitPoint);
-    this.objectStartPosition.copy(object.position);
-    this.objectStartRotation.copy(object.rotation);
-    
-    // For translation: Set up drag plane based on camera view
-    if (!this.isRotating) {
-      // Always use a horizontal (floor) plane for dragging - exactly at y=0
-      const planeNormal = new THREE.Vector3(0, 1, 0); // Y-up plane (floor)
-      const floorPoint = new THREE.Vector3(0, 0, 0); // Point on the floor
-      
-      // Set up the drag plane
-      this.dragPlane.setFromNormalAndCoplanarPoint(planeNormal, floorPoint);
-      
-      // Calculate offset from hit point to object position (XZ plane only)
-      this.dragOffset = new THREE.Vector3(
-        hitPoint.x - object.position.x,
-        0, // No vertical offset
-        hitPoint.z - object.position.z
-      );
-      
-      // For debugging - visualize the drag plane
-      this.dragPlaneHelper.rotation.x = Math.PI / 2; // Make it horizontal
-      this.dragPlaneHelper.position.y = 0; // Position at floor level
-    }
+  
+ // Start dragging an object
+ startDrag(object, hitPoint) {
+  if (!object || this.isPinned(object)) return;
 
-    // Show initial distance display
-    this.updateDistanceDisplay();
+  // ✅ Set dragging flags
+  this.isDragging = true;
+  this.isRotating = this.interactionMode === 'rotate';
+
+  // ✅ Capture previous state immediately
+  this._previousTransformState = {
+    position: object.position.clone(),
+    rotation: object.rotation.clone(),
+    scale: object.scale.clone(),
+    userData: JSON.parse(JSON.stringify(object.userData || {}))
+  };
+
+  // Store drag info
+  this.dragStartPosition.copy(hitPoint);
+  this.objectStartPosition.copy(object.position);
+  this.objectStartRotation.copy(object.rotation);
+
+  // Setup drag plane
+  if (!this.isRotating) {
+    const planeNormal = new THREE.Vector3(0, 1, 0);
+    const floorPoint = new THREE.Vector3(0, 0, 0);
+    this.dragPlane.setFromNormalAndCoplanarPoint(planeNormal, floorPoint);
+    this.dragOffset = new THREE.Vector3(
+      hitPoint.x - object.position.x,
+      0,
+      hitPoint.z - object.position.z
+    );
+    this.dragPlaneHelper.rotation.x = Math.PI / 2;
+    this.dragPlaneHelper.position.y = 0;
   }
+
+  this.updateDistanceDisplay();
+}
+  onDragEnd(object) {
+    if (this.onObjectChanged && typeof this.onObjectChanged === 'function') {
+      this.onObjectChanged(object, this._previousTransformState);
+    }
+    this._previousTransformState = null;
+  }
+  
+  
   
   // Handle pointer move
   onPointerMove(event) {
@@ -536,14 +540,33 @@ export class InteractionManager {
   // End dragging on pointer up
   onPointerUp() {
     if (this.isDragging && this.selectedObject) {
-      // End dragging state
       this.isDragging = false;
       this.isRotating = false;
-      
-      // Hide distance display
+  
+      const obj = this.selectedObject;
+      const prev = this._previousTransformState;
+  
+      if (prev && this.callbacks?.onObjectChanged) {
+        const current = {
+          position: obj.position.clone(),
+          rotation: obj.rotation.clone(),
+          scale: obj.scale.clone(),
+          userData: JSON.parse(JSON.stringify(obj.userData || {})),
+        };
+  
+        const changed =
+          !prev.position.equals(current.position) ||
+          !prev.rotation.equals(current.rotation) ||
+          !prev.scale.equals(current.scale);
+  
+        if (changed) {
+          this.callbacks.onObjectChanged(obj, prev);
+          console.log('[InteractionManager] ✅ Transform change recorded for undo.');
+        }
+      }
+  
+      this._previousTransformState = null;
       this.hideDistanceDisplay();
-      
-      // Re-enable orbit controls
       this.orbitControls.enabled = true;
     }
   }
@@ -686,15 +709,19 @@ export class InteractionManager {
     }
   }
 
+
+
   // Update bounding boxes and mode icons - called from animation loop
   updateBoundingBoxes() {
     // Update the bounding box if there's a selected object
-    if (this.selectedObject && this.selectedObject.userData.boundingBoxHelper) {
-      // BoxHelper has an update method to recalculate the box
+    if (
+      this.selectedObject &&
+      this.selectedObject.userData &&
+      this.selectedObject.userData.boundingBoxHelper &&
+      typeof this.selectedObject.userData.boundingBoxHelper.update === 'function'
+    ) {
       this.selectedObject.userData.boundingBoxHelper.update();
     }
-    // Update the mode icon scale based on camera distance
-    this.updateModeIconScale();
   }
 
   // Update the scale of the mode icon based on camera distance
@@ -728,6 +755,18 @@ export class InteractionManager {
   getObjectHeight(object) {
     const box = new THREE.Box3().setFromObject(object);
     return box.max.y - box.min.y;
+  }
+  
+  attach(object) {
+    this.selectedObject = object;
+    // this.createModeIcon(object); // optional
+    // this.createBoundingBox(object); // optional
+  }
+  
+  updateControlsForObject(object) {
+    if (!object) return;
+    // this.removeHighlight(object); // optional
+    // this.addHighlight(object);   // optional
   }
   
   // Check if object is pinned
@@ -885,15 +924,32 @@ export class InteractionManager {
 
   // Remove mode icon from object
   removeModeIcon(object) {
-    if (object && object.userData.modeIcon) {
-      object.remove(object.userData.modeIcon);
-      if (object.userData.modeIcon.material.map) {
-        // Note: Don't dispose the shared texture here, dispose it in the class dispose method
-      }
-      object.userData.modeIcon.material.dispose();
-      delete object.userData.modeIcon;
+    if (!object || !object.material) return;
+  
+    const material = object.material;
+  
+    // Dispose texture if it exists
+    if (material.map && typeof material.map.dispose === 'function') {
+      material.map.dispose();
+      material.map = null;
     }
+  
+    // Dispose material safely
+    if (typeof material.dispose === 'function') {
+      material.dispose();
+    }
+  
+    // Remove object from scene if needed
+    if (object.parent) {
+      object.parent.remove(object);
+    }
+  
+    // Clean up memory references
+    object.material = null;
+    object.geometry?.dispose?.();
+    object.geometry = null;
   }
+  
 
   // Update mode icon when interaction mode changes
   updateModeIcon() {

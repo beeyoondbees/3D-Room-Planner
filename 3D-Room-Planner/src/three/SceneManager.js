@@ -2,40 +2,13 @@
 // Core Three.js scene management with direct manipulation and HDR lighting
 
 import * as THREE from 'three';
-import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'; // Ensure .js extension for modules
-import { RGBELoader } from 'three/examples/jsm/loaders/RGBELoader.js';    // For HDR environment maps
-import { Room } from './objects/Room.js';         // Assuming Room.js exists and exports Room class
-import { ModelLoader } from './ModelLoader.js';   // Assuming ModelLoader.js exists
-import { GridHelper } from './utils/GridHelper.js'; // Assuming GridHelper.js exists
-import { InteractionManager } from './InteractionManager.js'; // Assuming InteractionManager.js exists
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+import { RGBELoader } from 'three/examples/jsm/loaders/RGBELoader.js';
+import { Room } from './objects/Room.js';
+import { ModelLoader } from './ModelLoader.js';
+import { GridHelper } from './utils/GridHelper.js';
+import { InteractionManager } from './InteractionManager.js';
 import { FloorDimensionEditor } from './FloorDimensionEditor';
-// import React, { useState, useRef, useEffect } from 'react';
-// import Toolbar from '../components/UI/Toolbar';
-
-// function RoomEditor() {
-//   const [scene, setScene] = useState(null);
-//   const [camera, setCamera] = useState(null);
-//   const [renderer, setRenderer] = useState(null);
-//   const floorEditorRef = useRef(null);
-
-//   useEffect(() => {
-//     // After initializing scene/camera/renderer
-//     floorEditorRef.current = new FloorDimensionEditor(scene, camera, renderer);
-//   }, [scene, camera, renderer]);
-
-//   const handleViewAction = (action) => {
-//     if (action === 'toggle-floor-dimensions') {
-//       floorEditorRef.current.initRoom([
-//         { x: -5, z: -3 },
-//         { x: 5, z: -3 },
-//         { x: 5, z: 3 },
-//         { x: -5, z: 3 }
-//       ]);
-//     }
-//   };
-
-//   return <Toolbar onViewAction={handleViewAction} />;
-// }
 
 export class SceneManager {
   constructor(container) {
@@ -46,15 +19,16 @@ export class SceneManager {
     this.interactionMode = 'translate';
     this.undoStack = [];
     this.redoStack = [];
+    this.maxUndoSteps = 50; // Prevent memory issues
+    this.transformStartState = null; // For tracking transform operations
     this.isLoadingHDR = false;
     this.debug = true;
     this.clock = new THREE.Clock();
-    this.room = null; // Initialize room property
+    this.room = null;
     this.floorDimensionEditorInstance = null;
     this.grid = null;
-    this.orbitControls = null; // Initialize orbitControls
-    // this.grid = null;
-    this.mixers = new Map(); // Store AnimationMixers for animated models
+    this.orbitControls = null;
+    this.mixers = new Map();
     this.onWindowResize = this.onWindowResize.bind(this);
     this.animate = this.animate.bind(this);
     this.onPointerDown = this.onPointerDown.bind(this);
@@ -64,31 +38,30 @@ export class SceneManager {
     this.initCamera();
     this.initRenderer();
     this.initGrid();
-    this.initLights(); // Lights are initialized before HDR, HDR might adjust/replace some
+    this.initLights();
     this.initControls();
+    
     if (this.scene && this.camera && this.renderer && this.orbitControls) {
       this.floorDimensionEditorInstance = new FloorDimensionEditor(
           this.scene, this.camera, this.renderer, this.orbitControls
       );
-  } else {
-      console.error("SceneManager: Could not initialize FloorDimensionEditor due to missing dependencies (scene, camera, renderer, or orbitControls).");
-  }
+    } else {
+        console.error("SceneManager: Could not initialize FloorDimensionEditor due to missing dependencies.");
+    }
+    
     this.initRoom();
-    // this.initGrid();
     this.initInteractionManager();
 
     // Preload the HDR environment map
-    // Delay slightly to ensure the renderer and scene are fully set up.
     setTimeout(() => {
       this.initHDREnvironment();
-    }, 50); // Small delay
+    }, 50);
 
     // Add event listeners
     window.addEventListener('resize', this.onWindowResize);
-    if (this.container) { // Ensure container exists before adding listener
+    if (this.container) {
         this.container.addEventListener('pointerdown', this.onPointerDown);
     }
-
 
     // Listen for model loading events for debugging
     if (this.debug) {
@@ -100,8 +73,6 @@ export class SceneManager {
       });
     }
 
-    
-
     // Start animation loop
     this.animate();
 
@@ -109,25 +80,514 @@ export class SceneManager {
     document.addEventListener('visibilitychange', () => {
       if (document.visibilityState === 'visible' && this.scene && this.scene.environment) {
         console.log('SceneManager: Tab visible again, refreshing environment maps.');
-        // A timeout can help ensure the rendering context is fully restored
         setTimeout(() => this.applyEnvironmentToObjects(true), 100);
       }
     });
   }
 
+  // ============= UNDO/REDO SYSTEM - IMPROVED =============
+
+  // Helper method to capture complete object state
+  captureObjectState(obj) {
+    if (!obj) return null;
+    
+    return {
+      position: obj.position.clone(),
+      rotation: obj.rotation.clone(),
+      scale: obj.scale.clone(),
+      visible: obj.visible,
+      userData: JSON.parse(JSON.stringify(obj.userData || {}))
+    };
+  }
+
+  // Improved object state application with error handling
+  applyObjectState(object, state) {
+    if (!object) {
+      console.warn("SceneManager: Cannot apply state - object is null or undefined");
+      return false;
+    }
+    
+    if (!state) {
+      console.warn("SceneManager: Cannot apply state - state is null or undefined");
+      return false;
+    }
+
+    try {
+      // Validate that object has required properties before accessing them
+      if (state.position && object.position && typeof object.position.copy === 'function') {
+        object.position.copy(state.position);
+      }
+      if (state.rotation && object.rotation && typeof object.rotation.copy === 'function') {
+        object.rotation.copy(state.rotation);
+      }
+      if (state.scale && object.scale && typeof object.scale.copy === 'function') {
+        object.scale.copy(state.scale);
+      }
+      if (state.visible !== undefined && object.hasOwnProperty('visible')) {
+        object.visible = state.visible;
+      }
+      if (state.userData && object.userData !== undefined) {
+        object.userData = { ...object.userData, ...state.userData };
+      }
+      
+      // Update matrix to reflect changes - with safety checks
+      if (typeof object.updateMatrix === 'function') {
+        object.updateMatrix();
+      }
+      if (typeof object.updateMatrixWorld === 'function') {
+        object.updateMatrixWorld(true);
+      }
+      
+      return true;
+    } catch (error) {
+      console.error("SceneManager: Error applying object state:", error, { object, state });
+      return false;
+    }
+  }
+
+  // Improved addToUndoStack with validation and size limits
+  addToUndoStack(action) {
+    if (!action || !action.type) {
+      console.warn("SceneManager: Invalid action - missing type");
+      return;
+    }
+
+    // Validate object exists and is valid
+    if (!action.object || action.object.userData === undefined || typeof action.object.uuid !== 'string') {
+      console.warn("SceneManager: Invalid action - object is null, undefined, or disposed");
+      return;
+    }
+
+    // Validate action properties based on type
+    if (action.type === 'transform') {
+      if (!action.previousProperties || !action.newProperties) {
+        console.warn("SceneManager: Invalid transform action - missing properties");
+        return;
+      }
+    } else if (action.type === 'remove' || action.type === 'add') {
+      if (!action.properties) {
+        console.warn("SceneManager: Invalid add/remove action - missing properties");
+        return;
+      }
+    }
+
+    // Check for duplicate recent actions (prevent spam)
+    if (this.undoStack.length > 0) {
+      const lastAction = this.undoStack[this.undoStack.length - 1];
+      if (lastAction.type === action.type && 
+          lastAction.object === action.object &&
+          Date.now() - (lastAction.timestamp || 0) < 100) { // Within 100ms
+        console.log("SceneManager: Ignoring duplicate action within 100ms");
+        return;
+      }
+    }
+
+    // Add timestamp to action
+    action.timestamp = Date.now();
+
+    // Limit undo stack size
+    if (this.undoStack.length >= this.maxUndoSteps) {
+      this.undoStack.shift();
+    }
+
+    this.undoStack.push(action);
+    this.redoStack = []; // Clear redo stack when new action is added
+    
+    console.log("SceneManager: Action added to undo stack:", action.type, this.undoStack.length);
+    
+    // Immediate cleanup if we detect issues
+    if (this.undoStack.length > 5) {
+      this.cleanupInvalidActions();
+    }
+  }
+
+  // Record object addition for undo
+  recordAddObject(obj) {
+    const action = {
+      type: 'add',
+      object: obj,
+      properties: this.captureObjectState(obj)
+    };
+    this.addToUndoStack(action);
+  }
+
+  // Record object removal for undo
+  recordRemoveObject(obj) {
+    const action = {
+      type: 'remove',
+      object: obj,
+      properties: this.captureObjectState(obj)
+    };
+    this.addToUndoStack(action);
+  }
+
+  // Record object transformation for undo
+  recordTransform(obj, previousState) {
+    const action = {
+      type: 'transform',
+      object: obj,
+      previousProperties: previousState,
+      newProperties: this.captureObjectState(obj)
+    };
+    this.addToUndoStack(action);
+  }
+
+  // Call this before starting a transform
+  beginTransform(obj) {
+    if (obj && obj.userData !== undefined) {
+      this.transformStartState = this.captureObjectState(obj);
+      this.transformStartTime = Date.now();
+      console.log("SceneManager: Transform started for:", obj.userData.type || obj.uuid);
+    }
+  }
+
+  // Call this after completing a transform
+  endTransform(obj) {
+    if (this.transformStartState && obj && obj.userData !== undefined) {
+      // Only record if enough time has passed (prevent micro-movements)
+      const timeDiff = Date.now() - (this.transformStartTime || 0);
+      if (timeDiff < 50) { // Less than 50ms - likely not a real user action
+        console.log("SceneManager: Transform too quick, ignoring");
+        this.transformStartState = null;
+        return;
+      }
+
+      const newState = this.captureObjectState(obj);
+      
+      // Check if anything actually changed
+      const hasChanged = this.hasStateChanged(this.transformStartState, newState);
+      if (!hasChanged) {
+        console.log("SceneManager: No actual changes detected, ignoring transform");
+        this.transformStartState = null;
+        return;
+      }
+
+      this.recordTransform(obj, this.transformStartState);
+      this.transformStartState = null;
+      console.log("SceneManager: Transform completed for:", obj.userData.type || obj.uuid);
+    }
+  }
+
+  // Helper method to check if state actually changed
+  hasStateChanged(oldState, newState) {
+    if (!oldState || !newState) return false;
+    
+    const threshold = 0.001; // Small threshold for floating point comparison
+    
+    // Check position
+    if (oldState.position && newState.position) {
+      if (Math.abs(oldState.position.x - newState.position.x) > threshold ||
+          Math.abs(oldState.position.y - newState.position.y) > threshold ||
+          Math.abs(oldState.position.z - newState.position.z) > threshold) {
+        return true;
+      }
+    }
+    
+    // Check rotation
+    if (oldState.rotation && newState.rotation) {
+      if (Math.abs(oldState.rotation.x - newState.rotation.x) > threshold ||
+          Math.abs(oldState.rotation.y - newState.rotation.y) > threshold ||
+          Math.abs(oldState.rotation.z - newState.rotation.z) > threshold) {
+        return true;
+      }
+    }
+    
+    // Check scale
+    if (oldState.scale && newState.scale) {
+      if (Math.abs(oldState.scale.x - newState.scale.x) > threshold ||
+          Math.abs(oldState.scale.y - newState.scale.y) > threshold ||
+          Math.abs(oldState.scale.z - newState.scale.z) > threshold) {
+        return true;
+      }
+    }
+    
+    return false;
+  }
+
+  // Improved undo with automatic skipping of invalid actions
+  undo() {
+    let attempts = 0;
+    const maxAttempts = 10; // Prevent infinite loops
+    
+    while (this.undoStack.length > 0 && attempts < maxAttempts) {
+      attempts++;
+      
+      const action = this.undoStack.pop();
+      console.log(`SceneManager: Undo attempt ${attempts}, action:`, action.type);
+
+      const obj = action.object;
+      
+      // Validate object exists and hasn't been disposed
+      if (!obj || obj.userData === undefined || typeof obj.uuid !== 'string') {
+        console.warn(`SceneManager: Skipping invalid undo action ${attempts} - object disposed`);
+        continue; // Skip this action and try the next one
+      }
+
+      let success = true;
+
+      try {
+        switch (action.type) {
+          case 'add':
+            // Remove the object that was added
+            if (obj.parent) {
+              obj.parent.remove(obj);
+            }
+            this.objects = this.objects.filter(o => o !== obj);
+            if (this.selectedObject === obj) {
+              this.deselectObject();
+            }
+            break;
+
+          case 'remove':
+            // Add back the object that was removed
+            this.scene.add(obj);
+            if (!this.objects.includes(obj)) {
+              this.objects.push(obj);
+            }
+            if (action.properties) {
+              success = this.applyObjectState(obj, action.properties);
+            }
+            break;
+
+          case 'transform':
+            // Restore previous state
+            if (action.previousProperties) {
+              success = this.applyObjectState(obj, action.previousProperties);
+              if (success) {
+                this.updateInteractionControls(obj);
+              }
+            } else {
+              console.warn("SceneManager: Missing previousProperties for undo 'transform'.");
+              success = false;
+            }
+            break;
+
+          default:
+            console.warn("SceneManager: Unknown action type for undo:", action.type);
+            success = false;
+        }
+
+        if (success) {
+          this.redoStack.push(action);
+          console.log(`SceneManager: Undo successful after ${attempts} attempts`);
+          return true;
+        } else {
+          console.warn(`SceneManager: Undo action ${attempts} failed, trying next`);
+          // Don't put failed action back, just continue to next
+        }
+
+      } catch (error) {
+        console.error(`SceneManager: Error during undo attempt ${attempts}:`, error);
+        // Don't put errored action back, just continue to next
+      }
+    }
+
+    if (attempts >= maxAttempts) {
+      console.warn("SceneManager: Reached maximum undo attempts, giving up");
+    } else {
+      console.log("SceneManager: Undo stack empty.");
+    }
+    
+    return false;
+  }
+
+  // Improved redo with better error handling
+  redo() {
+    if (this.redoStack.length === 0) {
+      console.log("SceneManager: Redo stack empty.");
+      return false;
+    }
+
+    const action = this.redoStack.pop();
+    console.log("SceneManager: Redoing action:", action.type);
+
+    const obj = action.object;
+    
+    // Validate object exists and hasn't been disposed
+    if (!obj) {
+      console.warn("SceneManager: Redo failed — action.object is undefined.");
+      return false;
+    }
+
+    // Additional validation - check if object still exists in memory
+    if (obj.userData === undefined || typeof obj.uuid !== 'string') {
+      console.warn("SceneManager: Redo failed — object appears to be disposed.");
+      return false;
+    }
+
+    let success = true;
+
+    try {
+      switch (action.type) {
+        case 'add':
+          // Re-add the object
+          this.scene.add(obj);
+          if (!this.objects.includes(obj)) {
+            this.objects.push(obj);
+          }
+          if (action.properties) {
+            success = this.applyObjectState(obj, action.properties);
+          }
+          break;
+
+        case 'remove':
+          // Re-remove the object
+          if (obj.parent) {
+            obj.parent.remove(obj);
+          }
+          this.objects = this.objects.filter(o => o !== obj);
+          if (this.selectedObject === obj) {
+            this.deselectObject();
+          }
+          break;
+
+        case 'transform':
+          // Apply new state
+          if (action.newProperties) {
+            success = this.applyObjectState(obj, action.newProperties);
+            if (success) {
+              this.updateInteractionControls(obj);
+            }
+          } else {
+            console.warn("SceneManager: Missing newProperties for redo 'transform'.");
+            success = false;
+          }
+          break;
+
+        default:
+          console.warn("SceneManager: Unknown action type for redo:", action.type);
+          success = false;
+      }
+
+      if (success) {
+        this.undoStack.push(action);
+      } else {
+        console.warn("SceneManager: Redo operation failed, not adding to undo stack");
+      }
+
+    } catch (error) {
+      console.error("SceneManager: Error during redo:", error, action);
+      success = false;
+    }
+
+    return success;
+  }
+
+  // Helper method to update interaction controls
+  updateInteractionControls(obj) {
+    if (this.interactionManager) {
+      if (this.interactionManager.attach && this.selectedObject === obj) {
+        this.interactionManager.attach(obj);
+      }
+      if (this.interactionManager.updateControlsForObject) {
+        this.interactionManager.updateControlsForObject(obj);
+      }
+    }
+  }
+
+  // Get undo/redo status for UI
+  getUndoRedoStatus() {
+    // Clean up invalid actions before reporting status
+    this.cleanupInvalidActions();
+    
+    return {
+      canUndo: this.undoStack.length > 0,
+      canRedo: this.redoStack.length > 0,
+      undoCount: this.undoStack.length,
+      redoCount: this.redoStack.length
+    };
+  }
+
+  // Clear all undo/redo history
+  clearHistory() {
+    this.undoStack = [];
+    this.redoStack = [];
+    console.log("SceneManager: Undo/Redo history cleared");
+  }
+
+  // Debug method to inspect undo/redo stacks
+  debugUndoStack() {
+    console.log("=== UNDO STACK DEBUG ===");
+    console.log(`Undo stack length: ${this.undoStack.length}`);
+    console.log(`Redo stack length: ${this.redoStack.length}`);
+    
+    this.undoStack.forEach((action, index) => {
+      const obj = action.object;
+      const isValid = obj && obj.userData !== undefined && typeof obj.uuid === 'string';
+      console.log(`${index}: ${action.type} - ${isValid ? 'VALID' : 'INVALID'} - ${obj?.userData?.type || 'unknown'}`);
+    });
+    
+    return {
+      undoStack: this.undoStack.length,
+      redoStack: this.redoStack.length,
+      validActions: this.undoStack.filter(a => a.object && a.object.userData !== undefined).length
+    };
+  }
+
+  // Clean up invalid actions from undo/redo stacks
+  cleanupInvalidActions() {
+    const isValidObject = (obj) => {
+      return obj && obj.userData !== undefined && typeof obj.uuid === 'string';
+    };
+
+    const isValidAction = (action) => {
+      if (!action || !action.type || !isValidObject(action.object)) {
+        return false;
+      }
+      
+      // Additional validation based on action type
+      if (action.type === 'transform') {
+        return action.previousProperties && action.newProperties;
+      } else if (action.type === 'add' || action.type === 'remove') {
+        return action.properties;
+      }
+      
+      return true;
+    };
+
+    const initialUndoCount = this.undoStack.length;
+    const initialRedoCount = this.redoStack.length;
+
+    this.undoStack = this.undoStack.filter(isValidAction);
+    this.redoStack = this.redoStack.filter(isValidAction);
+
+    const removedUndo = initialUndoCount - this.undoStack.length;
+    const removedRedo = initialRedoCount - this.redoStack.length;
+
+    if (removedUndo > 0 || removedRedo > 0) {
+      console.log(`SceneManager: Cleaned up ${removedUndo} invalid undo actions and ${removedRedo} invalid redo actions`);
+    }
+    
+    return { removedUndo, removedRedo };
+  }
+
+  // Force cleanup of all invalid actions immediately
+  forceCleanup() {
+    console.log("SceneManager: Force cleaning undo/redo stacks...");
+    const result = this.cleanupInvalidActions();
+    console.log(`SceneManager: Force cleanup complete. Removed ${result.removedUndo + result.removedRedo} invalid actions.`);
+    return result;
+  }
+
+  // Legacy method for backward compatibility
+  getObjectState(obj) {
+    return this.captureObjectState(obj);
+  }
+
+  // ============= END UNDO/REDO SYSTEM =============
+
   initScene() {
     this.scene = new THREE.Scene();
-    this.scene.background = new THREE.Color(0xf0f0f0); // Default background
-    // this.scene.fog = new THREE.Fog(0xf0f0f0, 10, 50);   // Default fog
-    this.environmentApplied = false; // Flag for tracking if environment has been applied
+    this.scene.background = new THREE.Color(0xf0f0f0);
+    this.environmentApplied = false;
   }
 
   initCamera() {
     this.camera = new THREE.PerspectiveCamera(
-      45, // FOV
-      this.container.clientWidth / this.container.clientHeight, // Aspect ratio
-      0.1, // Near clipping plane
-      1000 // Far clipping plane
+      45,
+      this.container.clientWidth / this.container.clientHeight,
+      0.1,
+      1000
     );
     this.camera.position.set(5, 5, 10);
     this.camera.lookAt(0, 0, 0);
@@ -146,20 +606,12 @@ export class SceneManager {
     this.renderer.setPixelRatio(window.devicePixelRatio);
     this.renderer.setSize(this.container.clientWidth, this.container.clientHeight);
 
-    // Shadow settings
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-
-    // Physically correct lighting
-    this.renderer.physicallyCorrectLights = true; // Deprecated in newer Three.js, but might be needed for older versions.
-                                                 // Modern physically based rendering is inherent.
-
-    // Color space and Tone Mapping for HDR
-    this.renderer.outputColorSpace = THREE.SRGBColorSpace; // Correct way to set output encoding
-    this.renderer.toneMapping = THREE.ACESFilmicToneMapping; // Good general-purpose tone mapping
-    this.renderer.toneMappingExposure = 1.0; // Adjust exposure for HDR (0.5-1.5 is a common range)
-
-    // Logarithmic depth buffer to reduce z-fighting
+    this.renderer.physicallyCorrectLights = true;
+    this.renderer.outputColorSpace = THREE.SRGBColorSpace;
+    this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    this.renderer.toneMappingExposure = 1.0;
     this.renderer.logarithmicDepthBuffer = true;
 
     if (this.container) {
@@ -189,9 +641,9 @@ export class SceneManager {
     if (this.container) this.container.dispatchEvent(loadStartEvent);
 
     new RGBELoader()
-      .setDataType(THREE.FloatType) // or THREE.HalfFloatType
+      .setDataType(THREE.FloatType)
       .load(hdrPath, (texture) => {
-        if (!this.scene) { // Scene might have been disposed
+        if (!this.scene) {
           console.warn('SceneManager: Cannot apply HDR - scene no longer exists.');
           texture.dispose();
           pmremGenerator.dispose();
@@ -202,14 +654,12 @@ export class SceneManager {
           console.log('SceneManager: HDR loaded, processing environment map...');
           const envMap = pmremGenerator.fromEquirectangular(texture).texture;
           this.scene.environment = envMap;
-          // this.scene.background = envMap; // Optional: set HDR as background
           console.log('SceneManager: HDR environment processed and applied to scene.');
 
-          this.applyEnvironmentToObjects(true); // Force update to all materials
+          this.applyEnvironmentToObjects(true);
           this.environmentApplied = true;
 
-
-          if (this.renderer && this.scene && this.camera) { // Force a render
+          if (this.renderer && this.scene && this.camera) {
             this.renderer.render(this.scene, this.camera);
           }
 
@@ -226,7 +676,6 @@ export class SceneManager {
       },
       (progress) => {
         const percent = progress.total > 0 ? Math.round((progress.loaded / progress.total) * 100) : 0;
-        // console.log(`SceneManager: HDR loading: ${percent}%`);
       },
       (error) => {
         console.error('SceneManager: Error loading HDR environment:', error);
@@ -242,7 +691,6 @@ export class SceneManager {
       return;
     }
     if (this.environmentApplied && !forceUpdate) {
-        // console.log('SceneManager: Environment already applied, skipping unless forced.');
         return;
     }
 
@@ -254,7 +702,7 @@ export class SceneManager {
         materials.forEach(material => {
           if (material.isMeshStandardMaterial || material.isMeshPhysicalMaterial) {
             material.envMap = this.scene.environment;
-            material.envMapIntensity = 0.8; // Default intensity, can be adjusted
+            material.envMapIntensity = 0.8;
             material.needsUpdate = true;
             updatedMaterials++;
           }
@@ -262,26 +710,21 @@ export class SceneManager {
       }
     });
     console.log(`SceneManager: Updated ${updatedMaterials} materials with environment map.`);
-    this.environmentApplied = true; // Mark as applied
+    this.environmentApplied = true;
   }
 
   initLights() {
     this.lights = new THREE.Group();
     this.scene.add(this.lights);
 
-    // With HDR, traditional lights are often for fill, specific highlights, or shadows.
-    // 1. Ambient light - moderate for base fill with HDR
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.3); // Lower intensity with HDR
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.3);
     this.lights.add(ambientLight);
 
-    // 2. Hemisphere light for subtle up/down color variation and soft fill
-    const hemiLight = new THREE.HemisphereLight(0xffffff, 0x888888, 0.3); // Sky, Ground, Intensity
-    hemiLight.position.set(0, 1, 0); // Optional: position it
+    const hemiLight = new THREE.HemisphereLight(0xffffff, 0x888888, 0.3);
+    hemiLight.position.set(0, 1, 0);
     this.lights.add(hemiLight);
     
-    // 3. Single directional light primarily for casting shadows if needed.
-    // HDR provides the main illumination and reflections.
-    const mainLight = new THREE.DirectionalLight(0xffffff, 0.5); // Lower intensity
+    const mainLight = new THREE.DirectionalLight(0xffffff, 0.5);
     mainLight.position.set(5, 8, 5);
     mainLight.castShadow = true;
     mainLight.shadow.mapSize.width = 2048;
@@ -293,7 +736,7 @@ export class SceneManager {
     mainLight.shadow.camera.right = d;
     mainLight.shadow.camera.top = d;
     mainLight.shadow.camera.bottom = -d;
-    mainLight.shadow.radius = 3; // Softer shadows
+    mainLight.shadow.radius = 3;
     this.lights.add(mainLight);
   }
 
@@ -303,9 +746,9 @@ export class SceneManager {
         this.orbitControls.enableDamping = true;
         this.orbitControls.dampingFactor = 0.1;
         this.orbitControls.screenSpacePanning = false;
-        this.orbitControls.minDistance = 1; // Adjusted minDistance
-        this.orbitControls.maxDistance = 50; // Adjusted maxDistance
-        this.orbitControls.maxPolarAngle = Math.PI / 2 - 0.05; // Prevent going too far below horizon
+        this.orbitControls.minDistance = 1;
+        this.orbitControls.maxDistance = 50;
+        this.orbitControls.maxPolarAngle = Math.PI / 2 - 0.05;
     } else {
         console.error("SceneManager: Camera or renderer not ready for OrbitControls.");
     }
@@ -317,49 +760,44 @@ export class SceneManager {
         { x: 5, z: 3 },  { x: -5, z: 3 }
     ];
     
-    // Assuming your Room constructor takes height, or you call buildFromPolygon
-    // Your original Room constructor was: new Room(10, 2.5, 8) which seems like dimensions not just height.
-    // The provided Room.js takes height. Let's use that.
-    this.room = new Room(2.5); // Pass default height
+    this.room = new Room(2.5);
     this.room.buildFromPolygon(defaultRoomPoints, false);
 
     if (this.room.group) {
-      this.room.group.traverse((object) => { /* ... your material setup ... */ });
+      this.room.group.traverse((object) => { /* material setup */ });
       this.scene.add(this.room.group);
     } else {
       console.warn("SceneManager: Room group not found after initialization.");
     }
     this.floorLevel = 0; 
-    window.roomInstance = this.room; // Make globally accessible IF NEEDED, but prefer direct calls
+    window.roomInstance = this.room;
 
-    // Your existing logic for window.selectedShapeFromPopup
     requestAnimationFrame(() => {
       if (window.selectedShapeFromPopup && typeof window.loadShapeFromTemplate === 'function') {
         console.log("SceneManager: Triggering loadShapeFromTemplate:", window.selectedShapeFromPopup);
-        window.loadShapeFromTemplate(window.selectedShapeFromPopup); // This function needs to be defined globally or accessible
+        window.loadShapeFromTemplate(window.selectedShapeFromPopup);
         delete window.selectedShapeFromPopup;
-      } else if (window.selectedShapeFromPopup) { /* ... warning ... */ }
+      } else if (window.selectedShapeFromPopup) {
+        console.warn("SceneManager: selectedShapeFromPopup found but loadShapeFromTemplate function not available.");
+      }
     });
   }
 
   initGrid() {
     if (!this.scene ) return;
-    this.grid = new GridHelper(30, 30, 0.5); // size, divisions, centerLineColor, gridColor
+    this.grid = new GridHelper(30, 30, 0.5);
     if (this.grid.grid) {
-      this.grid.grid.visible = true; // show by default
+      this.grid.grid.visible = true;
       this.scene.add(this.grid.grid);
     }
   }
 
- 
-  
   toggleGridVisibility() {
     if (this.grid && this.grid.grid) {
       this.grid.grid.visible = !this.grid.grid.visible;
       console.log(`SceneManager: Grid is now ${this.grid.grid.visible ? 'visible' : 'hidden'}`);
     }
   }
-  
 
   initInteractionManager() {
     if (this.scene && this.camera && this.renderer && this.orbitControls) {
@@ -379,14 +817,18 @@ export class SceneManager {
             this.selectedObject = null;
             if (this.container) this.container.dispatchEvent(new CustomEvent('object-deselected'));
           },
-          onObjectChanged: (object, previousState) => { // Assuming InteractionManager can provide previousState
-            this.addToUndoStack({
-              type: 'transform',
-              object: object,
-              previousProperties: previousState, // State BEFORE the change
-              newProperties: this.getObjectState(object) // State AFTER the change
-            });
+          onObjectChanged: (object, previousProperties) => {
+            // Only record if we have valid previous properties and this isn't during a transform sequence
+            if (previousProperties && !this.transformStartState) {
+              this.recordTransform(object, previousProperties);
+            }
           },
+          onTransformStart: (object) => {
+            this.beginTransform(object);
+          },
+          onTransformEnd: (object) => {
+            this.endTransform(object);
+          },                          
           onObjectPinned: (object) => {
             if (this.container) this.container.dispatchEvent(new CustomEvent('object-pinned', { detail: object }));
           },
@@ -394,9 +836,8 @@ export class SceneManager {
             if (this.container) this.container.dispatchEvent(new CustomEvent('object-unpinned', { detail: object }));
           },
           onObjectDeleted: (object) => {
-            const originalState = this.getObjectState(object); // Get state before filtering
+            this.recordRemoveObject(object);
             this.objects = this.objects.filter(obj => obj !== object);
-            this.addToUndoStack({ type: 'remove', object: object, properties: originalState });
           },
           onModeChanged: (mode) => {
             this.interactionMode = mode;
@@ -417,36 +858,31 @@ export class SceneManager {
   }
   
   onPointerDown(event) {
-    // This can be a placeholder or used for scene-wide interactions
-    // if not handled entirely by InteractionManager.
-    // console.log('SceneManager: Pointer down on container', event);
+    // Scene-wide interactions placeholder
   }
 
   animate() {
     this.animationFrameId = requestAnimationFrame(this.animate);
     const delta = this.clock.getDelta();
 
-     // Update all animation mixers
     this.mixers.forEach((mixer) => {
       mixer.update(delta);
     });
 
     if (this.orbitControls) {
-      this.orbitControls.update(delta); // Pass delta if damping or other time-dependent features are used
+      this.orbitControls.update(delta);
     }
 
-    // Apply environment map to newly added objects if not yet applied
     if (this.scene && this.scene.environment && !this.environmentApplied && !this.isLoadingHDR) {
         this.applyEnvironmentToObjects();
     }
     
     if (this.interactionManager && typeof this.interactionManager.update === 'function') {
-        this.interactionManager.update(delta); // If InteractionManager has an update loop
+        this.interactionManager.update(delta);
     }
     if (this.interactionManager && typeof this.interactionManager.updateBoundingBoxes === 'function') {
         this.interactionManager.updateBoundingBoxes();
     }
-
 
     if (this.room && typeof this.room.updateWallVisibility === 'function') {
       this.room.updateWallVisibility(this.camera);
@@ -477,7 +913,7 @@ export class SceneManager {
         targetXZPosition.set(initialPosition.x, 0, initialPosition.z);
       }
 
-      model.position.set(targetXZPosition.x, 0, targetXZPosition.z); // Temp Y for bbox
+      model.position.set(targetXZPosition.x, 0, targetXZPosition.z);
       model.updateMatrixWorld(true);
       const tempBox = new THREE.Box3().setFromObject(model);
       const yOffsetToPlaceBottomAtZero = -tempBox.min.y;
@@ -492,13 +928,11 @@ export class SceneManager {
       model.userData.type = modelType;
       model.userData.finalYPosition = model.position.y;
 
-      // Handle animations
       if (model.userData.animations && model.userData.animations.length > 0) {
         const mixer = new THREE.AnimationMixer(model);
         this.mixers.set(model, mixer);
       }
 
-      // Configure materials for HDR lighting
       if (this.scene && this.scene.environment) {
         model.traverse((object) => {
           if (object.isMesh && object.material) {
@@ -506,20 +940,19 @@ export class SceneManager {
             materials.forEach(material => {
               if (material.isMeshStandardMaterial || material.isMeshPhysicalMaterial) {
                 material.envMap = this.scene.environment;
-                material.envMapIntensity = 1.0; // Consistent with applyEnvironmentToObjects
+                material.envMapIntensity = 1.0;
                 material.needsUpdate = true;
               }
             });
           }
         });
-      } else if (!this.isLoadingHDR) { // If HDR is not loading and not set, mark environment as not applied
+      } else if (!this.isLoadingHDR) {
           this.environmentApplied = false;
       }
 
-
       this.scene.add(model);
       this.objects.push(model);
-      this.addToUndoStack({ type: 'add', object: model, properties: this.getObjectState(model) });
+      this.recordAddObject(model); // Use new recording method
       this.selectObject(model);
       console.log(`SceneManager: Model ${modelType} added. Position:`, model.position);
     });
@@ -528,28 +961,35 @@ export class SceneManager {
   selectObject(object) {
     if (this.interactionManager) this.interactionManager.select(object);
   }
+  
   deselectObject() {
     if (this.interactionManager) this.interactionManager.deselect();
   }
+  
   setInteractionMode(mode) {
     this.interactionMode = mode;
     if (this.interactionManager) this.interactionManager.setInteractionMode(mode);
   }
+  
   pinObject(object) {
     if (this.interactionManager) this.interactionManager.pinObject(object || this.selectedObject);
   }
+  
   unpinObject(object) {
     if (this.interactionManager) this.interactionManager.unpinObject(object || this.selectedObject);
   }
+  
   togglePin(object) {
     object = object || this.selectedObject;
     if (object && this.interactionManager) this.interactionManager.togglePin(object);
   }
+  
   rotateObject(object, angleDegrees) {
     object = object || this.selectedObject;
     if (object && this.interactionManager) this.interactionManager.rotateObject(object, angleDegrees);
   }
-  setTransformMode(mode) { // Assumes this.transformControls is part of InteractionManager or separate
+  
+  setTransformMode(mode) {
     this.transformMode = mode;
     if (this.interactionManager && typeof this.interactionManager.setTransformMode === 'function') {
         this.interactionManager.setTransformMode(mode);
@@ -575,13 +1015,11 @@ export class SceneManager {
       clone.userData.isModelRoot = true;
       clone.userData.selectable = true;
 
-      // Handle animations for cloned object
       if (clone.userData.animations && clone.userData.animations.length > 0) {
         const mixer = new THREE.AnimationMixer(clone);
         this.mixers.set(clone, mixer);
       }
 
-      // Apply HDR environment to the cloned object's materials
       if (this.scene && this.scene.environment) {
         clone.traverse((child) => {
           if (child.isMesh && child.material) {
@@ -599,23 +1037,22 @@ export class SceneManager {
           this.environmentApplied = false;
       }
 
-
       this.objects.push(clone);
       this.scene.add(clone);
-      this.addToUndoStack({ type: 'add', object: clone, properties: this.getObjectState(clone) });
+      this.recordAddObject(clone); // Use new recording method
       this.selectObject(clone);
       console.log("SceneManager: Object duplicated:", clone);
     });
   }
 
-   removeObject(objectToRemove) {
+  removeObject(objectToRemove) {
     objectToRemove = objectToRemove || this.selectedObject;
     if (!objectToRemove) return;
-    const state = this.getObjectState(objectToRemove);
-    this.addToUndoStack({ type: 'remove', object: objectToRemove, properties: state });
+    
+    this.recordRemoveObject(objectToRemove); // Use new recording method
+    
     if (this.selectedObject === objectToRemove) this.deselectObject();
 
-    // Stop and remove animation mixer
     if (this.mixers.has(objectToRemove)) {
       const mixer = this.mixers.get(objectToRemove);
       mixer.stopAllAction();
@@ -625,170 +1062,64 @@ export class SceneManager {
 
     this.scene.remove(objectToRemove);
     this.objects = this.objects.filter(obj => obj !== objectToRemove);
+    
+    // Cleanup invalid actions more frequently when objects are removed
+    this.cleanupInvalidActions();
+    
     console.log("SceneManager: Object removed:", objectToRemove);
   }
 
-   toggleAnimation(object) {
-      object = object || this.selectedObject;
-      if (!object || !this.mixers.has(object)) {
-        console.warn('SceneManager: No animations available for this object.');
-        return;
-      }
-  
-      const mixer = this.mixers.get(object);
-      const animations = object.userData.animations;
-  
-      if (!mixer || !animations || animations.length === 0) {
-        console.warn('SceneManager: Mixer or animations not found.');
-        return;
-      }
-  
-      // Check if an animation is currently playing
-      const currentAction = mixer._actions.find(action => action.isRunning());
-      if (currentAction) {
-        currentAction.stop();
-        console.log('SceneManager: Animation stopped for object:', object.userData.type);
-      } else {
-        // Play the first animation
-        const clip = animations[0];
-        const action = mixer.clipAction(clip);
-        action.setLoop(THREE.LoopRepeat);
-        action.clampWhenFinished = false;
-        action.play();
-        console.log('SceneManager: Animation started for object:', object.userData.type, clip.name);
-      }
+  toggleAnimation(object) {
+    object = object || this.selectedObject;
+    if (!object || !this.mixers.has(object)) {
+      console.warn('SceneManager: No animations available for this object.');
+      return;
     }
 
-  getObjectState(object) {
-    return {
-      position: object.position.clone(),
-      rotation: object.rotation.clone(),
-      scale: object.scale.clone(),
-      userData: JSON.parse(JSON.stringify(object.userData))
-    };
-  }
-  applyObjectState(object, state) {
-    object.position.copy(state.position);
-    object.rotation.copy(state.rotation);
-    object.scale.copy(state.scale);
-    object.userData = JSON.parse(JSON.stringify(state.userData));
-    object.updateMatrixWorld(true);
-  }
+    const mixer = this.mixers.get(object);
+    const animations = object.userData.animations;
 
-  addToUndoStack(action) {
-    // For 'transform', action should contain { type, object, previousProperties, newProperties }
-    this.undoStack.push(action);
-    this.redoStack = [];
-    console.log("SceneManager: Action added to undo stack:", action.type, this.undoStack.length);
-  }
-
-  undo() {
-      if (this.undoStack.length === 0) {
-        console.log("SceneManager: Undo stack empty.");
-        return;
-      }
-      const action = this.undoStack.pop();
-      console.log("SceneManager: Undoing action:", action.type);
-  
-      switch (action.type) {
-        case 'add':
-          this.scene.remove(action.object);
-          this.objects = this.objects.filter(obj => obj !== action.object);
-          if (this.selectedObject === action.object) this.deselectObject();
-          if (this.mixers.has(action.object)) {
-            const mixer = this.mixers.get(action.object);
-            mixer.stopAllAction();
-            mixer.uncacheRoot(action.object);
-            this.mixers.delete(action.object);
-          }
-          break;
-        case 'remove':
-          this.scene.add(action.object);
-          this.objects.push(action.object);
-          this.applyObjectState(action.object, action.properties);
-          if (action.object.userData.animations && action.object.userData.animations.length > 0) {
-            const mixer = new THREE.AnimationMixer(action.object);
-            this.mixers.set(action.object, mixer);
-          }
-          break;
-        case 'transform':
-          this.applyObjectState(action.object, action.previousProperties);
-          if (this.interactionManager) this.interactionManager.updateControlsForObject(action.object);
-          break;
-        default:
-          console.warn('SceneManager: Unknown action type for undo:', action.type);
-          this.redoStack.push(action);
-          return;
-      }
-      this.redoStack.push(action);
-    }
-  
-    redo() {
-      if (this.redoStack.length === 0) {
-        console.log("SceneManager: Redo stack empty.");
-        return;
-      }
-      const action = this.redoStack.pop();
-      console.log("SceneManager: Redoing action:", action.type);
-  
-      switch (action.type) {
-        case 'add':
-          this.scene.add(action.object);
-          this.objects.push(action.object);
-          this.applyObjectState(action.object, action.properties);
-          if (action.object.userData.animations && action.object.userData.animations.length > 0) {
-            const mixer = new THREE.AnimationMixer(action.object);
-            this.mixers.set(action.object, mixer);
-          }
-          break;
-        case 'remove':
-          this.scene.remove(action.object);
-          this.objects = this.objects.filter(obj => obj !== action.object);
-          if (this.selectedObject === action.object) this.deselectObject();
-          if (this.mixers.has(action.object)) {
-            const mixer = this.mixers.get(action.object);
-            mixer.stopAllAction();
-            mixer.uncacheRoot(action.object);
-            this.mixers.delete(action.object);
-          }
-          break;
-        case 'transform':
-          this.applyObjectState(action.object, action.newProperties);
-          if (this.interactionManager) this.interactionManager.updateControlsForObject(action.object);
-          break;
-        default:
-          console.warn('SceneManager: Unknown action type for redo:', action.type);
-          this.undoStack.push(action);
-          return;
-      }
-      this.undoStack.push(action);
+    if (!mixer || !animations || animations.length === 0) {
+      console.warn('SceneManager: Mixer or animations not found.');
+      return;
     }
 
+    const currentAction = mixer._actions.find(action => action.isRunning());
+    if (currentAction) {
+      currentAction.stop();
+      console.log('SceneManager: Animation stopped for object:', object.userData.type);
+    } else {
+      const clip = animations[0];
+      const action = mixer.clipAction(clip);
+      action.setLoop(THREE.LoopRepeat);
+      action.clampWhenFinished = false;
+      action.play();
+      console.log('SceneManager: Animation started for object:', object.userData.type, clip.name);
+    }
+  }
 
   takeScreenshot() {
     if (!this.renderer || !this.scene || !this.camera) return;
-  
-    this.renderer.render(this.scene, this.camera); // Make sure frame is up-to-date
-  
+
+    this.renderer.render(this.scene, this.camera);
+
     const dataURL = this.renderer.domElement.toDataURL('image/png');
     const link = document.createElement('a');
     link.href = dataURL;
     link.download = 'room-screenshot.png';
     link.click();
-  
+
     console.log("SceneManager: Screenshot saved.");
   }
-  
-  
-  
+
   setView2D() {
     this.camera.position.set(0, 15, 0);
     this.camera.lookAt(0, 0, 0);
     this.camera.rotation.set(-Math.PI / 2, 0, 0);
     if (this.orbitControls) {
       this.orbitControls.target.set(0, 0, 0);
-      this.orbitControls.maxPolarAngle = 0.01; // Almost straight down
-      this.orbitControls.minPolarAngle = 0; // Almost straight down
+      this.orbitControls.maxPolarAngle = 0.01;
+      this.orbitControls.minPolarAngle = 0;
       this.orbitControls.enableRotate = false;
       this.orbitControls.screenSpacePanning = true;
       this.orbitControls.update();
@@ -816,6 +1147,7 @@ export class SceneManager {
       if (this.renderer && this.scene && this.camera) this.renderer.render(this.scene, this.camera);
     }
   }
+
   setEnvironmentIntensity(value) {
     if (!this.scene) return;
     const intensity = Number(value);
@@ -835,16 +1167,19 @@ export class SceneManager {
     console.log(`SceneManager: Updated envMapIntensity to ${intensity} on ${updatedCount} materials`);
     if (this.renderer && this.scene && this.camera) this.renderer.render(this.scene, this.camera);
   }
+
   loadHDREnvironment(hdrPath) {
-    this.environmentApplied = false; // Reset flag so new env is applied
+    this.environmentApplied = false;
     this.initHDREnvironment(hdrPath);
   }
+
   refreshEnvironmentMaps() {
     if (this.scene && this.scene.environment) {
-      this.applyEnvironmentToObjects(true); // Force update
+      this.applyEnvironmentToObjects(true);
       if (this.renderer && this.scene && this.camera) this.renderer.render(this.scene, this.camera);
     }
   }
+
   toggleFloorEditor() {
     if (!this.floorDimensionEditorInstance) {
         console.error("SceneManager: FloorDimensionEditor instance not available.");
@@ -864,25 +1199,14 @@ export class SceneManager {
         }
         if (this.orbitControls) this.orbitControls.enabled = true;
     } else {
-        const localRoomPoints = this.room.getCurrentPoints(); // These are local to room.group's origin
+        const localRoomPoints = this.room.getCurrentPoints();
 
         if (localRoomPoints && localRoomPoints.length >= 3) {
-            // --- Convert local room points to world space ---
             const roomGroupWorldPosition = new THREE.Vector3();
-            this.room.group.getWorldPosition(roomGroupWorldPosition); // Get world position of the room group
-
-            // Note: If room.group has rotation/scale, a simple addition is not enough.
-            // We need to apply the group's full world matrix to each point.
-            // However, your Room.js only sets group.position, not rotation or scale.
-            // So, direct addition of the group's world position should work for now.
-            // If room.group could be rotated/scaled, you'd do:
-            // const worldPoint = new THREE.Vector3(localPoint.x, 0, localPoint.z).applyMatrix4(this.room.group.matrixWorld);
-            // initialPointsForEditor.push({ x: worldPoint.x, z: worldPoint.z });
+            this.room.group.getWorldPosition(roomGroupWorldPosition);
 
             const initialPointsForEditor = localRoomPoints.map(localPoint => {
-                // Assuming points are in XZ plane locally at Y=0 within the group
                 const worldPoint = new THREE.Vector3(localPoint.x, 0, localPoint.z);
-                // Transform point from room.group's local space to world space
                 worldPoint.applyMatrix4(this.room.group.matrixWorld); 
                 return { x: worldPoint.x, z: worldPoint.z };
             });
@@ -903,12 +1227,11 @@ export class SceneManager {
                 console.log("SceneManager: Floor points updated by editor (these are WORLD points):", updatedWorldPoints);
                 if (this.room && typeof this.room.buildFromPolygon === 'function' && this.room.group) {
                     
-                    // --- Convert updated world points back to room.group's local space ---
                     const inverseRoomGroupMatrix = new THREE.Matrix4();
                     inverseRoomGroupMatrix.copy(this.room.group.matrixWorld).invert();
 
                     const newLocalPoints = updatedWorldPoints.map(worldPoint => {
-                        const localP = new THREE.Vector3(worldPoint.x, 0, worldPoint.z); // Assuming Y is 0 for floor points
+                        const localP = new THREE.Vector3(worldPoint.x, 0, worldPoint.z);
                         localP.applyMatrix4(inverseRoomGroupMatrix);
                         return { x: localP.x, z: localP.z };
                     });
@@ -929,9 +1252,6 @@ export class SceneManager {
     }
   }
 
-  // 
-
-
   dispose() {
     console.log("Disposing SceneManager...");
     if (this.animationFrameId) {
@@ -944,7 +1264,6 @@ export class SceneManager {
       this.container.removeEventListener('pointerdown', this.onPointerDown);
     }
 
-    // Dispose animation mixers
     this.mixers.forEach((mixer, model) => {
       mixer.stopAllAction();
       mixer.uncacheRoot(model);
@@ -1010,8 +1329,10 @@ export class SceneManager {
 
     this.camera = null;
     this.container = null;
-    this.undoStack = [];
-    this.redoStack = [];
+    
+    // Clear undo/redo history to prevent memory leaks
+    this.clearHistory();
+    
     this.modelLoader.dispose();
 
     console.log("SceneManager disposed.");
