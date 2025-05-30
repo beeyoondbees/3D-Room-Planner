@@ -39,6 +39,7 @@ const RoomPlanner = () => {
     console.log("RoomPlanner: Initializing SceneManager...");
     const manager = new SceneManager(currentContainer);
     sceneManagerRef.current = manager;
+    window.sceneManager = manager;
 
     const handleObjectSelected = (event) => setSelectedObject(event.detail);
     const handleObjectDeselected = () => setSelectedObject(null);

@@ -33,7 +33,6 @@ button {
   height: 100vh;
   z-index: 1;
 }
-
 /* Toolbar styles */
 .toolbar {
   position: fixed;
@@ -522,9 +521,6 @@ button {
   box-shadow: 0 0 0 2px rgba(14, 13, 13, 0.2);
 }
 
-
-
-
 // pop-up modal styles for shape and text----------------------------------------------------
 .room-popup {
   position: fixed;
@@ -621,4 +617,766 @@ button {
 
 .zero-margin {
   margin: 0px !important;
+}
+
+.sidepanel-toggle-button {
+  position: absolute;
+  top: -40px;
+  right: 1px;
+  transform: translateY(-50%);
+  z-index: 1001;
+  background-color: #fff;
+  border-radius: 50%;
+  padding: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  width: 48px;
+  height: 48px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+/* ObjectControls styles */
+.object-controls {
+  position: absolute;
+  top: 70px;
+  right: 15px;
+  background-color: rgba(42, 42, 46, 0.9);
+  color: white;
+  padding: 15px;
+  border-radius: 8px;
+  width: 280px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.25);
+  backdrop-filter: blur(5px);
+  z-index: 1000;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+}
+
+.object-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.object-header h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 500;
+}
+
+.close-button {
+  background: none;
+  border: none;
+  color: rgba(251, 248, 248, 0.7);
+  font-size: 20px;
+  cursor: pointer;
+  padding: 0;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+}
+
+.close-button:hover {
+  background-color: rgba(250, 250, 250, 0.964);
+  color: rgb(15, 14, 14);
+  cursor: pointer;
+}
+
+.control-section {
+  margin-bottom: 18px;
+}
+
+.control-section h4 {
+  margin: 0 0 8px 0;
+  font-size: 14px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.button-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.tool-button,
+.action-button,
+.rotation-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 12px;
+  background-color: rgba(255, 255, 255, 0.1);
+  border: none;
+  border-radius: 4px;
+  color: white;
+  cursor: pointer;
+  font-size: 13px;
+  flex-grow: 1;
+  transition: all 0.2s ease;
+}
+
+.tool-button svg,
+.action-button svg {
+  margin-right: 5px;
+}
+
+.tool-button:hover,
+.action-button:hover,
+.rotation-button:hover {
+  background-color: rgba(255, 255, 255, 0.2);
+}
+
+.tool-button.active {
+  background-color: rgba(66, 153, 225, 0.6);
+}
+
+.tool-button:disabled,
+.action-button:disabled,
+.rotation-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.action-button.animating {
+  background-color: rgba(46, 204, 113, 0.6);
+}
+
+.action-button.animating:hover {
+  background-color: rgba(46, 204, 113, 0.8);
+}
+
+.action-button.danger {
+  background-color: rgba(229, 62, 62, 0.6);
+}
+
+.action-button.danger:hover {
+  background-color: rgba(229, 62, 62, 0.8);
+}
+
+.action-button.pinned {
+  background-color: rgba(237, 137, 54, 0.6);
+}
+
+.action-button.pinned:hover {
+  background-color: rgba(237, 137, 54, 0.8);
+}
+
+.help-section {
+  background-color: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  padding: 10px;
+}
+
+.help-text {
+  margin: 0;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.9);
+  display: flex;
+  align-items: center;
+}
+
+.help-icon {
+  margin-right: 8px;
+  font-size: 16px;
+}
+
+@media (max-width: 768px) {
+  .object-controls {
+    bottom: 10px;
+    top: auto;
+    right: 10px;
+    left: 10px;
+    width: auto;
+  }
+}
+
+/* SidePanel.css */
+.side-panel {
+  position: fixed;
+  right: 20px;
+  top: 80px;
+  bottom: 20px;
+  background-color: #f8f9fa;
+  box-shadow: 2px 0 5px rgba(0, 0, 0, 0.05);
+  display: flex;
+  flex-direction: column;
+  transition: width 0.3s ease-in-out;
+  z-index: 1000;
+  overflow: hidden;
+}
+
+.side-panel.expanded {
+  width: 360px;
+}
+
+.side-panel.collapsed {
+  width: 45px;
+}
+
+.panel-header {
+  display: flex;
+  align-items: center;
+  padding: 0 8px;
+  border-bottom: 1px solid #e0e0e0;
+  background-color: #f1f3f5;
+  flex-shrink: 0;
+  height: 45px;
+}
+
+.breadcrumb {
+  font-size: 1.10em;
+  color: #6c757d;
+  margin-left: 10px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex-grow: 1;
+  line-height: 45px;
+}
+
+.breadcrumb-link {
+  cursor: pointer;
+  color: #E4002B;
+  text-decoration: underline;
+  text-decoration-color: #E4002B;
+}
+
+.breadcrumb-separator {
+  margin: 0 4px;
+  color: #6c757d;
+}
+
+.breadcrumb-active {
+  color: #E4002B;
+  font-weight: bold;
+}
+
+.back-button {
+  background: transparent;
+  border: none;
+  color: #333;
+  padding: 8px 10px;
+  margin-right: 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 18px;
+  line-height: 1;
+  font-weight: bold;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.2s ease;
+}
+
+.content-wrapper {
+  overflow-y: auto;
+  flex-grow: 1;
+  padding: 12px;
+  background-color: #fff;
+}
+
+.list-item,
+.list-item-product {
+  display: flex;
+  align-items: center;
+  padding: 10px 8px;
+  cursor: pointer;
+  border-radius: 4px;
+  margin-bottom: 5px;
+  transition: background-color 0.15s ease, transform 0.1s ease, box-shadow 0.15s ease;
+  border: 1px solid #ddd;
+  background-color: #fff;
+}
+
+.list-item-product {
+  padding: 8px;
+  border: 1px solid #f0f0f0;
+}
+
+.list-item:hover,
+.list-item-product:hover {
+  transform: scale(1.02);
+  background-color: #fff1f1;
+  box-shadow: 0 0 10px rgba(228, 0, 43, 0.3);
+}
+
+.item-icon-product-container {
+  width: 90px;
+  height: 90px;
+  margin-right: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  overflow: hidden;
+  flex-shrink: 0;
+  background-color: #fff;
+}
+
+.product-icon {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+
+.item-name-text {
+  flex-grow: 1;
+  font-size: 0.9em;
+  color: #343a40;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.item-count {
+  font-size: 0.8em;
+  color: #6c757d;
+  margin-left: 8px;
+  white-space: nowrap;
+  flex-shrink: 0;
+  padding: 2px 6px;
+  background-color: #e9ecef;
+  border-radius: 4px;
+}
+
+.chevron-right {
+  margin-left: auto;
+  color: #adb5bd;
+  font-size: 0.8em;
+}
+
+.no-items-text {
+  text-align: center;
+  color: #6c757d;
+  margin-top: 20px;
+  font-size: 0.95em;
+}
+
+/* ========================================= */
+/* COMPREHENSIVE DARK MODE STYLES */
+/* ========================================= */
+
+/* Base dark mode styles */
+.dark-mode body {
+  background-color: #1a1a1a !important;
+  color: #e0e0e0 !important;
+}
+
+/* Toolbar dark mode */
+.dark-mode .toolbar {
+  background-color: rgba(42, 42, 42, 0.9) !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
+}
+
+.dark-mode .toolbar-separator {
+  background-color: rgba(255, 255, 255, 0.2) !important;
+}
+
+/* Side panel dark mode */
+.dark-mode .side-panel {
+  background-color: rgba(42, 42, 42, 0.9) !important;
+  color: #e0e0e0 !important;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3) !important;
+}
+
+.dark-mode .category-tabs {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
+}
+
+.dark-mode .category-tab {
+  color: #e0e0e0 !important;
+}
+
+.dark-mode .category-tab.active {
+  background-color: #333 !important;
+  border: 1px solid rgba(255, 255, 255, 0.2) !important;
+}
+
+.dark-mode .category-tab:hover:not(.active) {
+  background-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+/* Equipment grid dark mode */
+.dark-mode .equipment-grid {
+  background-color: transparent !important;
+}
+
+.dark-mode .equipment-item {
+  background-color: #333 !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  color: #e0e0e0 !important;
+}
+
+.dark-mode .equipment-item:hover {
+  background-color: #3a3a3a !important;
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3) !important;
+  transform: translateY(-2px);
+}
+
+.dark-mode .item-name {
+  color: #e0e0e0 !important;
+}
+
+/* View controls dark mode */
+.dark-mode .view-control-button {
+  background-color: #333 !important;
+  color: #e0e0e0 !important;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3) !important;
+}
+
+.dark-mode .view-control-button:hover {
+  background-color: #3a3a3a !important;
+  box-shadow: 0 6px 15px rgba(0, 0, 0, 0.4) !important;
+}
+
+.dark-mode .zoom-controls {
+  background-color: #333 !important;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3) !important;
+}
+
+/* Properties panel dark mode */
+.dark-mode .properties-panel {
+  background-color: rgba(42, 42, 42, 0.9) !important;
+  color: #e0e0e0 !important;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3) !important;
+}
+
+.dark-mode .properties-panel h3 {
+  color: #e0e0e0 !important;
+}
+
+.dark-mode .property {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
+}
+
+.dark-mode .property span:first-child {
+  color: #b0b0b0 !important;
+}
+
+.dark-mode .actions button {
+  background-color: #333 !important;
+  border: 1px solid rgba(255, 255, 255, 0.2) !important;
+  color: #e0e0e0 !important;
+}
+
+.dark-mode .actions button:hover {
+  background-color: #3a3a3a !important;
+}
+
+/* Icon button component dark mode */
+.dark-mode .icon-button {
+  color: #e0e0e0 !important;
+  background-color: transparent !important;
+}
+
+.dark-mode .icon-button:hover {
+  background-color: rgba(255, 255, 255, 0.1) !important;
+  color: #ffffff !important;
+}
+
+.dark-mode .icon-button.active {
+  background-color: rgba(255, 255, 255, 0.2) !important;
+  color: #ffffff !important;
+}
+
+/* Loading overlay dark mode */
+.dark-mode .loading-overlay {
+  background-color: rgba(26, 26, 26, 0.9) !important;
+}
+
+.dark-mode .loading-text {
+  color: #e0e0e0 !important;
+}
+
+.dark-mode .loading-spinner {
+  border: 5px solid #444 !important;
+  border-top: 5px solid #64b5f6 !important;
+}
+
+/* Active toolbar button dark mode */
+.dark-mode .active-toolbar-button {
+  background-color: rgba(255, 255, 255, 0.2) !important;
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.3) !important;
+}
+
+/* Room popup dark mode */
+.dark-mode .room-popup {
+  background: #2a2a2a !important;
+  color: #e0e0e0 !important;
+  box-shadow: 0 0 30px rgba(0, 0, 0, 0.4) !important;
+}
+
+.dark-mode .room-popup h3 {
+  color: #e0e0e0 !important;
+}
+
+.dark-mode .room-option {
+  border: 1px solid #555 !important;
+  background-color: #333 !important;
+  color: #e0e0e0 !important;
+}
+
+.dark-mode .room-option:hover {
+  border-color: #E4002B !important;
+  background: #3a1a1a !important;
+}
+
+.dark-mode .room-option.selected-room {
+  border-color: #E4002B !important;
+  background-color: #3a1a1a !important;
+  box-shadow: 0 0 10px rgba(228, 0, 43, 0.5) !important;
+}
+
+.dark-mode .popup-footer input {
+  background-color: #333 !important;
+  border: 1px solid #555 !important;
+  color: #e0e0e0 !important;
+}
+
+.dark-mode .popup-footer input:focus {
+  border-color: #E4002B !important;
+  outline: none !important;
+}
+
+.dark-mode .popup-footer button {
+  background: #E4002B !important;
+  color: white !important;
+}
+
+.dark-mode .popup-footer button:hover {
+  background: #d60000 !important;
+}
+
+.dark-mode #overlay {
+  background: rgba(0, 0, 0, 0.8) !important;
+}
+
+/* Side panel toggle button dark mode */
+.dark-mode .sidepanel-toggle-button {
+  background-color: #333 !important;
+  color: #e0e0e0 !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+}
+
+/* Object controls dark mode (enhanced) */
+.dark-mode .object-controls {
+  background-color: rgba(26, 26, 26, 0.95) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+}
+
+.dark-mode .close-button {
+  color: rgba(255, 255, 255, 0.7) !important;
+}
+
+.dark-mode .close-button:hover {
+  color: #ffffff !important;
+  background-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+/* Side panel with breadcrumbs dark mode */
+.dark-mode .side-panel {
+  background-color: rgba(42, 42, 42, 0.9) !important;
+  box-shadow: 2px 0 5px rgba(0, 0, 0, 0.3) !important;
+}
+
+.dark-mode .panel-header {
+  background-color: #333 !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
+}
+
+.dark-mode .breadcrumb {
+  color: #b0b0b0 !important;
+}
+
+.dark-mode .breadcrumb-link {
+  color: #E4002B !important;
+}
+
+.dark-mode .breadcrumb-separator {
+  color: #b0b0b0 !important;
+}
+
+.dark-mode .breadcrumb-active {
+  color: #E4002B !important;
+}
+
+.dark-mode .back-button {
+  color: #e0e0e0 !important;
+}
+
+.dark-mode .back-button:hover {
+  background-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+.dark-mode .content-wrapper {
+  background-color: rgba(42, 42, 42, 0.9) !important;
+}
+
+/* List items dark mode */
+.dark-mode .list-item,
+.dark-mode .list-item-product {
+  background-color: #333 !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  color: #e0e0e0 !important;
+}
+
+.dark-mode .list-item:hover,
+.dark-mode .list-item-product:hover {
+  background-color: #3a1a1a !important;
+  box-shadow: 0 0 10px rgba(228, 0, 43, 0.5) !important;
+}
+
+.dark-mode .item-icon-product-container {
+  background-color: #3a3a3a !important;
+}
+
+.dark-mode .item-name-text {
+  color: #e0e0e0 !important;
+}
+
+.dark-mode .item-count {
+  background-color: #444 !important;
+  color: #b0b0b0 !important;
+}
+
+.dark-mode .chevron-right {
+  color: #888 !important;
+}
+
+.dark-mode .no-items-text {
+  color: #b0b0b0 !important;
+}
+
+/* Scrollbar dark mode */
+.dark-mode ::-webkit-scrollbar {
+  width: 8px;
+}
+
+.dark-mode ::-webkit-scrollbar-track {
+  background: #333;
+}
+
+.dark-mode ::-webkit-scrollbar-thumb {
+  background: #555;
+  border-radius: 4px;
+}
+
+.dark-mode ::-webkit-scrollbar-thumb:hover {
+  background: #666;
+}
+
+/* Input and form elements dark mode */
+.dark-mode input,
+.dark-mode select,
+.dark-mode textarea {
+  background-color: #333 !important;
+  border: 1px solid #555 !important;
+  color: #e0e0e0 !important;
+}
+
+.dark-mode input:focus,
+.dark-mode select:focus,
+.dark-mode textarea:focus {
+  border-color: #E4002B !important;
+  outline: none !important;
+  box-shadow: 0 0 0 2px rgba(228, 0, 43, 0.2) !important;
+}
+
+.dark-mode input::placeholder,
+.dark-mode textarea::placeholder {
+  color: #888 !important;
+}
+
+/* Additional responsive dark mode adjustments */
+@media (max-width: 768px) {
+  .dark-mode .side-panel {
+    background-color: rgba(42, 42, 42, 0.95) !important;
+  }
+  
+  .dark-mode .equipment-grid {
+    background-color: transparent !important;
+  }
+  
+  .dark-mode .object-controls {
+    background-color: rgba(26, 26, 26, 0.98) !important;
+  }
+}
+
+
+
+
+// Modal styles for right-side drawer
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.3);
+  z-index: 1000;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.modal-dialog {
+  position: fixed;
+  margin: auto;
+  width: 320px;
+  height: 100%;
+  transform: translate3d(0%, 0, 0);
+  transition: opacity 0.3s linear, right 0.3s ease-out;
+  right: -320px;
+  opacity: 0;
+}
+
+.modal-dialog.open {
+  right: 0;
+  opacity: 1;
+}
+
+.modal-content {
+  height: 100%;
+  overflow-y: auto;
+  border-radius: 0;
+  border: none;
+  background-color: #fff;
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 15px;
+  border-bottom: 1px solid #eeeeee;
+  background-color: #fafafa;
+}
+
+.modal-title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 500;
+  color: #333;
+}
+
+.close-button {
+  background: none;
+  border: none;
+  font-size: 18px;
+  cursor: pointer;
+  color: #666;
+  padding: 5px;
+}
+
+.modal-body {
+  padding: 15px 15px 80px;
+  flex: 1;
+  overflow-y: auto;
 }

@@ -1,5 +1,5 @@
 // src/components/UI/ObjectControls.jsx
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
 const ObjectControls = ({
   selectedObject,
@@ -8,11 +8,19 @@ const ObjectControls = ({
 }) => {
   // Move useState to the top, before any returns
   const [isAnimating, setIsAnimating] = useState(false);
+  const [isPinned, setIsPinned] = useState(false);
+
+   // Sync local pin state whenever selectedObject changes
+    useEffect(() => {
+      setIsPinned(selectedObject?.userData?.isPinned || false);
+
+      // Check if the selectedObject's animation is running
+      setIsAnimating(selectedObject?.userData?.isAnimating || false);
+    }, [selectedObject]);
 
   // Early return after hooks
   if (!selectedObject) return null;
 
-  const isPinned = selectedObject.userData?.isPinned || false;
   const hasAnimations = selectedObject.userData?.animations?.length > 0;
 
   const formatType = (type) => {
@@ -23,9 +31,24 @@ const ObjectControls = ({
       .join(' ');
   };
 
-  const handleAnimationClick = () => {
+   const handleAnimationClick = () => {
     onObjectAction('animate');
     setIsAnimating(!isAnimating);
+    // Update the selectedObject's userData to reflect the animation state
+    if (selectedObject.userData) {
+      selectedObject.userData.isAnimating = !isAnimating;
+    }
+  };
+
+  // When pin button clicked, update local state AND call handler
+  const handlePinClick = () => {
+    if (isPinned) {
+      setIsPinned(false);
+      onObjectAction('unpin');
+    } else {
+      setIsPinned(true);
+      onObjectAction('pin');
+    }
   };
 
   return (
@@ -112,7 +135,7 @@ const ObjectControls = ({
         <div className="button-group">
           <button
             className={`action-button ${isPinned ? 'pinned' : ''}`}
-            onClick={() => onObjectAction(isPinned ? 'unpin' : 'pin')}
+            onClick={() => handlePinClick(isPinned ? 'unpin' : 'pin')}
             title={isPinned ? "Unpin (P)" : "Pin (P)"}
           >
             <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" strokeWidth="2" fill="none">
@@ -167,160 +190,6 @@ const ObjectControls = ({
             : "Click and drag left/right to rotate the object"}
         </p>
       </div>
-
-      <style jsx>{`
-        .object-controls {
-          position: absolute;
-          top: 70px;
-          right: 15px;
-          background-color: rgba(42, 42, 46, 0.9);
-          color: white;
-          padding: 15px;
-          border-radius: 8px;
-          width: 280px;
-          box-shadow: 0 4px 15px rgba(0, 0, 0, 0.25);
-          backdrop-filter: blur(5px);
-          z-index: 1000;
-          font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
-        }
-
-        .object-header {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          margin-bottom: 15px;
-          padding-bottom: 10px;
-          border-bottom: 1px solid rgba(255, 255, 255, 0.2);
-        }
-
-        h3 {
-          margin: 0;
-          font-size: 16px;
-          font-weight: 500;
-        }
-
-        .close-button {
-          background: none;
-          border: none;
-          color: rgba(255, 255, 255, 0.7);
-          font-size: 20px;
-          cursor: pointer;
-          padding: 0;
-          width: 24px;
-          height: 24px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          border-radius: 50%;
-        }
-
-        .close-button:hover {
-          background-color: rgba(255, 255, 255, 0.1);
-          color: white;
-        }
-
-        h4 {
-          margin: 0 0 8px 0;
-          font-size: 14px;
-          font-weight: 500;
-          color: rgba(255, 255, 255, 0.8);
-        }
-
-        .control-section {
-          margin-bottom: 18px;
-        }
-
-        .button-group {
-          display: flex;
-          flex-wrap: wrap;
-          gap: 8px;
-        }
-
-        .tool-button, .action-button, .rotation-button {
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          padding: 8px 12px;
-          background-color: rgba(255, 255, 255, 0.1);
-          border: none;
-          border-radius: 4px;
-          color: white;
-          cursor: pointer;
-          font-size: 13px;
-          flex-grow: 1;
-          transition: all 0.2s ease;
-        }
-
-        .tool-button svg, .action-button svg {
-          margin-right: 5px;
-        }
-
-        .tool-button:hover, .action-button:hover, .rotation-button:hover {
-          background-color: rgba(255, 255, 255, 0.2);
-        }
-
-        .tool-button.active {
-          background-color: rgba(66, 153, 225, 0.6);
-        }
-
-        .tool-button:disabled, .action-button:disabled, .rotation-button:disabled {
-          opacity: 0.5;
-          cursor: not-allowed;
-        }
-
-        .action-button.animating {
-          background-color: rgba(46, 204, 113, 0.6);
-        }
-
-        .action-button.animating:hover {
-          background-color: rgba(46, 204, 113, 0.8);
-        }
-
-        .action-button.danger {
-          background-color: rgba(229, 62, 62, 0.6);
-        }
-
-        .action-button.danger:hover {
-          background-color: rgba(229, 62, 62, 0.8);
-        }
-
-        .action-button.pinned {
-          background-color: rgba(237, 137, 54, 0.6);
-        }
-
-        .action-button.pinned:hover {
-          background-color: rgba(237, 137, 54, 0.8);
-        }
-
-        .help-section {
-          background-color: rgba(255, 255, 255, 0.1);
-          border-radius: 4px;
-          padding: 10px;
-        }
-
-        .help-text {
-          margin: 0;
-          font-size: 13px;
-          color: rgba(255, 255, 255, 0.9);
-          display: flex;
-          align-items: center;
-        }
-
-        .help-icon {
-          margin-right: 8px;
-          font-size: 16px;
-        }
-
-        @media (max-width: 768px) {
-          .object-controls {
-            bottom: 10px;
-            top: auto;
-            right: 10px;
-            left: 10px;
-            width: auto;
-          }
-        }
-      `}</style>
     </div>
   );
 };

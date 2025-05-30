@@ -713,67 +713,6 @@ input[type="range"] {
   }
 }
 
-/* Dark mode styles */
-.dark-mode {
-  --panel-bg: rgba(33, 33, 33, 0.9);
-  --panel-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
-  --panel-border: 1px solid rgba(255, 255, 255, 0.05);
-  --light-color: #222;
-  --dark-color: #e0e0e0;
-  
-  color: #e0e0e0;
-  
-  .btn {
-    background-color: #333;
-    color: #e0e0e0;
-    border-color: rgba(255, 255, 255, 0.1);
-    
-    &:hover {
-      background-color: #444;
-    }
-  }
-  
-  .panel {
-    background-color: var(--panel-bg);
-    border-color: rgba(255, 255, 255, 0.05);
-  }
-  
-  .form-control {
-    background-color: #333;
-    color: #e0e0e0;
-    border-color: rgba(255, 255, 255, 0.1);
-    
-    &:focus {
-      border-color: var(--primary-color);
-    }
-    
-    &::placeholder {
-      color: #777;
-    }
-  }
-  
-  .equipment-card {
-    background-color: #333;
-    border-color: rgba(255, 255, 255, 0.05);
-  }
-  
-  .modal {
-    background-color: #222;
-  }
-  
-  .notification {
-    background-color: #222;
-  }
-  
-  .context-menu {
-    background-color: #222;
-    
-    &-item:hover {
-      background-color: #333;
-    }
-  }
-}
-
 /* Custom scrollbars */
 ::-webkit-scrollbar {
   width: 8px;
@@ -794,27 +733,6 @@ input[type="range"] {
   background: rgba(0, 0, 0, 0.3);
 }
 
-.dark-mode {
-  ::-webkit-scrollbar-track {
-    background: rgba(255, 255, 255, 0.05);
-  }
-  
-  ::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.2);
-  }
-  
-  ::-webkit-scrollbar-thumb:hover {
-    background: rgba(255, 255, 255, 0.3);
-  }
-}
-
-
-
-
-
-
-/* Add these styles to your main CSS file (e.g., main.scss or ui.scss) */
-
 /* Loading overlay */
 .loading-overlay {
   position: fixed;
@@ -829,22 +747,6 @@ input[type="range"] {
   display: flex;
   flex-direction: column;
   align-items: center;
-}
-
-/* Spinner */
-.spinner {
-  width: 30px;
-  height: 30px;
-  border: 3px solid rgba(255, 255, 255, 0.3);
-  border-radius: 50%;
-  border-top-color: white;
-  animation: spin 1s linear infinite;
-  margin: 0 auto 10px;
-}
-
-@keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
 }
 
 /* Progress bar */
@@ -894,4 +796,339 @@ input[type="range"] {
 
 .error-message button:hover {
   background: rgba(255, 255, 255, 0.3);
+}
+
+/* ========================================= */
+/* COMPREHENSIVE DARK MODE STYLES */
+/* ========================================= */
+
+/* Dark mode CSS custom properties */
+.dark-mode {
+  --primary-color: #5a7cfa;
+  --primary-hover: #4a6cf7;
+  --secondary-color: #8c92a3;
+  --success-color: #32d74b;
+  --danger-color: #ff453a;
+  --warning-color: #ffd60a;
+  --info-color: #40c8e0;
+  --light-color: #2a2a2a;
+  --dark-color: #e0e0e0;
+  
+  --panel-bg: rgba(42, 42, 42, 0.9);
+  --panel-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+  --panel-border: 1px solid rgba(255, 255, 255, 0.1);
+  
+  color: #e0e0e0;
+  
+  /* Button styles dark mode */
+  .btn {
+    background-color: #333 !important;
+    color: #e0e0e0 !important;
+    border-color: rgba(255, 255, 255, 0.1) !important;
+    
+    &:hover {
+      background-color: #404040 !important;
+    }
+    
+    &:focus {
+      box-shadow: 0 0 0 2px rgba(90, 124, 250, 0.4) !important;
+    }
+    
+    &.btn-primary {
+      background-color: var(--primary-color) !important;
+      
+      &:hover {
+        background-color: var(--primary-hover) !important;
+      }
+    }
+    
+    &.btn-secondary {
+      background-color: #555 !important;
+      
+      &:hover {
+        background-color: #666 !important;
+      }
+    }
+    
+    &.btn-success {
+      background-color: var(--success-color) !important;
+    }
+    
+    &.btn-danger {
+      background-color: var(--danger-color) !important;
+    }
+    
+    &.btn-warning {
+      background-color: var(--warning-color) !important;
+      color: #000 !important;
+    }
+  }
+  
+  /* Panel styles dark mode */
+  .panel {
+    background-color: var(--panel-bg) !important;
+    border-color: rgba(255, 255, 255, 0.1) !important;
+    box-shadow: var(--panel-shadow) !important;
+    color: #e0e0e0 !important;
+    
+    &-header {
+      border-bottom-color: rgba(255, 255, 255, 0.1) !important;
+      
+      h2, h3, h4 {
+        color: #e0e0e0 !important;
+      }
+    }
+    
+    &-footer {
+      border-top-color: rgba(255, 255, 255, 0.1) !important;
+    }
+  }
+  
+  /* Form controls dark mode */
+  .form-control {
+    background-color: #333 !important;
+    color: #e0e0e0 !important;
+    border-color: rgba(255, 255, 255, 0.2) !important;
+    
+    &:focus {
+      border-color: var(--primary-color) !important;
+      box-shadow: 0 0 0 2px rgba(90, 124, 250, 0.2) !important;
+    }
+    
+    &::placeholder {
+      color: #888 !important;
+    }
+    
+    &:disabled {
+      background-color: #2a2a2a !important;
+      color: #666 !important;
+    }
+  }
+  
+  .form-group label {
+    color: #e0e0e0 !important;
+  }
+  
+  .form-check label {
+    color: #e0e0e0 !important;
+  }
+  
+  /* Select dropdown dark mode */
+  select.form-control {
+    background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='none' stroke='%23e0e0e0' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6-6H0z'/%3E%3C/svg%3E") !important;
+  }
+  
+  /* Range slider dark mode */
+  input[type="range"] {
+    background: #555 !important;
+    
+    &::-webkit-slider-thumb {
+      background: var(--primary-color) !important;
+    }
+    
+    &::-moz-range-thumb {
+      background: var(--primary-color) !important;
+    }
+  }
+  
+  /* Color picker dark mode */
+  .color-picker .color-swatch.active {
+    border-color: #e0e0e0 !important;
+  }
+  
+  /* Tabs dark mode */
+  .tabs {
+    border-bottom-color: rgba(255, 255, 255, 0.1) !important;
+    
+    .tab {
+      color: #b0b0b0 !important;
+      
+      &:hover {
+        color: var(--primary-color) !important;
+      }
+      
+      &.active {
+        color: var(--primary-color) !important;
+      }
+    }
+  }
+  
+  /* Equipment card dark mode */
+  .equipment-card {
+    background-color: #333 !important;
+    border-color: rgba(255, 255, 255, 0.1) !important;
+    color: #e0e0e0 !important;
+    
+    &:hover {
+      background-color: #3a3a3a !important;
+      box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3) !important;
+    }
+    
+    .equipment-name {
+      color: #e0e0e0 !important;
+    }
+  }
+  
+  /* Properties panel dark mode */
+  .properties-panel {
+    background-color: var(--panel-bg) !important;
+    color: #e0e0e0 !important;
+    box-shadow: var(--panel-shadow) !important;
+    
+    h3 {
+      color: #e0e0e0 !important;
+    }
+    
+    .property {
+      border-bottom-color: rgba(255, 255, 255, 0.1) !important;
+      
+      &-label {
+        color: #b0b0b0 !important;
+      }
+      
+      &-value {
+        color: #e0e0e0 !important;
+      }
+    }
+  }
+  
+  /* Tooltip dark mode */
+  .tooltip .tooltip-text {
+    background-color: #1a1a1a !important;
+    color: #e0e0e0 !important;
+    
+    &::after {
+      border-color: #1a1a1a transparent transparent transparent !important;
+    }
+  }
+  
+  /* Modal dark mode */
+  .modal-backdrop {
+    background-color: rgba(0, 0, 0, 0.8) !important;
+  }
+  
+  .modal {
+    background-color: #2a2a2a !important;
+    color: #e0e0e0 !important;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5) !important;
+    
+    &-header {
+      border-bottom-color: rgba(255, 255, 255, 0.1) !important;
+      
+      h2, h3, h4 {
+        color: #e0e0e0 !important;
+      }
+      
+      .close-btn {
+        color: #b0b0b0 !important;
+        
+        &:hover {
+          color: var(--danger-color) !important;
+        }
+      }
+    }
+    
+    &-footer {
+      border-top-color: rgba(255, 255, 255, 0.1) !important;
+    }
+  }
+  
+  /* Notification dark mode */
+  .notification {
+    background-color: #2a2a2a !important;
+    color: #e0e0e0 !important;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3) !important;
+    
+    &-content {
+      h4 {
+        color: #e0e0e0 !important;
+      }
+      
+      p {
+        color: #b0b0b0 !important;
+      }
+    }
+    
+    &-close {
+      color: #b0b0b0 !important;
+      
+      &:hover {
+        color: var(--danger-color) !important;
+      }
+    }
+  }
+  
+  /* Loading spinner dark mode */
+  .spinner {
+    border-color: rgba(255, 255, 255, 0.1) !important;
+    border-top-color: var(--primary-color) !important;
+  }
+  
+  /* Progress bar dark mode */
+  .progress {
+    background-color: rgba(255, 255, 255, 0.1) !important;
+    
+    &-bar {
+      background-color: var(--primary-color) !important;
+    }
+  }
+  
+  /* Context menu dark mode */
+  .context-menu {
+    background-color: #2a2a2a !important;
+    color: #e0e0e0 !important;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3) !important;
+    
+    &-item {
+      color: #e0e0e0 !important;
+      
+      &:hover {
+        background-color: #333 !important;
+      }
+    }
+    
+    &-divider {
+      background-color: rgba(255, 255, 255, 0.1) !important;
+    }
+  }
+  
+  /* Loading overlay dark mode */
+  .loading-overlay {
+    background: rgba(42, 42, 42, 0.9) !important;
+    color: #e0e0e0 !important;
+  }
+  
+  .progress-bar {
+    background: rgba(255, 255, 255, 0.1) !important;
+  }
+  
+  .progress-fill {
+    background: var(--primary-color) !important;
+  }
+  
+  /* Error message dark mode */
+  .error-message {
+    background: rgba(255, 69, 58, 0.9) !important;
+  }
+  
+  .error-message button {
+    background: rgba(255, 255, 255, 0.2) !important;
+    
+    &:hover {
+      background: rgba(255, 255, 255, 0.3) !important;
+    }
+  }
+  
+  /* Scrollbar dark mode */
+  ::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.05) !important;
+  }
+  
+  ::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.2) !important;
+  }
+  
+  ::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.3) !important;
+  }
 }

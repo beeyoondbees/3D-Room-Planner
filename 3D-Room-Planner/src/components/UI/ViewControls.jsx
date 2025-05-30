@@ -21,7 +21,7 @@ const ViewControls = ({
   };
 
   const activeStyle = {
-    backgroundColor: 'rgba(0, 0, 0, 0.2)', // Dark highlight for active state
+    // backgroundColor: 'rgba(0, 0, 0, 0.2)', // Dark highlight for active state
   };
 
   // Style for the <img> element
@@ -73,31 +73,17 @@ const ViewControls = ({
 
       {/* Categories Toggle (Right side button) */}
       <div
-        style={{
-          position: 'absolute',
-          top: '-40px', // Adjusted for better centering
-          right: '1px',
-          transform: 'translateY(-50%)', // Vertically center the button
-          zIndex: 1001,
-          backgroundColor: '#fff',
-          borderRadius: '50%',
-          padding: '8px',
-          boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
-          width: '48px',
-          height: '48px',
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'center',
-        }}
+        className="sidepanel-toggle-button"
       >
         <img
-          src="./assets/icons/products/sBike.png"
+          src="./assets/icons/products/Sportstech-sBike.webp"
           alt={showSidePanel ? "Hide Categories" : "Show Categories"}
-          title={showSidePanel ? "Hide Categories" : "Show Categories"} 
+          title={showSidePanel ? "Hide Categories" : "Show Categories"}
           onClick={handleToggleSidePanel}
-          style={getImageStyle(activeButton === 'side-panel', './assets/icons/products/sBike.png')}
+          style={getImageStyle(activeButton === 'side-panel', './assets/icons/products/Sportstech-sBike.webp')}
         />
       </div>
+
     </div>
   );
 };

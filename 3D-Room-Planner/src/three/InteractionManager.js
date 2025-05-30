@@ -584,84 +584,168 @@ export class InteractionManager {
     this.deselect();
   }
   
-  onPointerDown(event) {
-    if (!this.enabled || event.button !== 0 || event.ctrlKey || event.metaKey) return;
+  // onPointerDown(event) {
+  //   if (!this.enabled || event.button !== 0 || event.ctrlKey || event.metaKey) return;
     
-    try {
-      const rect = this.renderer.domElement.getBoundingClientRect();
-      this.pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
-      this.pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+  //   try {
+  //     const rect = this.renderer.domElement.getBoundingClientRect();
+  //     this.pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+  //     this.pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
       
-      this.startPointer.copy(this.pointer);
+  //     this.startPointer.copy(this.pointer);
       
-      this.raycaster.setFromCamera(this.pointer, this.camera);
+  //     this.raycaster.setFromCamera(this.pointer, this.camera);
       
-      const selectableObjects = this.getSelectableObjects();
-      const intersects = this.raycaster.intersectObjects(selectableObjects, true);
+  //     const selectableObjects = this.getSelectableObjects();
+  //     const intersects = this.raycaster.intersectObjects(selectableObjects, true);
       
-      if (intersects.length > 0) {
-        let selected = intersects[0].object;
-        while (selected.parent && !selected.userData.isModelRoot) {
-          selected = selected.parent;
-        }
+  //     if (intersects.length > 0) {
+  //       let selected = intersects[0].object;
+  //       while (selected.parent && !selected.userData.isModelRoot) {
+  //         selected = selected.parent;
+  //       }
         
-        if (this.selectedObject === selected) {
-          if (!this.isPinned(selected)) {
-            this.startDrag(selected, intersects[0].point);
-          }
-        } else {
-          this.select(selected);
-        }
+  //       if (this.selectedObject === selected) {
+  //         if (!this.isPinned(selected)) {
+  //           this.startDrag(selected, intersects[0].point);
+  //         }
+  //       } else {
+  //         this.select(selected);
+  //       }
         
-        if (this.orbitControls) {
-          this.orbitControls.enabled = false;
+  //       if (this.orbitControls) {
+  //         this.orbitControls.enabled = false;
+  //       }
+  //     } else {
+  //       this.deselect();
+  //       if (this.orbitControls) {
+  //         this.orbitControls.enabled = true;
+  //       }
+  //     }
+  //   } catch (error) {
+  //     console.error('InteractionManager: Error in onPointerDown:', error);
+  //   }
+  // }
+
+    onPointerDown(event) {
+    if (event.button !== 0 || event.ctrlKey || event.metaKey) return;
+  
+    const rect = this.renderer.domElement.getBoundingClientRect();
+    this.pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+    this.pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+  
+    this.startPointer.copy(this.pointer);
+    this.raycaster.setFromCamera(this.pointer, this.camera);
+  
+    const selectableObjects = this.getSelectableObjects();
+    const intersects = this.raycaster.intersectObjects(selectableObjects, true);
+  
+    if (intersects.length > 0) {
+      let selected = intersects[0].object;
+      while (selected.parent && !selected.userData.isModelRoot) {
+        selected = selected.parent;
+      }
+  
+      if (this.selectedObject === selected) {
+        if (!this.isPinned(selected)) {
+          // ✅ Cache previous state
+          this._previousTransformState = {
+            position: selected.position.clone(),
+            rotation: selected.rotation.clone(),
+            scale: selected.scale.clone(),
+            userData: JSON.parse(JSON.stringify(selected.userData || {}))
+          };
+          this.startDrag(selected, intersects[0].point);
         }
       } else {
-        this.deselect();
-        if (this.orbitControls) {
-          this.orbitControls.enabled = true;
-        }
+        this.select(selected);
       }
-    } catch (error) {
-      console.error('InteractionManager: Error in onPointerDown:', error);
+  
+      this.orbitControls.enabled = false;
+    } else {
+      this.deselect();
+      this.orbitControls.enabled = true;
     }
   }
   
-  startDrag(object, hitPoint) {
-    if (!object || this.isPinned(object)) return;
+  // startDrag(object, hitPoint) {
+  //   if (!object || this.isPinned(object)) return;
     
-    try {
-      this.isDragging = true;
-      this.isRotating = this.interactionMode === 'rotate';
+  //   try {
+  //     this.isDragging = true;
+  //     this.isRotating = this.interactionMode === 'rotate';
       
-      this.dragStartPosition.copy(hitPoint);
-      this.objectStartPosition.copy(object.position);
-      this.objectStartRotation.copy(object.rotation);
+  //     this.dragStartPosition.copy(hitPoint);
+  //     this.objectStartPosition.copy(object.position);
+  //     this.objectStartRotation.copy(object.rotation);
       
-      if (!this.isRotating) {
-        const planeNormal = new THREE.Vector3(0, 1, 0);
-        const floorPoint = new THREE.Vector3(0, 0, 0);
+  //     if (!this.isRotating) {
+  //       const planeNormal = new THREE.Vector3(0, 1, 0);
+  //       const floorPoint = new THREE.Vector3(0, 0, 0);
         
-        this.dragPlane.setFromNormalAndCoplanarPoint(planeNormal, floorPoint);
+  //       this.dragPlane.setFromNormalAndCoplanarPoint(planeNormal, floorPoint);
         
-        this.dragOffset = new THREE.Vector3(
-          hitPoint.x - object.position.x,
-          0,
-          hitPoint.z - object.position.z
-        );
+  //       this.dragOffset = new THREE.Vector3(
+  //         hitPoint.x - object.position.x,
+  //         0,
+  //         hitPoint.z - object.position.z
+  //       );
         
-        if (this.dragPlaneHelper) {
-          this.dragPlaneHelper.rotation.x = Math.PI / 2;
-          this.dragPlaneHelper.position.y = 0;
-        }
-      }
+  //       if (this.dragPlaneHelper) {
+  //         this.dragPlaneHelper.rotation.x = Math.PI / 2;
+  //         this.dragPlaneHelper.position.y = 0;
+  //       }
+  //     }
 
-      this.updateDistanceDisplay();
-    } catch (error) {
-      console.error('InteractionManager: Error in startDrag:', error);
-    }
-  }
+  //     this.updateDistanceDisplay();
+  //   } catch (error) {
+  //     console.error('InteractionManager: Error in startDrag:', error);
+  //   }
+  // }
   
+   startDrag(object, hitPoint) {
+  if (!object || this.isPinned(object)) return;
+
+  // ✅ Set dragging flags
+  this.isDragging = true;
+  this.isRotating = this.interactionMode === 'rotate';
+
+  // ✅ Capture previous state immediately
+  this._previousTransformState = {
+    position: object.position.clone(),
+    rotation: object.rotation.clone(),
+    scale: object.scale.clone(),
+    userData: JSON.parse(JSON.stringify(object.userData || {}))
+  };
+
+  // Store drag info
+  this.dragStartPosition.copy(hitPoint);
+  this.objectStartPosition.copy(object.position);
+  this.objectStartRotation.copy(object.rotation);
+
+  // Setup drag plane
+  if (!this.isRotating) {
+    const planeNormal = new THREE.Vector3(0, 1, 0);
+    const floorPoint = new THREE.Vector3(0, 0, 0);
+    this.dragPlane.setFromNormalAndCoplanarPoint(planeNormal, floorPoint);
+    this.dragOffset = new THREE.Vector3(
+      hitPoint.x - object.position.x,
+      0,
+      hitPoint.z - object.position.z
+    );
+    this.dragPlaneHelper.rotation.x = Math.PI / 2;
+    this.dragPlaneHelper.position.y = 0;
+  }
+
+  this.updateDistanceDisplay();
+}
+  onDragEnd(object) {
+    if (this.onObjectChanged && typeof this.onObjectChanged === 'function') {
+      this.onObjectChanged(object, this._previousTransformState);
+    }
+    this._previousTransformState = null;
+  }
+
   onPointerMove(event) {
     if (!this.enabled) return;
 
@@ -721,24 +805,58 @@ export class InteractionManager {
     }
   }
   
-  onPointerUp() {
-    if (!this.enabled) return;
+  // onPointerUp() {
+  //   if (!this.enabled) return;
 
-    try {
-      if (this.isDragging && this.selectedObject) {
-        this.isDragging = false;
-        this.isRotating = false;
+  //   try {
+  //     if (this.isDragging && this.selectedObject) {
+  //       this.isDragging = false;
+  //       this.isRotating = false;
         
-        this.hideDistanceDisplay();
+  //       this.hideDistanceDisplay();
         
-        if (this.orbitControls) {
-          this.orbitControls.enabled = true;
+  //       if (this.orbitControls) {
+  //         this.orbitControls.enabled = true;
+  //       }
+  //     }
+  //   } catch (error) {
+  //     console.error('InteractionManager: Error in onPointerUp:', error);
+  //   }
+  // }
+
+    onPointerUp() {
+    if (this.isDragging && this.selectedObject) {
+      this.isDragging = false;
+      this.isRotating = false;
+  
+      const obj = this.selectedObject;
+      const prev = this._previousTransformState;
+  
+      if (prev && this.callbacks?.onObjectChanged) {
+        const current = {
+          position: obj.position.clone(),
+          rotation: obj.rotation.clone(),
+          scale: obj.scale.clone(),
+          userData: JSON.parse(JSON.stringify(obj.userData || {})),
+        };
+  
+        const changed =
+          !prev.position.equals(current.position) ||
+          !prev.rotation.equals(current.rotation) ||
+          !prev.scale.equals(current.scale);
+  
+        if (changed) {
+          this.callbacks.onObjectChanged(obj, prev);
+          console.log('[InteractionManager] ✅ Transform change recorded for undo.');
         }
       }
-    } catch (error) {
-      console.error('InteractionManager: Error in onPointerUp:', error);
+  
+      this._previousTransformState = null;
+      this.hideDistanceDisplay();
+      this.orbitControls.enabled = true;
     }
   }
+
   
   onKeyDown(event) {
     if (!this.enabled) return;

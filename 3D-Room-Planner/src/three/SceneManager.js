@@ -931,120 +931,502 @@ export class SceneManager {
     }
   }
 
-  // ===== STATE MANAGEMENT =====
-  getObjectState(object) {
+
+  // ============= UNDO/REDO SYSTEM - IMPROVED =============
+
+  // Helper method to capture complete object state
+  captureObjectState(obj) {
+    if (!obj) return null;
+    
     return {
-      position: object.position.clone(),
-      rotation: object.rotation.clone(),
-      scale: object.scale.clone(),
-      userData: JSON.parse(JSON.stringify(object.userData))
+      position: obj.position.clone(),
+      rotation: obj.rotation.clone(),
+      scale: obj.scale.clone(),
+      visible: obj.visible,
+      userData: JSON.parse(JSON.stringify(obj.userData || {}))
     };
   }
 
+  // Improved object state application with error handling
   applyObjectState(object, state) {
-    object.position.copy(state.position);
-    object.rotation.copy(state.rotation);
-    object.scale.copy(state.scale);
-    object.userData = JSON.parse(JSON.stringify(state.userData));
-    object.updateMatrixWorld(true);
-  }
-
-  addToUndoStack(action) {
-    this.undoStack.push(action);
-    this.redoStack = [];
-    console.log("SceneManager: Action added to undo stack:", action.type, this.undoStack.length);
-  }
-
-  undo() {
-    if (this.undoStack.length === 0) {
-      console.log("SceneManager: Undo stack empty.");
-      return;
+    if (!object) {
+      console.warn("SceneManager: Cannot apply state - object is null or undefined");
+      return false;
     }
     
-    const action = this.undoStack.pop();
-    console.log("SceneManager: Undoing action:", action.type);
-
-    switch (action.type) {
-      case 'add':
-        this.scene.remove(action.object);
-        this.objects = this.objects.filter(obj => obj !== action.object);
-        if (this.selectedObject === action.object) this.deselectObject();
-        if (this.mixers.has(action.object)) {
-          const mixer = this.mixers.get(action.object);
-          mixer.stopAllAction();
-          mixer.uncacheRoot(action.object);
-          this.mixers.delete(action.object);
-        }
-        break;
-      case 'remove':
-        this.scene.add(action.object);
-        this.objects.push(action.object);
-        this.applyObjectState(action.object, action.properties);
-        if (action.object.userData.animations && action.object.userData.animations.length > 0) {
-          const mixer = new THREE.AnimationMixer(action.object);
-          this.mixers.set(action.object, mixer);
-        }
-        break;
-      case 'transform':
-        this.applyObjectState(action.object, action.previousProperties);
-        if (this.interactionManager && typeof this.interactionManager.updateControlsForObject === 'function') {
-          this.interactionManager.updateControlsForObject(action.object);
-        }
-        break;
-      default:
-        console.warn('SceneManager: Unknown action type for undo:', action.type);
-        this.redoStack.push(action);
-        return;
+    if (!state) {
+      console.warn("SceneManager: Cannot apply state - state is null or undefined");
+      return false;
     }
-    this.redoStack.push(action);
+
+    try {
+      // Validate that object has required properties before accessing them
+      if (state.position && object.position && typeof object.position.copy === 'function') {
+        object.position.copy(state.position);
+      }
+      if (state.rotation && object.rotation && typeof object.rotation.copy === 'function') {
+        object.rotation.copy(state.rotation);
+      }
+      if (state.scale && object.scale && typeof object.scale.copy === 'function') {
+        object.scale.copy(state.scale);
+      }
+      if (state.visible !== undefined && object.hasOwnProperty('visible')) {
+        object.visible = state.visible;
+      }
+      if (state.userData && object.userData !== undefined) {
+        object.userData = { ...object.userData, ...state.userData };
+      }
+      
+      // Update matrix to reflect changes - with safety checks
+      if (typeof object.updateMatrix === 'function') {
+        object.updateMatrix();
+      }
+      if (typeof object.updateMatrixWorld === 'function') {
+        object.updateMatrixWorld(true);
+      }
+      
+      return true;
+    } catch (error) {
+      console.error("SceneManager: Error applying object state:", error, { object, state });
+      return false;
+    }
   }
 
+  // Improved addToUndoStack with validation and size limits
+  addToUndoStack(action) {
+    if (!action || !action.type) {
+      console.warn("SceneManager: Invalid action - missing type");
+      return;
+    }
+
+    // Validate object exists and is valid
+    if (!action.object || action.object.userData === undefined || typeof action.object.uuid !== 'string') {
+      console.warn("SceneManager: Invalid action - object is null, undefined, or disposed");
+      return;
+    }
+
+    // Validate action properties based on type
+    if (action.type === 'transform') {
+      if (!action.previousProperties || !action.newProperties) {
+        console.warn("SceneManager: Invalid transform action - missing properties");
+        return;
+      }
+    } else if (action.type === 'remove' || action.type === 'add') {
+      if (!action.properties) {
+        console.warn("SceneManager: Invalid add/remove action - missing properties");
+        return;
+      }
+    }
+
+    // Check for duplicate recent actions (prevent spam)
+    if (this.undoStack.length > 0) {
+      const lastAction = this.undoStack[this.undoStack.length - 1];
+      if (lastAction.type === action.type && 
+          lastAction.object === action.object &&
+          Date.now() - (lastAction.timestamp || 0) < 100) { // Within 100ms
+        console.log("SceneManager: Ignoring duplicate action within 100ms");
+        return;
+      }
+    }
+
+    // Add timestamp to action
+    action.timestamp = Date.now();
+
+    // Limit undo stack size
+    if (this.undoStack.length >= this.maxUndoSteps) {
+      this.undoStack.shift();
+    }
+
+    this.undoStack.push(action);
+    this.redoStack = []; // Clear redo stack when new action is added
+    
+    console.log("SceneManager: Action added to undo stack:", action.type, this.undoStack.length);
+    
+    // Immediate cleanup if we detect issues
+    if (this.undoStack.length > 5) {
+      this.cleanupInvalidActions();
+    }
+  }
+
+  // Record object addition for undo
+  recordAddObject(obj) {
+    const action = {
+      type: 'add',
+      object: obj,
+      properties: this.captureObjectState(obj)
+    };
+    this.addToUndoStack(action);
+  }
+
+  // Record object removal for undo
+  recordRemoveObject(obj) {
+    const action = {
+      type: 'remove',
+      object: obj,
+      properties: this.captureObjectState(obj)
+    };
+    this.addToUndoStack(action);
+  }
+
+  // Record object transformation for undo
+  recordTransform(obj, previousState) {
+    const action = {
+      type: 'transform',
+      object: obj,
+      previousProperties: previousState,
+      newProperties: this.captureObjectState(obj)
+    };
+    this.addToUndoStack(action);
+  }
+
+  // Call this before starting a transform
+  beginTransform(obj) {
+    if (obj && obj.userData !== undefined) {
+      this.transformStartState = this.captureObjectState(obj);
+      this.transformStartTime = Date.now();
+      console.log("SceneManager: Transform started for:", obj.userData.type || obj.uuid);
+    }
+  }
+
+  // Call this after completing a transform
+  endTransform(obj) {
+    if (this.transformStartState && obj && obj.userData !== undefined) {
+      // Only record if enough time has passed (prevent micro-movements)
+      const timeDiff = Date.now() - (this.transformStartTime || 0);
+      if (timeDiff < 50) { // Less than 50ms - likely not a real user action
+        console.log("SceneManager: Transform too quick, ignoring");
+        this.transformStartState = null;
+        return;
+      }
+
+      const newState = this.captureObjectState(obj);
+      
+      // Check if anything actually changed
+      const hasChanged = this.hasStateChanged(this.transformStartState, newState);
+      if (!hasChanged) {
+        console.log("SceneManager: No actual changes detected, ignoring transform");
+        this.transformStartState = null;
+        return;
+      }
+
+      this.recordTransform(obj, this.transformStartState);
+      this.transformStartState = null;
+      console.log("SceneManager: Transform completed for:", obj.userData.type || obj.uuid);
+    }
+  }
+
+  // Helper method to check if state actually changed
+  hasStateChanged(oldState, newState) {
+    if (!oldState || !newState) return false;
+    
+    const threshold = 0.001; // Small threshold for floating point comparison
+    
+    // Check position
+    if (oldState.position && newState.position) {
+      if (Math.abs(oldState.position.x - newState.position.x) > threshold ||
+          Math.abs(oldState.position.y - newState.position.y) > threshold ||
+          Math.abs(oldState.position.z - newState.position.z) > threshold) {
+        return true;
+      }
+    }
+    
+    // Check rotation
+    if (oldState.rotation && newState.rotation) {
+      if (Math.abs(oldState.rotation.x - newState.rotation.x) > threshold ||
+          Math.abs(oldState.rotation.y - newState.rotation.y) > threshold ||
+          Math.abs(oldState.rotation.z - newState.rotation.z) > threshold) {
+        return true;
+      }
+    }
+    
+    // Check scale
+    if (oldState.scale && newState.scale) {
+      if (Math.abs(oldState.scale.x - newState.scale.x) > threshold ||
+          Math.abs(oldState.scale.y - newState.scale.y) > threshold ||
+          Math.abs(oldState.scale.z - newState.scale.z) > threshold) {
+        return true;
+      }
+    }
+    
+    return false;
+  }
+
+  // Improved undo with automatic skipping of invalid actions
+  undo() {
+    let attempts = 0;
+    const maxAttempts = 10; // Prevent infinite loops
+    
+    while (this.undoStack.length > 0 && attempts < maxAttempts) {
+      attempts++;
+      
+      const action = this.undoStack.pop();
+      console.log(`SceneManager: Undo attempt ${attempts}, action:`, action.type);
+
+      const obj = action.object;
+      
+      // Validate object exists and hasn't been disposed
+      if (!obj || obj.userData === undefined || typeof obj.uuid !== 'string') {
+        console.warn(`SceneManager: Skipping invalid undo action ${attempts} - object disposed`);
+        continue; // Skip this action and try the next one
+      }
+
+      let success = true;
+
+      try {
+        switch (action.type) {
+          case 'add':
+            // Remove the object that was added
+            if (obj.parent) {
+              obj.parent.remove(obj);
+            }
+            this.objects = this.objects.filter(o => o !== obj);
+            if (this.selectedObject === obj) {
+              this.deselectObject();
+            }
+            break;
+
+          case 'remove':
+            // Add back the object that was removed
+            this.scene.add(obj);
+            if (!this.objects.includes(obj)) {
+              this.objects.push(obj);
+            }
+            if (action.properties) {
+              success = this.applyObjectState(obj, action.properties);
+            }
+            break;
+
+          case 'transform':
+            // Restore previous state
+            if (action.previousProperties) {
+              success = this.applyObjectState(obj, action.previousProperties);
+              if (success) {
+                this.updateInteractionControls(obj);
+              }
+            } else {
+              console.warn("SceneManager: Missing previousProperties for undo 'transform'.");
+              success = false;
+            }
+            break;
+
+          default:
+            console.warn("SceneManager: Unknown action type for undo:", action.type);
+            success = false;
+        }
+
+        if (success) {
+          this.redoStack.push(action);
+          console.log(`SceneManager: Undo successful after ${attempts} attempts`);
+          return true;
+        } else {
+          console.warn(`SceneManager: Undo action ${attempts} failed, trying next`);
+          // Don't put failed action back, just continue to next
+        }
+
+      } catch (error) {
+        console.error(`SceneManager: Error during undo attempt ${attempts}:`, error);
+        // Don't put errored action back, just continue to next
+      }
+    }
+
+    if (attempts >= maxAttempts) {
+      console.warn("SceneManager: Reached maximum undo attempts, giving up");
+    } else {
+      console.log("SceneManager: Undo stack empty.");
+    }
+    
+    return false;
+  }
+
+  // Improved redo with better error handling
   redo() {
     if (this.redoStack.length === 0) {
       console.log("SceneManager: Redo stack empty.");
-      return;
+      return false;
     }
-    
+
     const action = this.redoStack.pop();
     console.log("SceneManager: Redoing action:", action.type);
 
-    switch (action.type) {
-      case 'add':
-        this.scene.add(action.object);
-        this.objects.push(action.object);
-        this.applyObjectState(action.object, action.properties);
-        if (action.object.userData.animations && action.object.userData.animations.length > 0) {
-          const mixer = new THREE.AnimationMixer(action.object);
-          this.mixers.set(action.object, mixer);
-        }
-        break;
-      case 'remove':
-        this.scene.remove(action.object);
-        this.objects = this.objects.filter(obj => obj !== action.object);
-        if (this.selectedObject === action.object) this.deselectObject();
-        if (this.mixers.has(action.object)) {
-          const mixer = this.mixers.get(action.object);
-          mixer.stopAllAction();
-          mixer.uncacheRoot(action.object);
-          this.mixers.delete(action.object);
-        }
-        break;
-      case 'transform':
-        this.applyObjectState(action.object, action.newProperties);
-        if (this.interactionManager && typeof this.interactionManager.updateControlsForObject === 'function') {
-          this.interactionManager.updateControlsForObject(action.object);
-        }
-        break;
-      default:
-        console.warn('SceneManager: Unknown action type for redo:', action.type);
-        this.undoStack.push(action);
-        return;
+    const obj = action.object;
+    
+    // Validate object exists and hasn't been disposed
+    if (!obj) {
+      console.warn("SceneManager: Redo failed — action.object is undefined.");
+      return false;
     }
-    this.undoStack.push(action);
+
+    // Additional validation - check if object still exists in memory
+    if (obj.userData === undefined || typeof obj.uuid !== 'string') {
+      console.warn("SceneManager: Redo failed — object appears to be disposed.");
+      return false;
+    }
+
+    let success = true;
+
+    try {
+      switch (action.type) {
+        case 'add':
+          // Re-add the object
+          this.scene.add(obj);
+          if (!this.objects.includes(obj)) {
+            this.objects.push(obj);
+          }
+          if (action.properties) {
+            success = this.applyObjectState(obj, action.properties);
+          }
+          break;
+
+        case 'remove':
+          // Re-remove the object
+          if (obj.parent) {
+            obj.parent.remove(obj);
+          }
+          this.objects = this.objects.filter(o => o !== obj);
+          if (this.selectedObject === obj) {
+            this.deselectObject();
+          }
+          break;
+
+        case 'transform':
+          // Apply new state
+          if (action.newProperties) {
+            success = this.applyObjectState(obj, action.newProperties);
+            if (success) {
+              this.updateInteractionControls(obj);
+            }
+          } else {
+            console.warn("SceneManager: Missing newProperties for redo 'transform'.");
+            success = false;
+          }
+          break;
+
+        default:
+          console.warn("SceneManager: Unknown action type for redo:", action.type);
+          success = false;
+      }
+
+      if (success) {
+        this.undoStack.push(action);
+      } else {
+        console.warn("SceneManager: Redo operation failed, not adding to undo stack");
+      }
+
+    } catch (error) {
+      console.error("SceneManager: Error during redo:", error, action);
+      success = false;
+    }
+
+    return success;
   }
 
-  // ===== VIEW CONTROLS =====
-  takeScreenshot() {
+  // Helper method to update interaction controls
+  updateInteractionControls(obj) {
+    if (this.interactionManager) {
+      if (this.interactionManager.attach && this.selectedObject === obj) {
+        this.interactionManager.attach(obj);
+      }
+      if (this.interactionManager.updateControlsForObject) {
+        this.interactionManager.updateControlsForObject(obj);
+      }
+    }
+  }
+
+  // Get undo/redo status for UI
+  getUndoRedoStatus() {
+    // Clean up invalid actions before reporting status
+    this.cleanupInvalidActions();
+    
+    return {
+      canUndo: this.undoStack.length > 0,
+      canRedo: this.redoStack.length > 0,
+      undoCount: this.undoStack.length,
+      redoCount: this.redoStack.length
+    };
+  }
+
+  // Clear all undo/redo history
+  clearHistory() {
+    this.undoStack = [];
+    this.redoStack = [];
+    console.log("SceneManager: Undo/Redo history cleared");
+  }
+
+  // Debug method to inspect undo/redo stacks
+  debugUndoStack() {
+    console.log("=== UNDO STACK DEBUG ===");
+    console.log(`Undo stack length: ${this.undoStack.length}`);
+    console.log(`Redo stack length: ${this.redoStack.length}`);
+    
+    this.undoStack.forEach((action, index) => {
+      const obj = action.object;
+      const isValid = obj && obj.userData !== undefined && typeof obj.uuid === 'string';
+      console.log(`${index}: ${action.type} - ${isValid ? 'VALID' : 'INVALID'} - ${obj?.userData?.type || 'unknown'}`);
+    });
+    
+    return {
+      undoStack: this.undoStack.length,
+      redoStack: this.redoStack.length,
+      validActions: this.undoStack.filter(a => a.object && a.object.userData !== undefined).length
+    };
+  }
+
+  // Clean up invalid actions from undo/redo stacks
+  cleanupInvalidActions() {
+    const isValidObject = (obj) => {
+      return obj && obj.userData !== undefined && typeof obj.uuid === 'string';
+    };
+
+    const isValidAction = (action) => {
+      if (!action || !action.type || !isValidObject(action.object)) {
+        return false;
+      }
+      
+      // Additional validation based on action type
+      if (action.type === 'transform') {
+        return action.previousProperties && action.newProperties;
+      } else if (action.type === 'add' || action.type === 'remove') {
+        return action.properties;
+      }
+      
+      return true;
+    };
+
+    const initialUndoCount = this.undoStack.length;
+    const initialRedoCount = this.redoStack.length;
+
+    this.undoStack = this.undoStack.filter(isValidAction);
+    this.redoStack = this.redoStack.filter(isValidAction);
+
+    const removedUndo = initialUndoCount - this.undoStack.length;
+    const removedRedo = initialRedoCount - this.redoStack.length;
+
+    if (removedUndo > 0 || removedRedo > 0) {
+      console.log(`SceneManager: Cleaned up ${removedUndo} invalid undo actions and ${removedRedo} invalid redo actions`);
+    }
+    
+    return { removedUndo, removedRedo };
+  }
+
+  // Force cleanup of all invalid actions immediately
+  forceCleanup() {
+    console.log("SceneManager: Force cleaning undo/redo stacks...");
+    const result = this.cleanupInvalidActions();
+    console.log(`SceneManager: Force cleanup complete. Removed ${result.removedUndo + result.removedRedo} invalid actions.`);
+    return result;
+  }
+
+  // Legacy method for backward compatibility
+  getObjectState(obj) {
+    return this.captureObjectState(obj);
+  }
+
+  // ============= END UNDO/REDO SYSTEM =============
+
+
+
+// =====Screenshot function =====
+takeScreenshot() {
     if (!this.renderer || !this.scene || !this.camera) return;
 
     this.renderer.render(this.scene, this.camera);
@@ -1052,11 +1434,16 @@ export class SceneManager {
     const dataURL = this.renderer.domElement.toDataURL('image/png');
     const link = document.createElement('a');
     link.href = dataURL;
-    link.download = 'room-screenshot.png';
+
+    // Get current date and time
+    const now = new Date();
+    const timestamp = now.toISOString().replace(/[:.]/g, '-'); // Format: YYYY-MM-DDTHH-mm-ss
+    link.download = `room-screenshot-${timestamp}.png`;
+
     link.click();
 
     console.log("SceneManager: Screenshot saved.");
-  }
+}
 
   setView2D() {
     this.camera.position.set(0, 15, 0);

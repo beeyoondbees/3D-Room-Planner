@@ -60,7 +60,7 @@ const IconButton = ({
             ...baseStyle,
             ...activeStyle,
             padding: 0,
-            borderRadius: '50%',
+            // borderRadius: '50%',
             overflow: 'hidden',
             width: '24px',
             height: '24px',

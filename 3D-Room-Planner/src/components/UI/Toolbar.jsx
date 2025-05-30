@@ -1,7 +1,6 @@
-// Top toolbar component with visual feedback (dark highlight) for clicked buttons
-
 import React, { useState } from 'react';
 import IconButton from '../common/IconButton';
+import MoreOptionsModal from '../../three/MoreOptionsModal';
 
 const Toolbar = ({
   viewMode,
@@ -10,34 +9,75 @@ const Toolbar = ({
   selectedObject,
   showSidePanel,
   setShowSidePanel,
-  // New props for AR functionality
   hasSelectedModel = false,
   selectedModel = null,
-  isModelLoaded = false
+  isModelLoaded = false,
+  hasModelsInScene = false,
 }) => {
-
-  // AR View click handler
-  const handleARViewClick = () => {
-    if (!hasSelectedModel && !isModelLoaded) {
-      console.log("AR View disabled - no model selected");
-      return;
-    }
-   
-    console.log("AR View activated for model:", selectedModel);
-    onViewAction('ar-view'); // Fixed: proper AR action instead of 'open-settings'
-  };
- 
-  // Determine if AR button should be enabled
-  const isAREnabled = hasSelectedModel || isModelLoaded || selectedObject;
-
-  // State to track active button for visual feedback
   const [activeButton, setActiveButton] = useState(null);
+  const [isMoreOptionsOpen, setIsMoreOptionsOpen] = useState(false);
+
+  const handleARViewClick = () => {
+    console.log("AR View activated for model:", selectedModel || "available models");
+    onViewAction('generate-ar-qr');
+    setActiveButton('generate-ar-qr');
+    setIsMoreOptionsOpen(false);
+  };
+
+  const isAREnabled = hasSelectedModel || isModelLoaded || hasModelsInScene || selectedObject;
 
   const handleClick = (action, toggleOnly = false) => {
-    if (!toggleOnly) {
+    if (action === 'more-options') {
+      setIsMoreOptionsOpen(prev => !prev);
       setActiveButton(prev => (prev === action ? null : action));
+      setShowSidePanel(false); // 👈 Hide SidePanel
+    } else {
+      setIsMoreOptionsOpen(false);
+      if (!toggleOnly) {
+        setActiveButton(prev => (prev === action ? null : action));
+      }
+      onViewAction(action);
     }
-    onViewAction(action);
+  };
+
+  const EnhancedIconButton = ({
+    disabled = false,
+    disabledTooltip = "",
+    onClick,
+    tooltip,
+    ...props
+  }) => {
+    const handleEnhancedClick = () => {
+      if (disabled) {
+        if (disabledTooltip) {
+          alert(disabledTooltip);
+        }
+        return;
+      }
+      onClick();
+    };
+
+    return (
+      <div
+        style={{
+          opacity: disabled ? 0.5 : 1,
+          cursor: disabled ? 'not-allowed' : 'pointer',
+          position: 'relative',
+        }}
+        title={disabled ? disabledTooltip : tooltip}
+      >
+        <IconButton
+          {...props}
+          tooltip={disabled ? disabledTooltip : tooltip}
+          onClick={handleEnhancedClick}
+          style={{
+            ...props.style,
+            filter: disabled ? 'grayscale(1)' : 'none',
+            pointerEvents: disabled ? 'none' : 'auto',
+          }}
+        />
+      </div>
+    );
   };
 
   return (
@@ -54,123 +94,71 @@ const Toolbar = ({
 
       {/* Center section - Scene controls */}
       <div className="toolbar-section toolbar-center" style={{ ...styles.toolbarSection, ...styles.toolbarCenter }}>
-       
         <IconButton
-            imageSrc="assets/icons/undo-icon.svg"
-            tooltip="Undo"
-            onClick={() => handleClick('undo')}
-            active={activeButton === 'undo'}
+          imageSrc="assets/icons/undo-icon.svg"
+          tooltip="Undo"
+          onClick={() => handleClick('undo')}
+          active={activeButton === 'undo'}
         />
         <IconButton
-            imageSrc="assets/icons/redo-icon.svg"
-            tooltip="Redo"
-            onClick={() => handleClick('redo')}
-            active={activeButton === 'redo'}
+          imageSrc="assets/icons/redo-icon.svg"
+          tooltip="Redo"
+          onClick={() => handleClick('redo')}
+          active={activeButton === 'redo'}
         />
-
         <div className="toolbar-separator" style={styles.toolbarSeparator}></div>
-
-         <IconButton
-            imageSrc="assets/icons/grid-settings.svg"
-            tooltip="Grid"
-            onClick={() => handleClick('toggle-grid')}
-            active={activeButton === 'toggle-grid'}
+        <IconButton
+          imageSrc="assets/icons/grid-settings.svg"
+          tooltip="Grid"
+          onClick={() => handleClick('toggle-grid')}
+          active={activeButton === 'toggle-grid'}
         />
-         <IconButton
-            imageSrc="assets/icons/scale-icon.svg"
-            tooltip="Dimensions"
-            onClick={() => handleClick('toggle-floor-dimensions')}
-            active={activeButton === 'toggle-floor-dimensions'}
-        />
-        
-        {/* <IconButton
-          icon="text"
-          tooltip="Add Text Label"
-          onClick={() => handleClick('add-text-label')}
-          active={activeButton === 'add-text-label'}
-        /> */}
-        {/* <IconButton
-          icon="ruler"
-          tooltip="Toggle Floor Dimensions"
+        <IconButton
+          imageSrc="assets/icons/scale-icon.svg"
+          tooltip="Dimensions"
           onClick={() => handleClick('toggle-floor-dimensions')}
           active={activeButton === 'toggle-floor-dimensions'}
-        /> */}
-        <IconButton
-            imageSrc="assets/icons/settings-icon.svg"
-            tooltip="Settings"
-            onClick={() => handleClick('open-settings')}
-            active={activeButton === 'open-settings'}
         />
-
-         {/* Fixed AR View Button */}
-        {/* <IconButton
-          icon="qrcode"
-          tooltip="Generate AR QR"
-          onClick={() => onViewAction('generate-ar-qr')}
-        /> */}
-         <IconButton
-            imageSrc="assets/icons/ar-icon.svg"
-            tooltip="Generate AR QR"
-            onClick={() => onViewAction('generate-ar-qr')}
-            active={activeButton === 'generate-ar-qr'}
+        <EnhancedIconButton
+          imageSrc="assets/icons/ar-icon.svg"
+          tooltip={isAREnabled ? "Generate AR QR Code" : "No models available"}
+          disabledTooltip="No models available in room. Please load a .glb or .gltf file first."
+          onClick={handleARViewClick}
+          active={activeButton === 'generate-ar-qr'}
+          disabled={!isAREnabled}
         />
       </div>
 
       {/* Right section */}
       <div className="toolbar-section toolbar-right" style={{ ...styles.toolbarSection, ...styles.toolbarRight }}>
-        
-         <IconButton
-            imageSrc="assets/icons/screenshot-icon.svg"
-            tooltip="Screenshot"
-            onClick={() => onViewAction('take-screenshot')}
-            active={activeButton === 'take-screenshot'}
+        <IconButton
+          imageSrc="assets/icons/screenshot-icon.svg"
+          tooltip="Screenshot"
+          onClick={() => handleClick('take-screenshot')}
+          active={activeButton === 'take-screenshot'}
         />
-         <IconButton
-            imageSrc="assets/icons/pep-icon.svg"
-            tooltip="More Options"
-            onClick={() => handleClick('more-options')}
-            active={activeButton === 'more-options'}
+        <IconButton
+          imageSrc="assets/icons/pep-icon.svg"
+          tooltip="More Options"
+          onClick={() => handleClick('more-options')}
+          active={activeButton === 'more-options'}
         />
-       
       </div>
+
+      {/* More Options Modal */}
+      <MoreOptionsModal
+        isOpen={isMoreOptionsOpen}
+        onClose={() => {
+          setIsMoreOptionsOpen(false);
+          setActiveButton(null);
+          setShowSidePanel(true); // 👈 Show it back
+        }}
+      />
     </div>
   );
 };
 
 const styles = {
-  // toolbar: {
-  //   position: 'absolute',
-  //   top: '10px',
-  //   left: '50%',
-  //   transform: 'translateX(-50%)',
-  //   backgroundColor: 'rgba(40, 40, 40, 0.85)',
-  //   padding: '5px 10px',
-  //   borderRadius: '8px',
-  //   display: 'flex',
-  //   justifyContent: 'space-between',
-  //   alignItems: 'center',
-  //   zIndex: 1001,
-  //   boxShadow: '0 2px 10px rgba(0,0,0,0.2)',
-  //   minWidth: 'fit-content',
-  //   gap: '15px',
-  // },
-  // toolbarSection: {
-  //   display: 'flex',
-  //   alignItems: 'center',
-  //   gap: '5px',
-  // },
-  // toolbarCenter: {
-  //   // Can expand with flex-grow
-  // },
-  // toolbarRight: {
-  //   marginLeft: 'auto',
-  // },
-  // toolbarSeparator: {
-  //   width: '1px',
-  //   height: '24px',
-  //   backgroundColor: '#555',
-  //   margin: '0 8px',
-  // },
 };
 
 export default Toolbar;
