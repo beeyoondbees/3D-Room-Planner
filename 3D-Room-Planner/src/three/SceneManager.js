@@ -703,6 +703,9 @@ export class SceneManager {
         cloneId: THREE.MathUtils.generateUUID()
       };
 
+      // Remove any mode icon from the clone (assumes InteractionManager manages icons)
+      this.removeModeIcon(clone);
+
       // Handle animations
       if (sourceObject.userData.animations && sourceObject.userData.animations.length > 0) {
         const mixer = new THREE.AnimationMixer(clone);
@@ -722,6 +725,8 @@ export class SceneManager {
         properties: this.getObjectState(clone) 
       });
       
+      // Deselect the original and select the clone to ensure icon visibility
+      this.deselectObject();
       this.selectObject(clone);
       
       console.log('SceneManager: Emergency duplication completed');
@@ -765,6 +770,9 @@ export class SceneManager {
       parentId: sourceObject.userData.cloneId || sourceObject.uuid
     };
 
+    // Remove any mode icon from the clone (assumes InteractionManager manages icons)
+    this.removeModeIcon(clone);
+
     // Handle animations for cloned object
     if (clone.userData.animations && clone.userData.animations.length > 0) {
       const mixer = new THREE.AnimationMixer(clone);
@@ -784,9 +792,35 @@ export class SceneManager {
       properties: this.getObjectState(clone) 
     });
     
+    // Deselect the original and select the clone to ensure icon visibility
+    this.deselectObject();
     this.selectObject(clone);
     
     console.log("SceneManager: Object duplicated successfully:", clone.userData.type);
+  }
+
+  // Helper method to remove mode icons from an object
+  removeModeIcon(object) {
+    if (!object) return;
+
+    // Since InteractionManager manages the icons, we traverse the object to find and remove any sprite that represents a mode icon
+    object.traverse((child) => {
+      if (child.userData && child.userData.isModeIcon) {
+        console.log('SceneManager: Removing mode icon from object:', object.userData?.type || object.uuid);
+        child.parent.remove(child);
+        if (child.material && child.material.map) {
+          child.material.map.dispose();
+        }
+        if (child.material) {
+          child.material.dispose();
+        }
+      }
+    });
+
+    // Clean up userData reference if used by InteractionManager
+    if (object.userData && object.userData.modeIcon) {
+      delete object.userData.modeIcon;
+    }
   }
 
   cloneMaterials(object) {
@@ -837,11 +871,25 @@ export class SceneManager {
 
   // ===== OBJECT MANIPULATION =====
   selectObject(object) {
-    if (this.interactionManager) this.interactionManager.select(object);
+    if (this.interactionManager) {
+      // Remove mode icons from all other objects before selecting the new one
+      this.objects.forEach(obj => {
+        if (obj !== object) {
+          this.removeModeIcon(obj);
+        }
+      });
+      this.interactionManager.select(object);
+    }
   }
 
   deselectObject() {
-    if (this.interactionManager) this.interactionManager.deselect();
+    if (this.interactionManager) {
+      // Remove mode icons from the currently selected object
+      if (this.selectedObject) {
+        this.removeModeIcon(this.selectedObject);
+      }
+      this.interactionManager.deselect();
+    }
   }
 
   setInteractionMode(mode) {
@@ -930,7 +978,6 @@ export class SceneManager {
       console.log('SceneManager: Animation started for object:', object.userData.type, clip.name);
     }
   }
-
 
   // ============= UNDO/REDO SYSTEM - IMPROVED =============
 
@@ -1153,7 +1200,6 @@ export class SceneManager {
 
   // Improved undo with automatic skipping of invalid actions
   undo() {
-
     this.deselectObject();
     
     let attempts = 0;
@@ -1243,7 +1289,6 @@ export class SceneManager {
 
   // Improved redo with better error handling
   redo() {
-    
     this.deselectObject();
 
     if (this.redoStack.length === 0) {
@@ -1429,10 +1474,8 @@ export class SceneManager {
 
   // ============= END UNDO/REDO SYSTEM =============
 
-
-
-// =====Screenshot function =====
-takeScreenshot() {
+  // =====Screenshot function =====
+  takeScreenshot() {
     if (!this.renderer || !this.scene || !this.camera) return;
 
     this.renderer.render(this.scene, this.camera);
@@ -1449,7 +1492,7 @@ takeScreenshot() {
     link.click();
 
     console.log("SceneManager: Screenshot saved.");
-}
+  }
 
   setView2D() {
     this.camera.position.set(0, 15, 0);
