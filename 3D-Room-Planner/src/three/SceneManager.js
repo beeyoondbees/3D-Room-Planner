@@ -856,7 +856,7 @@ export class SceneManager {
   unpinObject(object) {
     if (this.interactionManager) this.interactionManager.unpinObject(object || this.selectedObject);
   }
-
+ 
   togglePin(object) {
     object = object || this.selectedObject;
     if (object && this.interactionManager) this.interactionManager.togglePin(object);
@@ -1153,6 +1153,9 @@ export class SceneManager {
 
   // Improved undo with automatic skipping of invalid actions
   undo() {
+
+    this.deselectObject();
+    
     let attempts = 0;
     const maxAttempts = 10; // Prevent infinite loops
     
@@ -1240,6 +1243,9 @@ export class SceneManager {
 
   // Improved redo with better error handling
   redo() {
+    
+    this.deselectObject();
+
     if (this.redoStack.length === 0) {
       console.log("SceneManager: Redo stack empty.");
       return false;
