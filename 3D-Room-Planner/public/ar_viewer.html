@@ -31,85 +31,85 @@
       font-weight: bold;
       cursor: pointer;
       font-size: 14px;
+      display: none;
     }
   </style>
 </head>
 <body>
 
-    <model-viewer
-    id="arViewer"
-    ar
-    ar-modes="scene-viewer quick-look webxr"
-    camera-controls
-    auto-rotate
-    environment-image="neutral"
-    src="..."
-    ios-src="..."
-    allow="camera; microphone; fullscreen; xr-spatial-tracking"
-    exposure="1"
-    shadow-intensity="1"
-    loading="eager"
-    reveal="auto">
-  </model-viewer>
-  
+<model-viewer
+  id="arViewer"
+  ar
+  ar-modes="scene-viewer quick-look webxr"
+  camera-controls
+  auto-rotate
+  environment-image="neutral"
+  src="..."
+  ios-src="..."
+  allow="camera; microphone; fullscreen; xr-spatial-tracking"
+  exposure="1"
+  shadow-intensity="1"
+  loading="eager"
+  reveal="auto">
+</model-viewer>
 
-<button id="ar-button" style="display: none;">👓 View in AR</button>
+<button id="ar-button">👓 View in AR</button>
+
 <script>
-    const urlParams = new URLSearchParams(window.location.search);
-    const modelName = urlParams.get("model") || "sBike";
-  
-    const baseUrl = "https://3d-room-planner-s3.s3.eu-north-1.amazonaws.com/assets/models/";
-    const glbUrl = `${baseUrl}${modelName}.glb`;
-    const usdzUrl = `${baseUrl}${modelName}.usdz`;
-  
-    const viewer = document.querySelector("model-viewer");
-    const arButton = document.getElementById("ar-button");
-  
-    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-    const isAndroid = /android/i.test(navigator.userAgent);
-  
-    viewer.setAttribute("src", glbUrl);
-    viewer.setAttribute("ios-src", usdzUrl);
-  
-    function openAR() {
-      if (isIOS) {
+  const urlParams = new URLSearchParams(window.location.search);
+  const modelName = urlParams.get("model") || "sBike";
+
+  const baseUrl = "https://3d-room-planner-s3.s3.eu-north-1.amazonaws.com/assets/models/";
+  const glbUrl = `${baseUrl}${modelName}.glb`;
+  const usdzUrl = `${baseUrl}${modelName}.usdz`;
+
+  const viewer = document.getElementById("arViewer");
+  const arButton = document.getElementById("ar-button");
+
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+  const isAndroid = /android/i.test(navigator.userAgent);
+
+  viewer.setAttribute("src", glbUrl);
+  viewer.setAttribute("ios-src", usdzUrl);
+
+  function openAR() {
+    if (isIOS) {
+      const quickLookUrl = viewer.getAttribute("ios-src");
+      if (quickLookUrl) {
+        const a = document.createElement('a');
+        a.setAttribute('rel', 'ar');
+        a.setAttribute('href', quickLookUrl);
+        a.click();
+      }
+    } else if (isAndroid) {
+      viewer.activateAR();
+    }
+  }
+
+  arButton.addEventListener('click', openAR);
+
+  viewer.addEventListener('ar-status', (event) => {
+    if (event.detail.status === 'not-presenting') {
+      arButton.style.display = 'block'; // fallback display if needed
+    }
+  });
+
+  viewer.addEventListener('load', () => {
+    setTimeout(() => {
+      if (isAndroid) {
+        viewer.activateAR(); // auto-trigger on Android
+      } else if (isIOS) {
         const quickLookUrl = viewer.getAttribute("ios-src");
         if (quickLookUrl) {
           const a = document.createElement('a');
           a.setAttribute('rel', 'ar');
           a.setAttribute('href', quickLookUrl);
-          document.body.appendChild(a);
           a.click();
-          document.body.removeChild(a);
         }
-      } else if (isAndroid) {
-        viewer.activateAR();
       }
-    }
-  
-    // Works on Android & iOS for detecting AR availability
-    viewer.addEventListener('ar-status', (event) => {
-      if (event.detail.status === 'not-presenting') {
-        arButton.style.display = 'block';
-      }
-    });
-  
-    arButton.addEventListener('click', openAR);
-  
-    // Optional auto-launch on load (Android only)
-    viewer.addEventListener('load', () => {
-      if (isAndroid) {
-        setTimeout(() => viewer.activateAR(), 100); // Safe delay to ensure upgrade
-      }
-    });
-  </script>  
-  
+    }, 600); // slight delay to ensure model loads first
+  });
+</script>
+
 </body>
 </html>
-
-
-
-
-
-
-
