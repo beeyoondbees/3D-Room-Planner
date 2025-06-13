@@ -124,9 +124,9 @@ const equipmentConfig = {
     "Rowing Machines": {
       "Water Rowing Machine": [
         {
-          id: "AquaElite-Rowing-Machine",
+          id: "AquaElite-rowing-machine",
           name: "AquaElite rowing machine",
-          icon: "/assets/icons/products/AquaElite-Rowing-Machine.webp"
+          icon: "/assets/icons/products/AquaElite-rowing-machine.webp"
         },
         {
           id: "WRX1000-Water-Rowing-Machine",
