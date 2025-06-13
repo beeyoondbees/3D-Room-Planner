@@ -642,7 +642,7 @@ button {
   position: absolute;
   top: 70px;
   right: 15px;
-  background-color: rgba(42, 42, 46, 0.9);
+  background-color: rgba(0, 0, 0, 0.9);
   color: white;
   padding: 15px;
   border-radius: 8px;
@@ -666,12 +666,13 @@ button {
   margin: 0;
   font-size: 16px;
   font-weight: 500;
+  color: #E4002B;
 }
 
 .close-button {
   background: none;
   border: none;
-  color: rgba(21, 20, 20, 0.7);
+  color: #E4002B;
   font-size: 20px;
   cursor: pointer;
   padding: 0;

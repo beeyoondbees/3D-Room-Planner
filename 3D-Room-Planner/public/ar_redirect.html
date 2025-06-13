@@ -1,0 +1,20 @@
+<script>
+    const params = new URLSearchParams(window.location.search);
+    const model = params.get("model") || "Sportstech-sBike"; // fallback if not provided
+    const base = "https://d3hu0a43t9wj79.cloudfront.net/assets/models/";
+  
+    const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent);
+  
+    const target = isIOS
+      ? `${base}${model}.usdz`
+      : `https://d3hu0a43t9wj79.cloudfront.net/ar_viewer.html?model=${model}`;
+  
+    // Ensure the URL actually points to a model
+    if (model) {
+      location.replace(target);
+    } else {
+      alert("Model not specified.");
+    }
+  </script>
+  
+  
