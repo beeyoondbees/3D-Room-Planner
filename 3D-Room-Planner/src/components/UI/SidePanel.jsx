@@ -131,7 +131,7 @@ const SidePanel = ({ equipmentCatalog, onAddModel, setShowSidePanel }) => {
     <div className={`side-panel ${isExpanded ? 'expanded' : 'collapsed'}`}>
       <div className="panel-header">
         {currentLevel !== 'TOP_CATEGORIES' && (
-          <button onClick={handleBack} title="Back" className="back-button-symbol">&larr;</button>
+          <button onClick={handleBack} title="Back" className="back-button">&larr;</button>
         )}
         {isExpanded && renderBreadcrumb()}
         <div className="close-button-container">

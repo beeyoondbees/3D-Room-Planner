@@ -5,111 +5,94 @@
   <title>AR Viewer</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <script type="module" src="https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js"></script>
+
   <style>
     html, body {
-      margin: 0;
-      padding: 0;
+      margin: 0; padding: 0;
+      height: 100%; overflow: hidden;
       background: #000;
-      height: 100%;
-      overflow: hidden;
     }
+
     model-viewer {
       width: 100vw;
       height: 100vh;
-      background-color: #000;
+      background: #000;
     }
+
     #ar-button {
       position: absolute;
-      top: 10px;
-      right: 10px;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
       z-index: 10;
-      padding: 10px 16px;
-      background: #e4002b;
-      color: white;
+      padding: 14px 24px;
+      background: linear-gradient(135deg, #e4002b, #ff416c);
+      color: #fff;
       border: none;
-      border-radius: 5px;
-      font-weight: bold;
+      border-radius: 30px;
+      font-weight: 600;
+      font-size: 16px;
       cursor: pointer;
-      font-size: 14px;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
     }
   </style>
 </head>
 <body>
 
-    <model-viewer
-    id="arViewer"
-    ar
-    ar-modes="scene-viewer quick-look webxr"
-    camera-controls
-    auto-rotate
-    environment-image="neutral"
-    src="..."
-    ios-src="..."
-    allow="camera; microphone; fullscreen; xr-spatial-tracking"
-    exposure="1"
-    shadow-intensity="1"
-    loading="eager"
-    reveal="auto">
-  </model-viewer>
-  
+<model-viewer
+  id="arViewer"
+  ar
+  ar-modes="scene-viewer quick-look webxr"
+  camera-controls
+  auto-rotate
+  environment-image="neutral"
+  src=""
+  ios-src=""
+  allow="camera; microphone; fullscreen; xr-spatial-tracking"
+  exposure="1"
+  shadow-intensity="1"
+  loading="eager"
+  reveal="auto">
+</model-viewer>
 
-<button id="ar-button" style="display: none;">👓 View in AR</button>
+<button id="ar-button">View in AR</button>
+
 <script>
-    const urlParams = new URLSearchParams(window.location.search);
-    const modelName = urlParams.get("model") || "sBike";
-  
-    const baseUrl = "https://3d-room-planner-s3.s3.eu-north-1.amazonaws.com/assets/models/";
-    const glbUrl = `${baseUrl}${modelName}.glb`;
-    const usdzUrl = `${baseUrl}${modelName}.usdz`;
-  
-    const viewer = document.querySelector("model-viewer");
-    const arButton = document.getElementById("ar-button");
-  
-    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-    const isAndroid = /android/i.test(navigator.userAgent);
-  
-    viewer.setAttribute("src", glbUrl);
-    viewer.setAttribute("ios-src", usdzUrl);
-  
-    function openAR() {
-      if (isIOS) {
-        const quickLookUrl = viewer.getAttribute("ios-src");
-        if (quickLookUrl) {
-          const a = document.createElement('a');
-          a.setAttribute('rel', 'ar');
-          a.setAttribute('href', quickLookUrl);
-          document.body.appendChild(a);
-          a.click();
-          document.body.removeChild(a);
-        }
-      } else if (isAndroid) {
-        viewer.activateAR();
-      }
+  const urlParams = new URLSearchParams(window.location.search);
+  const modelName = urlParams.get("model") || "Sportstech-sBike";
+  const baseUrl = "https://d3hu0a43t9wj79.cloudfront.net/assets/models/";
+  const glbUrl = `${baseUrl}${modelName}.glb`;
+  const usdzUrl = `${baseUrl}${modelName}.usdz`;
+
+  const viewer = document.getElementById("arViewer");
+  const arButton = document.getElementById("ar-button");
+
+  const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+  const isAndroid = /android/i.test(navigator.userAgent);
+
+  viewer.setAttribute("src", glbUrl);
+  viewer.setAttribute("ios-src", usdzUrl);
+
+  arButton.textContent = `${modelName.replace(/-/g, ' ')} - View in AR`;
+
+  arButton.addEventListener("click", () => {
+    if (isIOS) {
+      window.location.href = usdzUrl;
+    } else if (isAndroid) {
+      viewer.activateAR();
     }
-  
-    // Works on Android & iOS for detecting AR availability
-    viewer.addEventListener('ar-status', (event) => {
-      if (event.detail.status === 'not-presenting') {
-        arButton.style.display = 'block';
-      }
-    });
-  
-    arButton.addEventListener('click', openAR);
-  
-    // Optional auto-launch on load (Android only)
-    viewer.addEventListener('load', () => {
-      if (isAndroid) {
-        setTimeout(() => viewer.activateAR(), 100); // Safe delay to ensure upgrade
-      }
-    });
-  </script>  
-  
+  });
+
+  viewer.addEventListener('load', () => {
+    arButton.style.display = 'block';
+  });
+
+  viewer.addEventListener('ar-status', (event) => {
+    if (event.detail.status === 'not-presenting') {
+      arButton.style.display = 'block';
+    }
+  });
+</script>
+
 </body>
 </html>
-
-
-
-
-
-
-

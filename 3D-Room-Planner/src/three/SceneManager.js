@@ -1,6 +1,6 @@
 // src/three/SceneManager.js
 // Complete Three.js scene management with working duplication and error handling
-// Replace your existing SceneManager.js with this complete version
+// Fixed animation duplication for GLB models
 
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
@@ -30,6 +30,9 @@ export class SceneManager {
     this.mixers = new Map(); // Store AnimationMixers for animated models
     this.isInitialized = false;
     this.initializationPromise = null;
+    
+    // Store original animation clips for proper duplication
+    this.originalAnimationClips = new Map(); // Maps object.uuid to original clips
 
     // Bind methods
     this.onWindowResize = this.onWindowResize.bind(this);
@@ -564,6 +567,13 @@ export class SceneManager {
       ...model.userData // Preserve any existing userData
     };
 
+    // Store original animation clips for proper duplication
+    if (model.animations && model.animations.length > 0) {
+      this.originalAnimationClips.set(model.uuid, model.animations.slice());
+      model.userData.animations = model.animations.slice();
+      console.log(`SceneManager: Stored ${model.animations.length} animation clips for ${modelType}`);
+    }
+
     // Handle animations
     this.setupModelAnimations(model);
 
@@ -629,7 +639,7 @@ export class SceneManager {
     });
   }
 
-  // ===== DUPLICATION SYSTEM =====
+  // ===== IMPROVED DUPLICATION SYSTEM FOR ANIMATED MODELS =====
   duplicateObject(objectToDuplicate) {
     objectToDuplicate = objectToDuplicate || this.selectedObject;
     if (!objectToDuplicate) {
@@ -640,23 +650,194 @@ export class SceneManager {
     console.log('SceneManager: Starting object duplication for:', objectToDuplicate.userData?.type);
 
     try {
-      // Method 1: Use ModelLoader's duplicate method if available
-      if (this.modelLoader && typeof this.modelLoader.duplicate === 'function') {
-        this.modelLoader.duplicate(objectToDuplicate, (clone) => {
-          this.finalizeClone(clone, objectToDuplicate);
-        });
+      // Check if this is an animated model
+      const hasAnimations = this.originalAnimationClips.has(objectToDuplicate.uuid) || 
+                           (objectToDuplicate.userData.animations && objectToDuplicate.userData.animations.length > 0);
+
+      if (hasAnimations) {
+        console.log('SceneManager: Duplicating animated model');
+        this.duplicateAnimatedModel(objectToDuplicate);
       } else {
-        // Method 2: Fallback cloning
-        console.warn('SceneManager: ModelLoader.duplicate not available, using fallback cloning');
-        this.fallbackDuplicate(objectToDuplicate);
+        console.log('SceneManager: Duplicating static model');
+        this.duplicateStaticModel(objectToDuplicate);
       }
 
     } catch (error) {
       console.error('SceneManager: Duplication failed:', error);
       
-      // Method 3: Emergency fallback
+      // Emergency fallback
       console.log('SceneManager: Attempting emergency duplication...');
       this.emergencyDuplicate(objectToDuplicate);
+    }
+  }
+
+  duplicateAnimatedModel(sourceObject) {
+    try {
+      // Deep clone the object with proper material cloning
+      const clone = this.deepCloneObject(sourceObject);
+      
+      // Position the clone with offset
+      clone.position.copy(sourceObject.position);
+      clone.rotation.copy(sourceObject.rotation);
+      clone.scale.copy(sourceObject.scale);
+      
+      // Offset position so clone doesn't overlap original
+      clone.position.x += 1.0;
+      clone.position.z += 1.0;
+
+      // Ensure clone is properly positioned on floor
+      this.positionModelOnFloor(clone, clone.position);
+
+      // Set up userData with new UUID
+      clone.userData = {
+        ...JSON.parse(JSON.stringify(sourceObject.userData)),
+        isModelRoot: true,
+        selectable: true,
+        isPinned: false,
+        isClone: true,
+        cloneId: THREE.MathUtils.generateUUID(),
+        parentId: sourceObject.userData.cloneId || sourceObject.uuid
+      };
+
+      // Handle animations for cloned object
+      this.setupAnimationsForClone(clone, sourceObject);
+
+      // Remove any mode icon from the clone
+      this.removeModeIcon(clone);
+
+      // Apply HDR environment to the cloned object
+      this.applyHDRToClone(clone);
+
+      // Add to scene and tracking
+      this.scene.add(clone);
+      this.objects.push(clone);
+      
+      this.addToUndoStack({ 
+        type: 'add', 
+        object: clone, 
+        properties: this.getObjectState(clone) 
+      });
+      
+      // Deselect the original and select the clone
+      this.deselectObject();
+      this.selectObject(clone);
+      
+      console.log("SceneManager: Animated object duplicated successfully:", clone.userData.type);
+      return clone;
+
+    } catch (error) {
+      console.error('SceneManager: Animated model duplication failed:', error);
+      throw error;
+    }
+  }
+
+  duplicateStaticModel(sourceObject) {
+    try {
+      // For static models, use the simpler cloning approach
+      const clone = sourceObject.clone(true);
+      this.cloneMaterials(clone);
+      this.finalizeClone(clone, sourceObject);
+      console.log('SceneManager: Static model duplication successful');
+      return clone;
+    } catch (error) {
+      console.error('SceneManager: Static model duplication failed:', error);
+      throw error;
+    }
+  }
+
+  deepCloneObject(sourceObject) {
+    // Create a deep clone that properly handles SkinnedMesh and bones
+    const clone = sourceObject.clone(true);
+    
+    // Handle SkinnedMesh cloning properly
+    const skinnedMeshes = [];
+    const bones = [];
+    
+    // Find all SkinnedMesh objects in the source
+    sourceObject.traverse((child) => {
+      if (child.isSkinnedMesh) {
+        skinnedMeshes.push(child);
+      }
+      if (child.isBone) {
+        bones.push(child);
+      }
+    });
+
+    // If we have skinned meshes, we need to properly clone the skeleton
+    if (skinnedMeshes.length > 0) {
+      // Map old bones to new bones
+      const boneMap = new Map();
+      
+      clone.traverse((child) => {
+        if (child.isBone) {
+          const originalBone = bones.find(bone => bone.name === child.name);
+          if (originalBone) {
+            boneMap.set(originalBone, child);
+          }
+        }
+      });
+
+      // Update skinned meshes to use the new bones
+      clone.traverse((child) => {
+        if (child.isSkinnedMesh) {
+          const originalSkinnedMesh = skinnedMeshes.find(mesh => mesh.name === child.name);
+          if (originalSkinnedMesh && originalSkinnedMesh.skeleton) {
+            // Create new skeleton with cloned bones
+            const newBones = originalSkinnedMesh.skeleton.bones.map(bone => boneMap.get(bone)).filter(Boolean);
+            if (newBones.length > 0) {
+              child.skeleton = new THREE.Skeleton(newBones, originalSkinnedMesh.skeleton.boneInverses);
+              child.bind(child.skeleton, originalSkinnedMesh.bindMatrix);
+            }
+          }
+        }
+      });
+    }
+
+    // Clone materials properly
+    this.cloneMaterials(clone);
+
+    return clone;
+  }
+
+  setupAnimationsForClone(clone, sourceObject) {
+    // Get original animation clips
+    let originalClips = this.originalAnimationClips.get(sourceObject.uuid);
+    
+    // Fallback to checking userData or object animations
+    if (!originalClips) {
+      originalClips = sourceObject.userData.animations || sourceObject.animations || [];
+    }
+
+    if (originalClips && originalClips.length > 0) {
+      console.log(`SceneManager: Setting up ${originalClips.length} animations for clone`);
+      
+      // Clone animation clips for the new object
+      const clonedClips = originalClips.map(clip => {
+        // Clone the animation clip
+        const clonedClip = clip.clone();
+        
+        // Update track names to match the cloned object hierarchy
+        clonedClip.tracks = clonedClip.tracks.map(track => {
+          const clonedTrack = track.clone();
+          // The track names should automatically match the cloned object names
+          return clonedTrack;
+        });
+        
+        return clonedClip;
+      });
+
+      // Store the cloned animations
+      clone.animations = clonedClips;
+      clone.userData.animations = clonedClips;
+      this.originalAnimationClips.set(clone.uuid, clonedClips);
+
+      // Create animation mixer for the clone
+      const mixer = new THREE.AnimationMixer(clone);
+      this.mixers.set(clone, mixer);
+
+      console.log(`SceneManager: Animation setup complete for clone with ${clonedClips.length} clips`);
+    } else {
+      console.log('SceneManager: No animations found for clone setup');
     }
   }
 
@@ -703,10 +884,20 @@ export class SceneManager {
         cloneId: THREE.MathUtils.generateUUID()
       };
 
-      // Handle animations
+      // Remove any mode icon from the clone
+      this.removeModeIcon(clone);
+
+      // Handle animations - simplified approach for emergency
       if (sourceObject.userData.animations && sourceObject.userData.animations.length > 0) {
-        const mixer = new THREE.AnimationMixer(clone);
-        this.mixers.set(clone, mixer);
+        try {
+          clone.animations = sourceObject.userData.animations.slice();
+          clone.userData.animations = sourceObject.userData.animations.slice();
+          const mixer = new THREE.AnimationMixer(clone);
+          this.mixers.set(clone, mixer);
+          console.log('SceneManager: Emergency animation setup completed');
+        } catch (animError) {
+          console.warn('SceneManager: Emergency animation setup failed:', animError);
+        }
       }
 
       // Apply HDR environment
@@ -722,6 +913,8 @@ export class SceneManager {
         properties: this.getObjectState(clone) 
       });
       
+      // Deselect the original and select the clone
+      this.deselectObject();
       this.selectObject(clone);
       
       console.log('SceneManager: Emergency duplication completed');
@@ -765,10 +958,21 @@ export class SceneManager {
       parentId: sourceObject.userData.cloneId || sourceObject.uuid
     };
 
-    // Handle animations for cloned object
-    if (clone.userData.animations && clone.userData.animations.length > 0) {
-      const mixer = new THREE.AnimationMixer(clone);
-      this.mixers.set(clone, mixer);
+    // Remove any mode icon from the clone
+    this.removeModeIcon(clone);
+
+    // Handle animations for cloned object - improved version
+    if (sourceObject.userData.animations && sourceObject.userData.animations.length > 0) {
+      try {
+        // Try to properly clone animations
+        this.setupAnimationsForClone(clone, sourceObject);
+      } catch (animError) {
+        console.warn('SceneManager: Animation setup failed for clone, using fallback:', animError);
+        // Simple fallback - just copy references
+        clone.userData.animations = sourceObject.userData.animations.slice();
+        const mixer = new THREE.AnimationMixer(clone);
+        this.mixers.set(clone, mixer);
+      }
     }
 
     // Apply HDR environment to the cloned object
@@ -784,9 +988,35 @@ export class SceneManager {
       properties: this.getObjectState(clone) 
     });
     
+    // Deselect the original and select the clone
+    this.deselectObject();
     this.selectObject(clone);
     
     console.log("SceneManager: Object duplicated successfully:", clone.userData.type);
+  }
+
+  // Helper method to remove mode icons from an object
+  removeModeIcon(object) {
+    if (!object) return;
+
+    // Since InteractionManager manages the icons, we traverse the object to find and remove any sprite that represents a mode icon
+    object.traverse((child) => {
+      if (child.userData && child.userData.isModeIcon) {
+        console.log('SceneManager: Removing mode icon from object:', object.userData?.type || object.uuid);
+        child.parent.remove(child);
+        if (child.material && child.material.map) {
+          child.material.map.dispose();
+        }
+        if (child.material) {
+          child.material.dispose();
+        }
+      }
+    });
+
+    // Clean up userData reference if used by InteractionManager
+    if (object.userData && object.userData.modeIcon) {
+      delete object.userData.modeIcon;
+    }
   }
 
   cloneMaterials(object) {
@@ -837,11 +1067,25 @@ export class SceneManager {
 
   // ===== OBJECT MANIPULATION =====
   selectObject(object) {
-    if (this.interactionManager) this.interactionManager.select(object);
+    if (this.interactionManager) {
+      // Remove mode icons from all other objects before selecting the new one
+      this.objects.forEach(obj => {
+        if (obj !== object) {
+          this.removeModeIcon(obj);
+        }
+      });
+      this.interactionManager.select(object);
+    }
   }
 
   deselectObject() {
-    if (this.interactionManager) this.interactionManager.deselect();
+    if (this.interactionManager) {
+      // Remove mode icons from the currently selected object
+      if (this.selectedObject) {
+        this.removeModeIcon(this.selectedObject);
+      }
+      this.interactionManager.deselect();
+    }
   }
 
   setInteractionMode(mode) {
@@ -856,7 +1100,7 @@ export class SceneManager {
   unpinObject(object) {
     if (this.interactionManager) this.interactionManager.unpinObject(object || this.selectedObject);
   }
-
+ 
   togglePin(object) {
     object = object || this.selectedObject;
     if (object && this.interactionManager) this.interactionManager.togglePin(object);
@@ -895,6 +1139,11 @@ export class SceneManager {
       this.mixers.delete(objectToRemove);
     }
 
+    // Clean up animation clips storage
+    if (this.originalAnimationClips.has(objectToRemove.uuid)) {
+      this.originalAnimationClips.delete(objectToRemove.uuid);
+    }
+
     this.scene.remove(objectToRemove);
     this.objects = this.objects.filter(obj => obj !== objectToRemove);
     console.log("SceneManager: Object removed:", objectToRemove);
@@ -908,7 +1157,7 @@ export class SceneManager {
     }
 
     const mixer = this.mixers.get(object);
-    const animations = object.userData.animations;
+    const animations = object.userData.animations || object.animations;
 
     if (!mixer || !animations || animations.length === 0) {
       console.warn('SceneManager: Mixer or animations not found.');
@@ -931,6 +1180,59 @@ export class SceneManager {
     }
   }
 
+  // Enhanced animation control methods
+  playAnimation(object, animationIndex = 0) {
+    object = object || this.selectedObject;
+    if (!object || !this.mixers.has(object)) {
+      console.warn('SceneManager: No animations available for this object.');
+      return false;
+    }
+
+    const mixer = this.mixers.get(object);
+    const animations = object.userData.animations || object.animations;
+
+    if (!animations || animationIndex >= animations.length) {
+      console.warn('SceneManager: Animation index out of range.');
+      return false;
+    }
+
+    // Stop all current animations
+    mixer.stopAllAction();
+
+    // Play the specified animation
+    const clip = animations[animationIndex];
+    const action = mixer.clipAction(clip);
+    action.setLoop(THREE.LoopRepeat);
+    action.clampWhenFinished = false;
+    action.play();
+    
+    console.log(`SceneManager: Playing animation ${animationIndex} (${clip.name}) for object:`, object.userData.type);
+    return true;
+  }
+
+  stopAnimation(object) {
+    object = object || this.selectedObject;
+    if (!object || !this.mixers.has(object)) {
+      return false;
+    }
+
+    const mixer = this.mixers.get(object);
+    mixer.stopAllAction();
+    console.log('SceneManager: All animations stopped for object:', object.userData.type);
+    return true;
+  }
+
+  getAnimationList(object) {
+    object = object || this.selectedObject;
+    if (!object) return [];
+
+    const animations = object.userData.animations || object.animations || [];
+    return animations.map((clip, index) => ({
+      index,
+      name: clip.name,
+      duration: clip.duration
+    }));
+  }
 
   // ============= UNDO/REDO SYSTEM - IMPROVED =============
 
@@ -1033,7 +1335,8 @@ export class SceneManager {
     action.timestamp = Date.now();
 
     // Limit undo stack size
-    if (this.undoStack.length >= this.maxUndoSteps) {
+    const maxUndoSteps = 50;
+    if (this.undoStack.length >= maxUndoSteps) {
       this.undoStack.shift();
     }
 
@@ -1153,6 +1456,8 @@ export class SceneManager {
 
   // Improved undo with automatic skipping of invalid actions
   undo() {
+    this.deselectObject();
+    
     let attempts = 0;
     const maxAttempts = 10; // Prevent infinite loops
     
@@ -1183,6 +1488,13 @@ export class SceneManager {
             if (this.selectedObject === obj) {
               this.deselectObject();
             }
+            // Clean up mixers and animation data
+            if (this.mixers.has(obj)) {
+              this.mixers.delete(obj);
+            }
+            if (this.originalAnimationClips.has(obj.uuid)) {
+              this.originalAnimationClips.delete(obj.uuid);
+            }
             break;
 
           case 'remove':
@@ -1193,6 +1505,10 @@ export class SceneManager {
             }
             if (action.properties) {
               success = this.applyObjectState(obj, action.properties);
+            }
+            // Restore animations if they exist
+            if (obj.userData.animations) {
+              this.setupModelAnimations(obj);
             }
             break;
 
@@ -1240,6 +1556,8 @@ export class SceneManager {
 
   // Improved redo with better error handling
   redo() {
+    this.deselectObject();
+
     if (this.redoStack.length === 0) {
       console.log("SceneManager: Redo stack empty.");
       return false;
@@ -1275,6 +1593,10 @@ export class SceneManager {
           if (action.properties) {
             success = this.applyObjectState(obj, action.properties);
           }
+          // Restore animations if they exist
+          if (obj.userData.animations) {
+            this.setupModelAnimations(obj);
+          }
           break;
 
         case 'remove':
@@ -1285,6 +1607,13 @@ export class SceneManager {
           this.objects = this.objects.filter(o => o !== obj);
           if (this.selectedObject === obj) {
             this.deselectObject();
+          }
+          // Clean up mixers and animation data
+          if (this.mixers.has(obj)) {
+            this.mixers.delete(obj);
+          }
+          if (this.originalAnimationClips.has(obj.uuid)) {
+            this.originalAnimationClips.delete(obj.uuid);
           }
           break;
 
@@ -1423,10 +1752,8 @@ export class SceneManager {
 
   // ============= END UNDO/REDO SYSTEM =============
 
-
-
-// =====Screenshot function =====
-takeScreenshot() {
+  // =====Screenshot function =====
+  takeScreenshot() {
     if (!this.renderer || !this.scene || !this.camera) return;
 
     this.renderer.render(this.scene, this.camera);
@@ -1443,7 +1770,7 @@ takeScreenshot() {
     link.click();
 
     console.log("SceneManager: Screenshot saved.");
-}
+  }
 
   setView2D() {
     this.camera.position.set(0, 15, 0);
@@ -1610,8 +1937,9 @@ takeScreenshot() {
     console.group('🔍 Duplication Test');
     
     console.log('Selected object:', this.selectedObject.userData?.type);
-    console.log('ModelLoader available:', !!this.modelLoader);
-    console.log('ModelLoader.duplicate method:', typeof this.modelLoader?.duplicate);
+    console.log('Has animations:', !!(this.selectedObject.userData.animations?.length || this.originalAnimationClips.has(this.selectedObject.uuid)));
+    console.log('Animation clips stored:', this.originalAnimationClips.has(this.selectedObject.uuid) ? this.originalAnimationClips.get(this.selectedObject.uuid).length : 0);
+    console.log('Has mixer:', this.mixers.has(this.selectedObject));
     
     try {
       this.duplicateObject();
@@ -1652,6 +1980,47 @@ takeScreenshot() {
     });
   }
 
+  // Debug method to inspect animation data
+  debugAnimations(object) {
+    object = object || this.selectedObject;
+    if (!object) {
+      console.log('No object selected for animation debug');
+      return;
+    }
+
+    console.group('🎬 Animation Debug for:', object.userData?.type);
+    console.log('Object UUID:', object.uuid);
+    console.log('Has userData.animations:', !!(object.userData.animations?.length));
+    console.log('Has object.animations:', !!(object.animations?.length));
+    console.log('Stored in originalAnimationClips:', this.originalAnimationClips.has(object.uuid));
+    console.log('Has mixer:', this.mixers.has(object));
+
+    if (object.userData.animations) {
+      console.log('userData.animations:', object.userData.animations.map(clip => ({
+        name: clip.name,
+        duration: clip.duration,
+        tracks: clip.tracks.length
+      })));
+    }
+
+    if (this.originalAnimationClips.has(object.uuid)) {
+      const clips = this.originalAnimationClips.get(object.uuid);
+      console.log('originalAnimationClips:', clips.map(clip => ({
+        name: clip.name,
+        duration: clip.duration,
+        tracks: clip.tracks.length
+      })));
+    }
+
+    if (this.mixers.has(object)) {
+      const mixer = this.mixers.get(object);
+      console.log('Mixer actions:', mixer._actions.length);
+      console.log('Active actions:', mixer._actions.filter(action => action.isRunning()).length);
+    }
+
+    console.groupEnd();
+  }
+
   // ===== DISPOSAL =====
   async dispose() {
     console.log("Disposing SceneManager...");
@@ -1690,6 +2059,9 @@ takeScreenshot() {
         mixer.uncacheRoot(model);
       });
       this.mixers.clear();
+
+      // Clear animation clips storage
+      this.originalAnimationClips.clear();
 
       // Dispose managers
       if (this.interactionManager) {

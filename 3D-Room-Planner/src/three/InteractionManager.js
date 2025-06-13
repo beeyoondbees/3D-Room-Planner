@@ -75,9 +75,9 @@ export class InteractionManager {
 
   loadIcons() {
     // FIXED: Use single consistent path (no duplicate loading)
-    const moveIconPath = '/assets/icons/move-icon.svg';
-    const rotateIconPath = '/assets/icons/rotate-icon.svg';
-
+    const moveIconPath = '/assets/icons/move_icon.svg';
+    const rotateIconPath = '/assets/icons/3d-rotate.svg';
+  
     // Load move icon only once
     this.textureLoader.load(
       moveIconPath,
@@ -93,7 +93,7 @@ export class InteractionManager {
         this.checkTexturesLoaded();
       }
     );
-
+  
     // Load rotate icon only once
     this.textureLoader.load(
       rotateIconPath,
@@ -109,7 +109,7 @@ export class InteractionManager {
         this.checkTexturesLoaded();
       }
     );
-
+  
     // Timeout fallback (reduced to 2 seconds)
     setTimeout(() => {
       if (!this.texturesLoaded && !this.fallbackTexturesCreated) {
@@ -118,6 +118,53 @@ export class InteractionManager {
       }
     }, 2000);
   }
+  
+  createMoveIcon() {
+    if (!this.moveIconTexture) {
+      console.warn('Move icon texture not loaded yet, using fallback');
+      return this.createFallbackSprite('move');
+    }
+  
+    try {
+      const spriteMaterial = new THREE.SpriteMaterial({
+        map: this.moveIconTexture,
+        transparent: true,
+        depthTest: false
+      });
+      const sprite = new THREE.Sprite(spriteMaterial);
+  
+      // Set the icon size to be static and consistent (independent of zoom)
+      sprite.scale.set(1, 1, 1); // Static size for move icon
+      return sprite;
+    } catch (error) {
+      console.error('InteractionManager: Error creating move icon:', error);
+      return this.createFallbackSprite('move');
+    }
+  }
+  
+  createRotateIcon() {
+    if (!this.rotateIconTexture) {
+      console.warn('Rotate icon texture not loaded yet, using fallback');
+      return this.createFallbackSprite('rotate');
+    }
+  
+    try {
+      const spriteMaterial = new THREE.SpriteMaterial({
+        map: this.rotateIconTexture,
+        transparent: true,
+        depthTest: false
+      });
+      const sprite = new THREE.Sprite(spriteMaterial);
+  
+      // Set the icon size to be static and consistent (independent of zoom)
+      sprite.scale.set(1, 1, 1); // Static size for rotate icon
+      return sprite;
+    } catch (error) {
+      console.error('InteractionManager: Error creating rotate icon:', error);
+      return this.createFallbackSprite('rotate');
+    }
+  }
+  
 
   checkTexturesLoaded() {
     if ((this.moveIconTexture || this.fallbackTexturesCreated) && 
