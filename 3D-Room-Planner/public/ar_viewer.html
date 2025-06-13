@@ -59,39 +59,46 @@
 
 <script>
   const urlParams = new URLSearchParams(window.location.search);
-  const modelName = urlParams.get("model") || "Sportstech-sBike";
-  const baseUrl = "https://d3hu0a43t9wj79.cloudfront.net/assets/models/";
-  const glbUrl = `${baseUrl}${modelName}.glb`;
-  const usdzUrl = `${baseUrl}${modelName}.usdz`;
+const modelName = urlParams.get("model") || "Sportstech-sBike";
 
-  const viewer = document.getElementById("arViewer");
-  const arButton = document.getElementById("ar-button");
+// Separate base paths for GLB and USDZ
+const glbUrl = `https://d3hu0a43t9wj79.cloudfront.net/assets/models/glb/${modelName}.glb`;
+const usdzUrl = `https://d3hu0a43t9wj79.cloudfront.net/assets/models/usdz/${modelName}.usdz`;
 
-  const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
-  const isAndroid = /android/i.test(navigator.userAgent);
+const viewer = document.getElementById("arViewer");
+const arButton = document.getElementById("ar-button");
+const errorMsg = document.getElementById("error-message");
 
-  viewer.setAttribute("src", glbUrl);
-  viewer.setAttribute("ios-src", usdzUrl);
+const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+const isAndroid = /android/i.test(navigator.userAgent);
 
-  arButton.textContent = `${modelName.replace(/-/g, ' ')} - View in AR`;
+viewer.setAttribute("src", glbUrl);
+viewer.setAttribute("ios-src", usdzUrl);
 
-  arButton.addEventListener("click", () => {
-    if (isIOS) {
-      window.location.href = usdzUrl;
-    } else if (isAndroid) {
-      viewer.activateAR();
-    }
-  });
+arButton.textContent = `${modelName.replace(/-/g, ' ')} - View in AR`;
 
-  viewer.addEventListener('load', () => {
-    arButton.style.display = 'block';
-  });
+arButton.addEventListener("click", () => {
+  if (isIOS) {
+    window.location.href = usdzUrl;
+  } else if (isAndroid) {
+    viewer.activateAR();
+  }
+});
 
-  viewer.addEventListener('ar-status', (event) => {
-    if (event.detail.status === 'not-presenting') {
-      arButton.style.display = 'block';
-    }
-  });
+viewer.addEventListener("load", () => {
+  arButton.style.display = "block";
+});
+
+viewer.addEventListener("error", () => {
+  errorMsg.style.display = "block";
+});
+
+viewer.addEventListener("ar-status", (event) => {
+  if (event.detail.status === "not-presenting") {
+    arButton.style.display = "block";
+  }
+});
+
 </script>
 
 </body>
