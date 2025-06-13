@@ -515,7 +515,7 @@ export class SceneManager {
       }
 
       console.log(`SceneManager: Adding model: ${modelType}`);
-      const modelPath = `/assets/models/${modelType}.glb`;
+      const modelPath = `/assets/models/glb/${modelType}.glb`;
 
       return new Promise((resolve, reject) => {
         this.modelLoader.load(modelType, modelPath, 
