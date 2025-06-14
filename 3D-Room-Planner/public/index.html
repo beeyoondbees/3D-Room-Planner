@@ -7,7 +7,6 @@
     <meta name="description" content="3D Room Planner for gym equipment" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
     <title>Sports Tech 3D Room Planner</title>
-    <title>3D Gym Room Planner</title>
     <style>
       .room-popup {
         position: fixed;
@@ -15,7 +14,7 @@
         left: 50%;
         transform: translate(-50%, -50%);
         background: white;
-        width: 600px;
+        width: 650px;
         padding: 30px 40px;
         box-shadow: 0 0 30px rgba(0,0,0,0.2);
         border-radius: 10px;
@@ -31,6 +30,7 @@
         display: grid;
         grid-template-columns: repeat(3, 1fr);
         gap: 15px;
+        margin-bottom: 25px;
       }
       .room-option {
         text-align: center;
@@ -49,31 +49,29 @@
         height: 60px;
       }
       .popup-footer {
-        margin-top: 25px;
         display: flex;
         justify-content: space-between;
         align-items: center;
-      }
-      .popup-footer input {
-        width: 80px;
-        padding: 6px;
-        border: 1px solid #ccc;
-        border-radius: 4px;
-        margin-right: 10px;
       }
       .popup-footer button {
         background: #E4002B;
         color: white;
         border: none;
-        padding: 10px 20px;
+        padding: 12px 30px;
         border-radius: 6px;
         font-weight: bold;
         cursor: pointer;
         transition: transform 0.2s ease, background 0.2s ease;
+        font-size: 16px;
       }
       .popup-footer button:hover {
         background: #d60000;
         transform: scale(1.05);
+      }
+      .popup-footer button:disabled {
+        background: #ccc;
+        cursor: not-allowed;
+        transform: none;
       }
       #overlay {
         position: fixed;
@@ -90,16 +88,26 @@
         background-color: #fff1f1;
         box-shadow: 0 0 10px rgba(228, 0, 43, 0.3);
       }
+      .validation-error {
+        border-color: #dc3545 !important;
+        box-shadow: 0 0 0 2px rgba(220, 53, 69, 0.1) !important;
+      }
+      .error-message {
+        color: #dc3545;
+        font-size: 12px;
+        margin-top: 3px;
+      }
     </style>
   </head>
   <body>
     <div id="root"></div>
     <div id="overlay"></div>
-   <div class="room-popup modal fade" id="roomPopup" data-backdrop="static" data-keyboard="false" tabindex="-1" aria-labelledby="roomPopupLabel" aria-hidden="true">
-      <div style="text-align: center; margin-bottom: 10px;">
+    <div class="room-popup modal fade" id="roomPopup" data-backdrop="static" data-keyboard="false" tabindex="-1" aria-labelledby="roomPopupLabel" aria-hidden="true">
+      <div style="text-align: center; margin-bottom: 20px;">
         <img src="assets/icons/stech-small.png" alt="Logo" style="height: 40px; vertical-align: middle; margin-right: 10px;">
         <h3 style="display: inline-block; vertical-align: middle; margin: 0;">Select your room shape</h3>
       </div>
+      
       <div class="room-options">
         <div class="room-option" data-shape="empty"><img src="assets/room-shapes/empty.svg"><div>No walls</div></div>
         <div class="room-option" data-shape="rectangle"><img src="assets/room-shapes/squre.svg"><div>Rectangle</div></div>
@@ -111,119 +119,225 @@
         <div class="room-option" data-shape="corner"><img src="assets/room-shapes/corner.svg"><div>Corner</div></div>
         <div class="room-option" data-shape="blunt"><img src="assets/room-shapes/bluntcorner.svg"><div>Blunt Corner</div></div>
       </div>
+
+      <div class="wall-settings"   >
+        <h4><i class="fas fa-cog"></i> Wall Settings</h4>
+        <div class="input-group">
+          <div class="input-field">
+            <label for="wallHeight" >Wall Height</label>
+            <input type="number" id="wallHeight" placeholder="2.5" min="2" max="5" step="0.1" value="2.5">
+            <div class="unit-display">meters (2-5m)</div>
+            <div class="error-message" id="heightError"></div>
+          </div>
+          <div class="input-field">
+            <label for="wallThickness">Wall Thickness</label>
+            <input type="number" id="wallThickness" placeholder="0.2" min="0.1" max="0.5" step="0.01" value="0.2">
+            <div class="unit-display">meters (0.1-0.5m)</div>
+            <div class="error-message" id="thicknessError"></div>
+          </div>
+        </div>
+      </div>
+
       <div class="popup-footer">
-        <div>
-          <!-- <input type="number" placeholder="Wall Height (m)" />
-          <input type="number" placeholder="Wall Thick (m)" /> -->
+        <div class="selected" style="font-size: 14px; color: rgb(228, 0, 43)">
+          <i class="fas fa-info-circle"></i> Selected: <span id="selectedShapeText">Rectangle</span>
         </div>
         <button id="letsGoBtn">LET'S GO</button>
       </div>
     </div>
-  </body>
-     <script>
-  window.addEventListener('load', () => {
-    setTimeout(() => {
-      const popup = document.getElementById('roomPopup');
-      const overlay = document.getElementById('overlay');
-      const roomOptions = document.querySelectorAll('.room-option');
-      const letsGoBtn = document.getElementById('letsGoBtn');
-      popup.style.display = 'block';
-      overlay.style.display = 'block';
 
-      let selectedShape = "rectangle";
-      roomOptions.forEach(option => {
-        option.addEventListener('click', () => {
-          roomOptions.forEach(opt => opt.classList.remove('selected-room'));
-          option.classList.add('selected-room');
-          selectedShape = option.getAttribute('data-shape');
-          console.log(" Room shape selected:", selectedShape);
+    <script>
+      window.addEventListener('load', () => {
+        setTimeout(() => {
+          const popup = document.getElementById('roomPopup');
+          const overlay = document.getElementById('overlay');
+          const roomOptions = document.querySelectorAll('.room-option');
+          const letsGoBtn = document.getElementById('letsGoBtn');
+          const wallHeightInput = document.getElementById('wallHeight');
+          const wallThicknessInput = document.getElementById('wallThickness');
+          const selectedShapeText = document.getElementById('selectedShapeText');
+          const heightError = document.getElementById('heightError');
+          const thicknessError = document.getElementById('thicknessError');
+          
+          popup.style.display = 'block';
+          overlay.style.display = 'block';
+
+          let selectedShape = "rectangle";
+          let wallHeight = 2.5;
+          let wallThickness = 0.2;
+
+          // Room shape selection
+          roomOptions.forEach(option => {
+            option.addEventListener('click', () => {
+              roomOptions.forEach(opt => opt.classList.remove('selected-room'));
+              option.classList.add('selected-room');
+              selectedShape = option.getAttribute('data-shape');
+              selectedShapeText.textContent = option.querySelector('div').textContent;
+              console.log("Room shape selected:", selectedShape);
+            });
+          });
+
+          // Input validation functions
+          function validateHeight() {
+            const value = parseFloat(wallHeightInput.value);
+            heightError.textContent = '';
+            wallHeightInput.classList.remove('validation-error');
+            
+            if (isNaN(value) || value < 2 || value > 5) {
+              heightError.textContent = 'Height must be between 2 and 5 meters';
+              wallHeightInput.classList.add('validation-error');
+              return false;
+            }
+            wallHeight = value;
+            return true;
+          }
+
+          function validateThickness() {
+            const value = parseFloat(wallThicknessInput.value);
+            thicknessError.textContent = '';
+            wallThicknessInput.classList.remove('validation-error');
+            
+            if (isNaN(value) || value < 0.1 || value > 0.5) {
+              thicknessError.textContent = 'Thickness must be between 0.1 and 0.5 meters';
+              wallThicknessInput.classList.add('validation-error');
+              return false;
+            }
+            wallThickness = value;
+            return true;
+          }
+
+          function validateInputs() {
+            const heightValid = validateHeight();
+            const thicknessValid = validateThickness();
+            
+            letsGoBtn.disabled = !(heightValid && thicknessValid);
+            return heightValid && thicknessValid;
+          }
+
+          // Input event listeners
+          wallHeightInput.addEventListener('input', validateInputs);
+          wallThicknessInput.addEventListener('blur', validateInputs);
+          wallThicknessInput.addEventListener('input', validateInputs);
+          wallHeightInput.addEventListener('blur', validateInputs);
+
+          // Initialize validation
+          validateInputs();
+
+          // Let's Go button click
+          letsGoBtn.addEventListener('click', () => {
+            if (!validateInputs()) {
+              return;
+            }
+
+            popup.style.display = 'none';
+            overlay.style.display = 'none';
+            
+            console.log("🚀 Room Configuration:");
+            console.log("- Shape:", selectedShape);
+            console.log("- Wall Height:", wallHeight, "meters");
+            console.log("- Wall Thickness:", wallThickness, "meters");
+
+            // Store configuration globally
+            window.roomConfiguration = {
+              shape: selectedShape,
+              wallHeight: wallHeight,
+              wallThickness: wallThickness
+            };
+
+            if (window.roomInstance && typeof window.roomInstance.buildFromPolygon === 'function') {
+              console.log("📦 Building room with configuration");
+              window.loadShapeFromTemplate(selectedShape, wallHeight, wallThickness);
+            }
+          });
+
+          // Set default selected shape
+          roomOptions[1].classList.add('selected-room'); // Rectangle
+        }, 1000);
+      });
+
+      window.loadShapeFromTemplate = function (shapeName, height = 2.5, thickness = 0.2) {
+        console.log("🧩 loadShapeFromTemplate CALLED with:", {
+          shape: shapeName,
+          height: height,
+          thickness: thickness
         });
-      });
 
-      letsGoBtn.addEventListener('click', () => {
-        popup.style.display = 'none';
-        overlay.style.display = 'none';
-        console.log("🚀 Let's Go clicked — shape stored:", selectedShape);
-
-        window.selectedShapeFromPopup = selectedShape;
-
-        if (window.roomInstance && typeof window.roomInstance.buildFromPolygon === 'function') {
-          console.log("📦 Direct call to buildFromPolygon with:", selectedShape);
-          window.loadShapeFromTemplate(selectedShape);
-          window.selectedShapeFromPopup = null;
+        if (!window.roomInstance || typeof window.roomInstance.buildFromPolygon !== 'function') {
+          console.error("❌ roomInstance or buildFromPolygon() not ready");
+          return;
         }
-      });
-    }, 1000);
-  });
 
-  window.loadShapeFromTemplate = function (shapeName) {
-    console.log("🧩 loadShapeFromTemplate CALLED with:", shapeName);
+        const shapes = {
+          empty: [
+            { x: -6.75, z: -6.75 }, { x: 6.75, z: -6.75 },
+            { x: 6.75, z: 6.75 }, { x: -6.75, z: 6.75 }
+          ],
+          rectangle: [
+            { x: -6.0, z: -5.25 }, { x: 6.0, z: -5.25 },
+            { x: 6.0, z: 5.25 }, { x: -6.0, z: 5.25 }
+          ],
+          l: [
+            { x: -2.0, z: 2.0 }, { x: 2.5, z: 2.0 },
+            { x: 2.5, z: 0.5 }, { x: -0.5, z: 0.5 },
+            { x: -0.5, z: -2.5 }, { x: -2.0, z: -2.5 }
+          ],
+          z: [
+            { x: -1.5, z: -3.0 }, { x: 4.5, z: -3.0 },
+            { x: 4.5, z: 0.0 }, { x: 1.5, z: 0.0 },
+            { x: 1.5, z: 3.0 }, { x: -4.5, z: 3.0 },
+            { x: -4.5, z: 0.0 }, { x: -1.5, z: 0.0 }
+          ],
+          s: [
+            { x: -1.5, z: -3.0 }, { x: 4.5, z: -3.0 },
+            { x: 4.5, z: 0.0 }, { x: 1.5, z: 0.0 },
+            { x: 1.5, z: 3.0 }, { x: -4.5, z: 3.0 },
+            { x: -4.5, z: 0.0 }, { x: -1.5, z: 0.0 }
+          ],
+          t: [
+            { x: -3.0, z: -3.0 }, { x: 3.0, z: -3.0 },
+            { x: 3.0, z: 0.0 }, { x: 1.5, z: 0.0 },
+            { x: 1.5, z: 3.0 }, { x: -1.5, z: 3.0 },
+            { x: -1.5, z: 0.0 }, { x: -3.0, z: 0.0 }
+          ],
+          u: [
+            { x: -2.25, z: 1.875 }, { x: 2.25, z: 1.875 },
+            { x: 2.25, z: -1.125 }, { x: 0.75, z: -1.125 },
+            { x: 0.75, z: 0.375 }, { x: -0.75, z: 0.375 },
+            { x: -0.75, z: -1.125 }, { x: -2.25, z: -1.125 }
+          ],
+          corner: [
+            { x: -2.0, z: -2.0 }, { x: 2.5, z: -2.0 },
+            { x: 2.5, z: -0.5 }, { x: -0.5, z: -0.5 },
+            { x: -0.5, z: 2.5 }, { x: -2.0, z: 2.5 }
+          ],
+          blunt: [
+            { x: 0.66, z: -5.25 }, { x: 4.86, z: 0.9 },
+            { x: 4.86, z: 4.8 }, { x: -5.19, z: 4.8 },
+            { x: -5.19, z: -5.25 }
+          ]
+        };
 
-    if (!window.roomInstance || typeof window.roomInstance.buildFromPolygon !== 'function') {
-      console.error("❌ roomInstance or buildFromPolygon() not ready");
-      return;
-    }
+        const points = shapes[shapeName];
+        if (!points) {
+          console.warn("⚠️ Unknown shape:", shapeName);
+          return;
+        }
 
-    const shapes = {
-      empty: [
-        { x: -6.75, z: -6.75 }, { x: 6.75, z: -6.75 },
-        { x: 6.75, z: 6.75 }, { x: -6.75, z: 6.75 }
-      ],
-      rectangle: [
-        { x: -6.0, z: -5.25 }, { x: 6.0, z: -5.25 },
-        { x: 6.0, z: 5.25 }, { x: -6.0, z: 5.25 }
-      ],
-      l: [
-        { x: -2.0, z: 2.0 }, { x: 2.5, z: 2.0 },
-        { x: 2.5, z: 0.5 }, { x: -0.5, z: 0.5 },
-        { x: -0.5, z: -2.5 }, { x: -2.0, z: -2.5 }
-      ],
-      z: [
-        { x: -1.5, z: -3.0 }, { x: 4.5, z: -3.0 },
-        { x: 4.5, z: 0.0 }, { x: 1.5, z: 0.0 },
-        { x: 1.5, z: 3.0 }, { x: -4.5, z: 3.0 },
-        { x: -4.5, z: 0.0 }, { x: -1.5, z: 0.0 }
-      ],
-      s: [
-        { x: -1.5, z: -3.0 }, { x: 4.5, z: -3.0 },
-        { x: 4.5, z: 0.0 }, { x: 1.5, z: 0.0 },
-        { x: 1.5, z: 3.0 }, { x: -4.5, z: 3.0 },
-        { x: -4.5, z: 0.0 }, { x: -1.5, z: 0.0 }
-      ],
-      t: [
-        { x: -3.0, z: -3.0 }, { x: 3.0, z: -3.0 },
-        { x: 3.0, z: 0.0 }, { x: 1.5, z: 0.0 },
-        { x: 1.5, z: 3.0 }, { x: -1.5, z: 3.0 },
-        { x: -1.5, z: 0.0 }, { x: -3.0, z: 0.0 }
-      ],
-      u: [
-        { x: -2.25, z: 1.875 }, { x: 2.25, z: 1.875 },
-        { x: 2.25, z: -1.125 }, { x: 0.75, z: -1.125 },
-        { x: 0.75, z: 0.375 }, { x: -0.75, z: 0.375 },
-        { x: -0.75, z: -1.125 }, { x: -2.25, z: -1.125 }
-      ],
-      corner: [
-        { x: -2.0, z: -2.0 }, { x: 2.5, z: -2.0 },
-        { x: 2.5, z: -0.5 }, { x: -0.5, z: -0.5 },
-        { x: -0.5, z: 2.5 }, { x: -2.0, z: 2.5 }
-      ],
-      blunt: [
-        { x: 0.66, z: -5.25 }, { x: 4.86, z: 0.9 },
-        { x: 4.86, z: 4.8 }, { x: -5.19, z: 4.8 },
-        { x: -5.19, z: -5.25 }
-      ]
-    };
+        const isEmpty = shapeName === "empty";
 
-    const points = shapes[shapeName];
-    if (!points) {
-      console.warn("⚠️ Unknown shape:", shapeName);
-      return;
-    }
+        console.log("🏗️ Building polygon room with:", {
+          points: points,
+          isEmpty: isEmpty,
+          wallHeight: height,
+          wallThickness: thickness
+        });
 
-    const isEmpty = shapeName === "empty";
-
-    console.log("🏗️ Building polygon room with:", points, "isEmpty:", isEmpty);
-    window.roomInstance.buildFromPolygon(points, isEmpty);
-  };
-</script>
+        // Pass the height and thickness to your room building function
+        window.roomInstance.buildFromPolygon(points, isEmpty, {
+          height: height,
+          thickness: thickness
+        });
+      };
+    </script>
+  </body>
 </html>

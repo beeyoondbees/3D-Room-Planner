@@ -146,7 +146,7 @@ const Toolbar = ({
           active={activeButton === 'toggle-floor-dimensions'}
           darkMode={darkMode}
         />
-        <EnhancedIconButton
+        {/* <EnhancedIconButton
           imageSrc="assets/icons/ar.svg"
           darkImageSrc="assets/icons/ar-light.svg"
           tooltip={isAREnabled ? "Generate AR QR Code" : "No models available"}
@@ -155,7 +155,7 @@ const Toolbar = ({
           active={activeButton === 'generate-ar-qr'}
           disabled={!isAREnabled}
           darkMode={darkMode}
-        />
+        /> */}
       </div>
 
       {/* Right section */}

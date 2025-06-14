@@ -1,11 +1,14 @@
 // src/components/UI/ObjectControls.jsx
 import React, { useState, useEffect } from 'react';
-
+import ARQrModal from './ARQrModal';
 const ObjectControls = ({
   selectedObject,
   onObjectAction,
-  interactionMode
+  interactionMode,
+  onViewAction
 }) => {
+  const [qrVisible, setQrVisible] = useState(false);
+const [qrModelName, setQrModelName] = useState(null);
   // Move useState to the top, before any returns
   const [isAnimating, setIsAnimating] = useState(false);
   const [isPinned, setIsPinned] = useState(false);
@@ -39,7 +42,6 @@ const ObjectControls = ({
       selectedObject.userData.isAnimating = !isAnimating;
     }
   };
-
   // When pin button clicked, update local state AND call handler
   const handlePinClick = () => {
     if (isPinned) {
@@ -52,6 +54,7 @@ const ObjectControls = ({
   };
 
   return (
+    <>
     <div className="object-controls">
       <div className="object-header">
         <h3>{formatType(selectedObject.userData?.type)}</h3>
@@ -179,6 +182,17 @@ const ObjectControls = ({
             </svg>
             <span>{isAnimating ? 'Pause' : 'Play'}</span>
           </button>
+          <button
+            className="action-button ar-button"
+            onClick={() => onViewAction('generate-ar-qr')}
+            title="View in AR"
+          >
+            <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" strokeWidth="2" fill="none">
+              <path d="M12 2l7 4v6c0 5-4 9-7 9s-7-4-7-9V6l7-4z" />
+            </svg>
+            <span>View in AR</span>
+          </button>
+
         </div>
       </div>
 
@@ -191,6 +205,12 @@ const ObjectControls = ({
         </p>
       </div>
     </div>
+    <ARQrModal
+    visible={qrVisible}
+    modelName={qrModelName}
+    onClose={() => setQrVisible(false)}
+    />
+    </>
   );
 };
 
