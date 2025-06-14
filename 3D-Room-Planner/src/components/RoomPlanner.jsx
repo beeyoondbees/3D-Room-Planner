@@ -231,6 +231,7 @@ const RoomPlanner = () => {
           selectedObject={selectedObject}
           onObjectAction={handleObjectAction}
           interactionMode={interactionModeUI}
+          onViewAction={handleViewAction} 
         />
       )}
       {selectedObject && (
