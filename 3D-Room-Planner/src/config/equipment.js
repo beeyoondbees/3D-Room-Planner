@@ -5,7 +5,7 @@ const equipmentConfig = {
     "Treadmills": {
       "Treadmills": [
         {
-          id: "F75-Professional-Treadmill",
+          id: "F75-professional-treadmill",
           name: "F75 professional",
           icon: "/assets/icons/products/F75-Professional-Treadmill.webp"
         },
@@ -25,19 +25,19 @@ const equipmentConfig = {
           icon: "/assets/icons/products/sTread-Lite-Professional-Treadmill.webp"
         },
         {
-          id: "F31s-Treadmill",
+          id: "F31s-treadmill",
           name: "F31s",
-          icon: "/assets/icons/products/F31s-Treadmill.webp"
+          icon: "/assets/icons/products/F31s-treadmill.webp"
         },
         {
-          id: "F10-Treadmill",
+          id: "F10-treadmill",
           name: "F10",
           icon: "/assets/icons/products/F10-Treadmill.webp"
         },
         {
-          id: "sProRun-Treadmill",
+          id: "sProRun-treadmill",
           name: "sProRun",
-          icon: "/assets/icons/products/sProRun-Treadmill.webp"
+          icon: "/assets/icons/products/sProRun-treadmill.webp"
         }
       ],
       "2-in-1 Treadmills": [
@@ -47,7 +47,7 @@ const equipmentConfig = {
           icon: "/assets/icons/products/sWalk-Plus-Treadmill.webp"
         },
         {
-          id: "sWalk-Lite-Plus-Treadmill",
+          id: "sWalk-Lite-Plus-treadmill",
           name: "sWalk Lite Plus",
           icon: "/assets/icons/products/sWalk-Lite-Plus-Treadmill.webp"
         },
