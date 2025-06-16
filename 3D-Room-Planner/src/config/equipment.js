@@ -193,9 +193,9 @@ const equipmentConfig = {
     "Strength Training": {
       "Power stations": [
         {
-          id: "HGX100-Power-Station",
+          id: "HGX100-power-station",
           name: "HGX100",
-          icon: "/assets/icons/products/HGX100-Power-Station.webp"
+          icon: "/assets/icons/products/HGX100-power-station.webp"
         },
         {
           id: "HGX150-Power-Station",
@@ -203,9 +203,9 @@ const equipmentConfig = {
           icon: "/assets/icons/products/HGX150-Power-Station.webp"
         },
         {
-          id: "HGX200-Power-Station",
+          id: "HGX200-power-station",
           name: "HGX200",
-          icon: "/assets/icons/products/HGX200-Power-Station.webp"
+          icon: "/assets/icons/products/HGX200-power-station.webp"
         },
         {
           id: "HGX300-Power-Station",
@@ -213,9 +213,9 @@ const equipmentConfig = {
           icon: "/assets/icons/products/HGX300-Power-Station.webp"
         },
         {
-          id: "PT300-Dip-Station",
+          id: "PT300-dip-station",
           name: "PT300 Dip Station",
-          icon: "/assets/icons/products/PT300-Dip-Station.webp"
+          icon: "/assets/icons/products/PT300-dip-station.webp"
         }
       ],
       "Smith Machines & Accessories": [
@@ -227,12 +227,12 @@ const equipmentConfig = {
         {
           id: "BRT700-Weight-Bench",
           name: "BRT700 weight bench",
-          icon: "/assets/icons/products/BRT700-Weight-Bench.webp"
+          icon: "/assets/icons/products/BRT700-weight-bench.webp"
         },
         {
-          id: "Sorry-Arm",
+          id: "sorry-arm",
           name: "sorry arm",
-          icon: "/assets/icons/products/Sorry-Arm.webp"
+          icon: "/assets/icons/products/sorry-arm.webp"
         },
         {
           id: "SXM150-Smith-Machine",
@@ -244,34 +244,34 @@ const equipmentConfig = {
         {
           id: "BRT700-Weight-Bench",
           name: "BRT700 weight bench",
-          icon: "/assets/icons/products/BRT700-Weight-Bench.webp"
+          icon: "/assets/icons/products/BRT700-weight-bench.webp"
         },
         {
-          id: "BRT500-Weight-Bench",
+          id: "BRT500-weight-bench",
           name: "BRT500 weight bench",
-          icon: "/assets/icons/products/BRT500-Weight-Bench.webp"
+          icon: "/assets/icons/products/BRT500-weight-bench.webp"
         },
         {
-          id: "BRT400-Weight-Bench",
+          id: "BRT400-weight-bench",
           name: "BRT400 weight bench",
-          icon: "/assets/icons/products/BRT400-Weight-Bench.webp"
+          icon: "/assets/icons/products/BRT400-weight-bench.webp"
         },
         {
-          id: "BRT200-Back-Trainer",
+          id: "BRT200-back-trainer",
           name: "BRT200 back trainer",
-          icon: "/assets/icons/products/BRT200-Back-Trainer.webp"
+          icon: "/assets/icons/products/BRT200-back-trainer.webp"
         },
         {
-          id: "BRT150-Back-Trainer",
+          id: "BRT150-back-trainer",
           name: "BRT150 back trainer",
-          icon: "/assets/icons/products/BRT150-Back-Trainer.webp"
+          icon: "/assets/icons/products/BRT150-back-trainer.webp"
         }
       ],
       "Dumbbells": [
         {
-          id: "AH300-20kg-Dumbbell-Set",
+          id: "AH300-20kg-dumbbell-set",
           name: "AH300 20kg dumbbell set",
-          icon: "/assets/icons/products/AH300-20kg-Dumbbell-Set.webp"
+          icon: "/assets/icons/products/AH300-20kg-dumbbell-set.webp"
         },
         {
           id: "AH100-2x1.5kg-Dumbbell-Set",
@@ -281,33 +281,33 @@ const equipmentConfig = {
       ],
       "Pull-up bars": [
         {
-          id: "KS260-Pull-Up-Bar",
+          id: "KS260-pull-up-bar",
           name: "KS260 pull-up bar",
-          icon: "/assets/icons/products/KS260-Pull-Up-Bar.webp"
+          icon: "/assets/icons/products/KS260-pull-up-bar.webp"
         },
         {
-          id: "KS270-Pull-Up-Bar",
+          id: "KS270-pull-up-bar",
           name: "KS270 pull-up bar",
-          icon: "/assets/icons/products/KS270-Pull-Up-Bar.webp"
+          icon: "/assets/icons/products/KS270-pull-up-bar.webp"
         },
         {
-          id: "KS350-Pull-Up-Bar",
+          id: "KS350-pull-up-bar",
           name: "KS350 pull-up bar",
-          icon: "/assets/icons/products/KS350-Pull-Up-Bar.webp"
+          icon: "/assets/icons/products/KS350-pull-up-bar.webp"
         }
       ]
     },
     "Trampolines": {
       "Trampoline": [
         {
-          id: "HTX100-Trampoline",
+          id: "HTX100-trampoline",
           name: "HTX100 trampoline",
-          icon: "/assets/icons/products/HTX100-Trampoline.webp"
+          icon: "/assets/icons/products/HTX100-trampoline.webp"
         },
         {
-          id: "HTX500-Trampoline",
+          id: "HTX500-trampoline",
           name: "HTX500 trampoline",
-          icon: "/assets/icons/products/HTX500-Trampoline.webp"
+          icon: "/assets/icons/products/HTX500-trampoline.webp"
         }
       ]
     }
