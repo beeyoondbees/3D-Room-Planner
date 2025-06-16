@@ -213,9 +213,9 @@ const equipmentConfig = {
           icon: "/assets/icons/products/HGX300-Power-Station.webp"
         },
         {
-          id: "PT300-dip-station",
+          id: "PT300-Dip-Station",
           name: "PT300 Dip Station",
-          icon: "/assets/icons/products/PT300-dip-station.webp"
+          icon: "/assets/icons/products/PT300-Dip-Station.webp"
         }
       ],
       "Smith Machines & Accessories": [
