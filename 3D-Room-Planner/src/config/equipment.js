@@ -49,7 +49,7 @@ const equipmentConfig = {
         {
           id: "sWalk-Lite-Plus-treadmill",
           name: "sWalk Lite Plus",
-          icon: "/assets/icons/products/sWalk-Lite-Plus-Treadmill.webp"
+          icon: "/assets/icons/products/sWalk-Lite-Plus-treadmill.webp"
         },
         {
           id: "sTread-Fold-Professional-Treadmill",
@@ -115,9 +115,9 @@ const equipmentConfig = {
           icon: "/assets/icons/products/ESX600s-ergometer.webp"
         },
         {
-          id: "ES600-Recumbent-ergometer",
+          id: "ES600-recumbent-ergometer",
           name: "ES600 recumbent ergometer",
-          icon: "/assets/icons/products/ES600-Recumbent-ergometer.webp"
+          icon: "/assets/icons/products/ES600-recumbent-ergometer.webp"
         }
       ]
     },
@@ -164,14 +164,14 @@ const equipmentConfig = {
     "Vibration Plates": {
       "Vibration plates": [
         {
-          id: "VP500-Vibration-Plate",
+          id: "VP500-vibration-plate",
           name: "VP500 vibration plate",
-          icon: "/assets/icons/products/VP500-Vibration-Plate.webp"
+          icon: "/assets/icons/products/VP500-vibration-plate.webp"
         },
         {
-          id: "VP400-Vibration-Plate",
+          id: "VP400-vibration-plate",
           name: "VP400",
-          icon: "/assets/icons/products/VP400-Vibration-Plate.webp"
+          icon: "/assets/icons/products/VP400-vibration-plate.webp"
         },
         {
           id: "VP250-Vibration-Plate",
@@ -179,14 +179,14 @@ const equipmentConfig = {
           icon: "/assets/icons/products/VP250-Vibration-Plate.webp"
         },
         {
-          id: "VP275-Vibration-Plate",
+          id: "VP275-vibration-plate",
           name: "VP275",
-          icon: "/assets/icons/products/VP275-Vibration-Plate.webp"
+          icon: "/assets/icons/products/VP275-vibration-plate.webp"
         },
         {
-          id: "sVibe-Vibration-Plate",
+          id: "sVibe-vibration-plate",
           name: "sVibe",
-          icon: "/assets/icons/products/sVibe-Vibration-Plate.webp"
+          icon: "/assets/icons/products/sVibe-vibration-plate.webp"
         }
       ]
     },
