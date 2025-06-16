@@ -137,7 +137,7 @@ const equipmentConfig = {
       "Magnetic Rowing Machine": [
         {
           id: "sRow-Rowing-Machine",
-          name: "sRow-rowing-machin",
+          name: "sRow-rowing-machine",
           icon: "/assets/icons/products/sRow-Rowing-Machine.webp"
         },
         {
