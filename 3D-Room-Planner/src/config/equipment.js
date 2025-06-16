@@ -7,7 +7,7 @@ const equipmentConfig = {
         {
           id: "F75-professional-treadmill",
           name: "F75 professional",
-          icon: "/assets/icons/products/F75-Professional-Treadmill.webp"
+          icon: "/assets/icons/products/F75-professional-treadmill.webp"
         },
         {
           id: "F37s-Professional-Treadmill",
@@ -32,7 +32,7 @@ const equipmentConfig = {
         {
           id: "F10-treadmill",
           name: "F10",
-          icon: "/assets/icons/products/F10-Treadmill.webp"
+          icon: "/assets/icons/products/F10-treadmill.webp"
         },
         {
           id: "sProRun-treadmill",
@@ -105,19 +105,19 @@ const equipmentConfig = {
       ],
       "Ergometer": [
         {
-          id: "X150-Ergometer",
+          id: "X150-ergometer",
           name: "X150 ergometer",
-          icon: "/assets/icons/products/X150-Ergometer.webp"
+          icon: "/assets/icons/products/X150-ergometer.webp"
         },
         {
-          id: "ESX600s-Ergometer",
+          id: "ESX600s-ergometer",
           name: "ESX600s ergometer",
-          icon: "/assets/icons/products/ESX600s-Ergometer.webp"
+          icon: "/assets/icons/products/ESX600s-ergometer.webp"
         },
         {
-          id: "ES600-Recumbent-Ergometer",
+          id: "ES600-Recumbent-ergometer",
           name: "ES600 recumbent ergometer",
-          icon: "/assets/icons/products/ES600-Recumbent-Ergometer.webp"
+          icon: "/assets/icons/products/ES600-Recumbent-ergometer.webp"
         }
       ]
     },
@@ -150,14 +150,14 @@ const equipmentConfig = {
     "Cross Trainer": {
       "Cross Trainer": [
         {
-          id: "CX700-Cross-Trainer",
+          id: "CX700-cross-trainer",
           name: "CX700 cross trainer",
-          icon: "/assets/icons/products/CX700-Cross-Trainer.webp"
+          icon: "/assets/icons/products/CX700-cross-trainer.webp"
         },
         {
-          id: "CX2-Cross-Trainer",
+          id: "CX2-cross-trainer",
           name: "CX2 cross trainer",
-          icon: "/assets/icons/products/CX2-Cross-Trainer.webp"
+          icon: "/assets/icons/products/CX2-cross-trainer.webp"
         }
       ]
     },
