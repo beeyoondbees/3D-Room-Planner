@@ -141,9 +141,9 @@ const equipmentConfig = {
           icon: "/assets/icons/products/sRow-Rowing-Machine.webp"
         },
         {
-          id: "PROwer-Rowing-Machine",
+          id: "PROwer-rowing-machine",
           name: "PROwer-rowing-machine",
-          icon: "/assets/icons/products/PROwer-Rowing-Machine.webp"
+          icon: "/assets/icons/products/PROwer-rowing-machine.webp"
         }
       ]
     },
