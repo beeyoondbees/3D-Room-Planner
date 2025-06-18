@@ -3,6 +3,7 @@
 
 import * as THREE from 'three';
 import equipmentConfig from '../../config/equipment';
+import equipmentConfig from '../../config/officeEquipmentConfig';
 
 export class Equipment {
   constructor(type, modelLoader) {
