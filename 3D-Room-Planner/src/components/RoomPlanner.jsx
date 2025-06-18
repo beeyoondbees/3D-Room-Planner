@@ -4,16 +4,20 @@ import * as THREE from 'three';
 import { SceneManager } from '../three/SceneManager';
 import Toolbar from './UI/Toolbar';
 import SidePanel from './UI/SidePanel';
+import OfficeSidePanel from './UI/OfficeSidePanel';
 import ViewControls from './UI/ViewControls';
 import ModelLoadingIndicator from './UI/ModelLoadingIndicator';
 import ObjectControls from './UI/ObjectControls';
 import useStore from '../store';
 import equipmentConfig from '../config/equipment';
+import officeEquipmentConfig from '../config/officeEquipmentConfig';
 import { generateQR } from '../three/ARManager';
 import ARQrModal from './UI/ARQrModal';
 
 const RoomPlanner = () => {
   const containerRef = useRef(null);
+
+
   const sceneManagerRef = useRef(null);
 
   const viewMode = useStore(state => state.viewMode);
@@ -28,6 +32,7 @@ const RoomPlanner = () => {
 
   // side panel state
   const [showSidePanel, setShowSidePanel] = useState(true);
+  const [showOfficeSidePanel, setShowOfficeSidePanel] = useState(false);  // ADD THIS STATE
   const [activeButton, setActiveButton] = useState(null);
 
   useEffect(() => {
@@ -208,11 +213,18 @@ const RoomPlanner = () => {
       />
 
       {showSidePanel && (
-      <SidePanel 
-        equipmentCatalog={equipmentConfig.catalog}
-        onAddModel={handleAddModel}
-        setShowSidePanel={setShowSidePanel} // ✅ Add this
-      />
+        <SidePanel 
+          equipmentCatalog={equipmentConfig.catalog}
+          onAddModel={handleAddModel}
+          setShowSidePanel={setShowSidePanel}
+        />
+      )}
+
+      {showOfficeSidePanel && (
+        <OfficeSidePanel 
+          onAddModel={handleAddModel}
+          setShowOfficeSidePanel={setShowOfficeSidePanel}
+        />
       )}
 
       <ViewControls
@@ -221,6 +233,8 @@ const RoomPlanner = () => {
         isGridVisible={isGridVisible}
         showSidePanel={showSidePanel}
         setShowSidePanel={setShowSidePanel}
+        showOfficeSidePanel={showOfficeSidePanel}        // ADD THIS PROP
+        setShowOfficeSidePanel={setShowOfficeSidePanel}  // ADD THIS PROP
         activeButton={activeButton}
         setActiveButton={setActiveButton}
       />
