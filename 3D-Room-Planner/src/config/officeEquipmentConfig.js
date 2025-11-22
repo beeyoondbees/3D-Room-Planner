@@ -193,71 +193,179 @@ const officeEquipmentConfig = {
           }
         ]
       },
+      "BEDS": {
+        "BEDS": [
+          {
+            id: "BED_1",
+            name: "Single Wooden Bed",
+            icon: "/assets/icons/products/BED_1.png"
+          },
+          {
+            id: "BED_2",
+            name: "Rustic Wooden Single Bed",
+            icon: "/assets/icons/products/BED_2.png"
+          },
+          {
+            id: "BED_3",
+            name: "Modern Storage Bed",
+            icon: "/assets/icons/products/BED_3.png"
+          },
+          {
+            id: "BED_4",
+            name: "Mid-Century Modern Bed",
+            icon: "/assets/icons/products/BED_4.png"
+          },
+          {
+            id: "BED_5",
+            name: "Upholstered Bed",
+            icon: "/assets/icons/products/BED_5.png"
+          },
+          {
+            id: "BED_6",
+            name: "Classic Wooden Bed",
+            icon: "/assets/icons/products/BED_6.png"
+          },
+          {
+            id: "BED_7",
+            name: "Antique Carved Wooden Bed",
+            icon: "/assets/icons/products/BED_7.png"
+          }
+        ],
+      },
+      "SOBA": {
+        "SOBA": [
+          {
+            id: "SOBA_1",
+            name: "Modern Fabric Sofa",
+            icon: "/assets/icons/products/SOBA_1.png"
+          },
+          {
+            id: "SOBA_2",
+            name: "Large Sectional Sofa",
+            icon: "/assets/icons/products/SOBA_2.png"
+          },
+          {
+            id: "SOBA_3",
+            name: "Classic Fabric Sofa",
+            icon: "/assets/icons/products/SOBA_3.png"
+          },
+          {
+            id: "SOBA_4",
+            name: "Retro Futon Sofa Bed",
+            icon: "/assets/icons/products/SOBA_4.png"
+          },
+          {
+            id: "SOBA_5",
+            name: "Mid-Century Leather Sofa",
+            icon: "/assets/icons/products/SOBA_5.png"
+          },
+          {
+            id: "SOBA_6",
+            name: "Contemporary Low-Profile Sofa",
+            icon: "/assets/icons/products/SOBA_6.png"
+          },
+          {
+            id: "SOBA_7",
+            name: "Chesterfield Leather Sofa",
+            icon: "/assets/icons/products/SOBA_7.png"
+          },
+          {
+            id: "SOBA_8",
+            name: "Minimalist Slipcover Sofa",
+            icon: "/assets/icons/products/SOBA_8.png"
+          }
+        ],
+      },
       "Cabinets and Containers": {
         "Filing Cabinets": [
           {
-            id: "4-drawer-filing-001",
+            id: "wooden-cab1",
             name: "4-Drawer Filing Cabinet",
-            icon: "/assets/icons/products/cabinets.jpg"
+            icon: "/assets/icons/products/wooden-cab1.png"
           },
           {
-            id: "lateral-file-002",
+            id: "wooden-cab2",
             name: "Lateral File Cabinet",
-            icon: "/assets/icons/office/lateral-file.webp"
+            icon: "/assets/icons/products/wooden-cab2.png"
           },
           {
-            id: "mobile-pedestal-003",
+            id: "wooden-cab3",
             name: "Mobile Pedestal",
-            icon: "/assets/icons/office/mobile-pedestal.webp"
+            icon: "/assets/icons/products/wooden-cab3.png"
           },
           {
-            id: "vertical-file-004",
+            id: "wooden-cab4",
             name: "Vertical File Cabinet",
-            icon: "/assets/icons/office/vertical-file.webp"
+            icon: "/assets/icons/products/wooden-cab4.png"
+          },
+          {
+            id: "wooden-cab5",
+            name: "Mobile Pedestal",
+            icon: "/assets/icons/products/wooden-cab5.png"
+          },
+          {
+            id: "wooden-cab6",
+            name: "Vertical File Cabinet",
+            icon: "/assets/icons/products/wooden-cab6.png"
+          },
+          {
+            id: "wooden-cab7",
+            name: "Mobile Pedestal",
+            icon: "/assets/icons/products/wooden-cab7.png"
           }
         ],
-        "Storage Cabinets": [
+        "Color Cabinets": [
           {
-            id: "bookshelf-001",
+            id: "cabinet1",
             name: "Bookshelf",
-            icon: "/assets/icons/office/bookshelf.webp"
+            icon: "/assets/icons/products/cabinet1.png"
           },
           {
-            id: "storage-unit-002",
+            id: "cabinet2",
             name: "Storage Unit",
-            icon: "/assets/icons/office/storage-unit.webp"
+            icon: "/assets/icons/products/cabinet2.png"
           },
           {
-            id: "display-cabinet-003",
+            id: "cabinet3",
             name: "Display Cabinet",
-            icon: "/assets/icons/office/display-cabinet.webp"
+            icon: "/assets/icons/products/cabinet3.png"
           },
           {
-            id: "wardrobe-004",
+            id: "cabinet5",
+            name: "Display Cabinet",
+            icon: "/assets/icons/products/cabinet5.png"
+          },
+          {
+            id: "cabinet_col6",
             name: "Office Wardrobe",
-            icon: "/assets/icons/office/wardrobe.webp"
+            icon: "/assets/icons/products/cabinet6.png"
           }
         ],
-        "Containers": [
+        "Cabinets": [
           {
-            id: "desktop-organizer-001",
-            name: "Desktop Organizer",
-            icon: "/assets/icons/office/desktop-organizer.webp"
+            id: "cabinet_col1",
+            name: "Bookshelf",
+            icon: "/assets/icons/products/cabinet_col1.png"
           },
           {
-            id: "storage-box-002",
-            name: "Storage Box",
-            icon: "/assets/icons/office/storage-box.webp"
+            id: "cabinet_col2",
+            name: "Storage Unit",
+            icon: "/assets/icons/products/cabinet_col2.png"
           },
           {
-            id: "file-tray-003",
-            name: "File Tray",
-            icon: "/assets/icons/office/file-tray.webp"
+            id: "cabinet_col3",
+            name: "Display Cabinet",
+            icon: "/assets/icons/products/cabinet_col3.png"
           },
           {
-            id: "drawer-dividers-004",
-            name: "Drawer Dividers",
-            icon: "/assets/icons/office/drawer-dividers.webp"
+            id: "cabinet_col4",
+            name: "Office Wardrobe",
+            icon: "/assets/icons/products/cabinet_col4.png"
+          },
+          {
+            id: "cabinet_col5",
+            name: "Display Cabinet",
+            icon: "/assets/icons/products/cabinet_col5.png"
           }
         ]
       },
@@ -288,304 +396,168 @@ const officeEquipmentConfig = {
           {
             id: "Pre_Equi_1",
             name: "Projector Stand",
-            icon: "/assets/icons/products/projector-stand.webp"
+            icon: "/assets/icons/products/Pre_Equi_1.png"
           },
           {
             id: "Pre_Equi_2",
             name: "Presentation Screen",
-            icon: "/assets/icons/products/presentation-screen.webp"
+            icon: "/assets/icons/products/Pre_Equi_2.png"
           },
           {
             id: "Pre_Equi_3",
             name: "Lectern",
-            icon: "/assets/icons/products/lectern.webp"
+            icon: "/assets/icons/products/Pre_Equi_3.png"
           },
           {
             id: "Pre_Equi_4",
             name: "Mobile Presentation Cart",
-            icon: "/assets/icons/products/mobile-cart.webp"
+            icon: "/assets/icons/products/Pre_Equi_4.png"
           }
         ]
       },
-      "Technology": {
+      "Computer Units": {
         "Computers & Monitors": [
           {
-            id: "desktop-computer-001",
+            id: "tech_con_1",
             name: "Desktop Computer",
-            icon: "/assets/icons/products/technology.jpg"
+            icon: "/assets/icons/products/tech_con_1.png"
           },
           {
-            id: "monitor-stand-002",
+            id: "tech_con_2",
             name: "Monitor Stand",
-            icon: "/assets/icons/office/monitor-stand.webp"
+            icon: "/assets/icons/products/tech_con_2.png"
           },
           {
-            id: "dual-monitor-setup-003",
+            id: "tech_con_3",
             name: "Dual Monitor Setup",
-            icon: "/assets/icons/office/dual-monitor-setup.webp"
+            icon: "/assets/icons/products/tech_con_3.png"
           },
           {
-            id: "laptop-stand-004",
+            id: "tech_con_4",
             name: "Laptop Stand",
-            icon: "/assets/icons/office/laptop-stand.webp"
+            icon: "/assets/icons/products/tech_con_4.png"
           },
           {
-            id: "keyboard-tray-005",
+            id: "tech_con_5",
             name: "Keyboard Tray",
-            icon: "/assets/icons/office/keyboard-tray.webp"
+            icon: "/assets/icons/products/tech_con_5.png"
+          },
+          {
+            id: "tech_con_6",
+            name: "Keyboard Tray",
+            icon: "/assets/icons/products/tech_con_6.png"
+          },
+          {
+            id: "tech_con_7",
+            name: "Keyboard Tray",
+            icon: "/assets/icons/products/tech_con_7.png"
           }
         ],
-        "Audio Visual": [
-          {
-            id: "speaker-system-001",
-            name: "Speaker System",
-            icon: "/assets/icons/office/speaker-system.webp"
-          },
-          {
-            id: "webcam-002",
-            name: "Webcam",
-            icon: "/assets/icons/office/webcam.webp"
-          },
-          {
-            id: "microphone-003",
-            name: "Microphone",
-            icon: "/assets/icons/office/microphone.webp"
-          },
-          {
-            id: "headset-stand-004",
-            name: "Headset Stand",
-            icon: "/assets/icons/office/headset-stand.webp"
-          }
-        ],
-        "Networking": [
-          {
-            id: "router-001",
-            name: "Router",
-            icon: "/assets/icons/office/router.webp"
-          },
-          {
-            id: "network-switch-002",
-            name: "Network Switch",
-            icon: "/assets/icons/office/network-switch.webp"
-          },
-          {
-            id: "access-point-003",
-            name: "Access Point",
-            icon: "/assets/icons/office/access-point.webp"
-          },
-          {
-            id: "cable-management-004",
-            name: "Cable Management",
-            icon: "/assets/icons/office/cable-management.webp"
-          }
-        ]
       },
-      "Accessories": {
-        "Desk Accessories": [
+      "TV Units": {
+        "TV & Monitors": [
           {
-            id: "desk-lamp-001",
-            name: "Desk Lamp",
-            icon: "/assets/icons/products/accessories.jpg"
+            id: "TV_1",
+            name: "Modern Low TV Unit",
+            icon: "/assets/icons/products/TV_1.png"
           },
           {
-            id: "pen-holder-002",
-            name: "Pen Holder",
-            icon: "/assets/icons/office/pen-holder.webp"
+            id: "TV_2",
+            name: "Large Entertainment Wall Unit",
+            icon: "/assets/icons/products/TV_2.png"
           },
           {
-            id: "mouse-pad-003",
-            name: "Mouse Pad",
-            icon: "/assets/icons/office/mouse-pad.webp"
+            id: "TV_3",
+            name: "Contemporary TV Wall Panel",
+            icon: "/assets/icons/products/TV_3.png"
           },
           {
-            id: "document-holder-004",
-            name: "Document Holder",
-            icon: "/assets/icons/office/document-holder.webp"
+            id: "TV_4",
+            name: "Floating TV Unit with Shelves",
+            icon: "/assets/icons/products/TV_4.png"
           },
           {
-            id: "calendar-stand-005",
-            name: "Calendar Stand",
-            icon: "/assets/icons/office/calendar-stand.webp"
+            id: "TV_5",
+            name: "Wood and Glass TV Panel",
+            icon: "/assets/icons/products/TV_5.png"
+          },
+          {
+            id: "TV_6",
+            name: "Retro Wooden TV Stand",
+            icon: "/assets/icons/products/TV_6.png"
+          },
+          {
+            id: "TV_7",
+            name: "Classic TV Cabinet",
+            icon: "/assets/icons/products/TV_7.png"
           }
         ],
-        "Office Supplies": [
-          {
-            id: "paper-tray-001",
-            name: "Paper Tray",
-            icon: "/assets/icons/office/paper-tray.webp"
-          },
-          {
-            id: "stapler-002",
-            name: "Stapler",
-            icon: "/assets/icons/office/stapler.webp"
-          },
-          {
-            id: "hole-punch-003",
-            name: "Hole Punch",
-            icon: "/assets/icons/office/hole-punch.webp"
-          },
-          {
-            id: "tape-dispenser-004",
-            name: "Tape Dispenser",
-            icon: "/assets/icons/office/tape-dispenser.webp"
-          }
-        ],
-        "Comfort Items": [
-          {
-            id: "footrest-001",
-            name: "Footrest",
-            icon: "/assets/icons/office/footrest.webp"
-          },
-          {
-            id: "lumbar-support-002",
-            name: "Lumbar Support",
-            icon: "/assets/icons/office/lumbar-support.webp"
-          },
-          {
-            id: "wrist-rest-003",
-            name: "Wrist Rest",
-            icon: "/assets/icons/office/wrist-rest.webp"
-          },
-          {
-            id: "seat-cushion-004",
-            name: "Seat Cushion",
-            icon: "/assets/icons/office/seat-cushion.webp"
-          }
-        ]
       },
-      "Work Station Group": {
-        "Individual Workstations": [
+      "MATS": {
+        "MATS": [
           {
-            id: "single-workstation-001",
-            name: "Single Workstation",
-            icon: "/assets/icons/products/workstation.jpg"
+            id: "MAT_1",
+            name: "Brown Velvet Area Rug",
+            icon: "/assets/icons/products/MAT_1.png"
           },
           {
-            id: "l-shaped-workstation-002",
-            name: "L-Shaped Workstation",
-            icon: "/assets/icons/office/l-shaped-workstation.webp"
+            id: "MAT_2",
+            name: "Beige Textured Carpet Rug",
+            icon: "/assets/icons/products/MAT_2.png"
           },
           {
-            id: "u-shaped-workstation-003",
-            name: "U-Shaped Workstation",
-            icon: "/assets/icons/office/u-shaped-workstation.webp"
+            id: "MAT_3",
+            name: "Traditional Persian Red Rug",
+            icon: "/assets/icons/products/MAT_3.png"
           },
           {
-            id: "compact-workstation-004",
-            name: "Compact Workstation",
-            icon: "/assets/icons/office/compact-workstation.webp"
+            id: "MAT_4",
+            name: "Vintage Oriental Cream Rug",
+            icon: "/assets/icons/products/MAT_4.png"
+          },
+          {
+            id: "MAT_5",
+            name: "Prayer Mat (Islamic Design",
+            icon: "/assets/icons/products/MAT_5.png"
+          },
+          {
+            id: "MAT_6",
+            name: "Natural Jute Woven Mat",
+            icon: "/assets/icons/products/MAT_6.png"
           }
         ],
-        "Team Workstations": [
-          {
-            id: "4-person-pod-001",
-            name: "4-Person Pod",
-            icon: "/assets/icons/office/4-person-pod.webp"
-          },
-          {
-            id: "6-person-cluster-002",
-            name: "6-Person Cluster",
-            icon: "/assets/icons/office/6-person-cluster.webp"
-          },
-          {
-            id: "8-person-cluster-003",
-            name: "8-Person Cluster",
-            icon: "/assets/icons/office/8-person-cluster.webp"
-          },
-          {
-            id: "linear-workstation-004",
-            name: "Linear Workstation",
-            icon: "/assets/icons/office/linear-workstation.webp"
-          }
-        ],
-        "Collaborative Spaces": [
-          {
-            id: "hot-desk-setup-001",
-            name: "Hot Desk Setup",
-            icon: "/assets/icons/office/hot-desk-setup.webp"
-          },
-          {
-            id: "standing-meeting-002",
-            name: "Standing Meeting Table",
-            icon: "/assets/icons/office/standing-meeting.webp"
-          },
-          {
-            id: "collaboration-hub-003",
-            name: "Collaboration Hub",
-            icon: "/assets/icons/office/collaboration-hub.webp"
-          },
-          {
-            id: "phone-booth-004",
-            name: "Phone Booth",
-            icon: "/assets/icons/office/phone-booth.webp"
-          }
-        ]
       },
-      "Home Office": {
-        "Home Desks": [
+      "Audio Units": {
+      "Audio Visual": [
           {
-            id: "compact-home-desk-001",
-            name: "Compact Home Desk",
-            icon: "/assets/icons/products/homeoffice.jpg"
+            id: "tech_aud_1",
+            name: "Bookshelf Speaker on Stand",
+            icon: "/assets/icons/products/tech_aud_1.png"
           },
           {
-            id: "writing-desk-002",
-            name: "Writing Desk",
-            icon: "/assets/icons/office/writing-desk.webp"
+            id: "tech_aud_2",
+            name: "Floorstanding Tower Speaker",
+            icon: "/assets/icons/products/tech_aud_2.png"
           },
           {
-            id: "secretary-desk-003",
-            name: "Secretary Desk",
-            icon: "/assets/icons/office/secretary-desk.webp"
+            id: "tech_aud_3",
+            name: "Pair of Floor Speakers",
+            icon: "/assets/icons/products/tech_aud_3.png"
           },
           {
-            id: "folding-desk-004",
-            name: "Folding Desk",
-            icon: "/assets/icons/office/folding-desk.webp"
-          }
-        ],
-        "Home Storage": [
-          {
-            id: "home-filing-cabinet-001",
-            name: "Home Filing Cabinet",
-            icon: "/assets/icons/office/home-filing-cabinet.webp"
+            id: "tech_aud_4",
+            name: "Microphone on Stand",
+            icon: "/assets/icons/products/tech_aud_4.png"
           },
           {
-            id: "floating-shelves-002",
-            name: "Floating Shelves",
-            icon: "/assets/icons/office/floating-shelves.webp"
+            id: "tech_aud_5",
+            name: "Studio Monitor Speaker",
+            icon: "/assets/icons/products/tech_aud_5.png"
           },
           {
-            id: "corner-shelf-003",
-            name: "Corner Shelf",
-            icon: "/assets/icons/office/corner-shelf.webp"
-          },
-          {
-            id: "storage-ottoman-004",
-            name: "Storage Ottoman",
-            icon: "/assets/icons/office/storage-ottoman.webp"
-          }
-        ],
-        "Home Comfort": [
-          {
-            id: "home-office-chair-001",
-            name: "Home Office Chair",
-            icon: "/assets/icons/office/home-office-chair.webp"
-          },
-          {
-            id: "reading-light-002",
-            name: "Reading Light",
-            icon: "/assets/icons/office/reading-light.webp"
-          },
-          {
-            id: "room-divider-003",
-            name: "Room Divider",
-            icon: "/assets/icons/office/room-divider.webp"
-          },
-          {
-            id: "plant-stand-004",
-            name: "Plant Stand",
-            icon: "/assets/icons/office/plant-stand.webp"
+            id: "tech_aud_6",
+            name: "Monitor Speaker",
+            icon: "/assets/icons/products/tech_aud_6.png"
           }
         ]
       }

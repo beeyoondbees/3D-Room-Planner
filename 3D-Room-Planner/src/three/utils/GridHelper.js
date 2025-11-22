@@ -25,7 +25,7 @@ export class GridHelper {
     }
     
     // Raise grid slightly above floor level to prevent z-fighting
-    gridHelper.position.y = 0.02;
+    gridHelper.position.y = 0.001;
     
     // Add grid to group
     gridGroup.add(gridHelper);

@@ -5,12 +5,12 @@ const equipmentConfig = {
     "Treadmills": {
       "Treadmills": [
         {
-          id: "F75-professional-treadmill",
+          id: "F75-professional",
           name: "F75 professional",
           icon: "/assets/icons/products/F75-professional-treadmill.webp"
         },
         {
-          id: "F37s-Professional-Treadmill",
+          id: "F37s-Professional",
           name: "F37s professional",
           icon: "/assets/icons/products/F37s-Professional-Treadmill.webp"
         },
@@ -20,7 +20,7 @@ const equipmentConfig = {
           icon: "/assets/icons/products/sTread-Pro-Treadmill.webp"
         },
         {
-          id: "sTread-Lite-Professional-Treadmill",
+          id: "sTread-Lite-Professional",
           name: "sTread Lite",
           icon: "/assets/icons/products/sTread-Lite-Professional-Treadmill.webp"
         },
@@ -82,11 +82,16 @@ const equipmentConfig = {
           id: "Walkmate-Treadmill",
           name: "Walkmate",
           icon: "/assets/icons/products/Walkmate-Treadmill.webp"
+        },
+        {
+          id: "sWalk-Fold-treadmill",
+          name: "sWalk Fold",
+          icon: "/assets/icons/products/sWalk-Fold-treadmill.jpg"
         }
       ]
     },
     "Bikes & Ergometer": {
-      "Speed Bikes": [
+      "Bikes & Ergometer": [
         {
           id: "Sportstech-sBike",
           name: "Sportstech sBike",
@@ -101,28 +106,38 @@ const equipmentConfig = {
           id: "SX200-Speedbike",
           name: "SX200 speed bike",
           icon: "/assets/icons/products/SX200-Speedbike.webp"
-        }
-      ],
-      "Ergometer": [
+        },
         {
           id: "X150-ergometer",
           name: "X150 ergometer",
           icon: "/assets/icons/products/X150-ergometer.webp"
         },
-        {
-          id: "ESX600s-ergometer",
-          name: "ESX600s ergometer",
-          icon: "/assets/icons/products/ESX600s-ergometer.webp"
-        },
-        {
-          id: "ES600-recumbent-ergometer",
-          name: "ES600 recumbent ergometer",
-          icon: "/assets/icons/products/ES600-recumbent-ergometer.webp"
-        }
-      ]
+      ],
+      // "Ergometer": [
+      //   {
+      //     id: "X150-ergometer",
+      //     name: "X150 ergometer",
+      //     icon: "/assets/icons/products/X150-ergometer.webp"
+      //   },
+      //   {
+      //     id: "ESX600s-ergometer",
+      //     name: "ESX600s ergometer",
+      //     icon: "/assets/icons/products/ESX600s-ergometer.webp"
+      //   },
+      //   {
+      //     id: "ES600-recumbent-ergometer",
+      //     name: "ES600 recumbent ergometer",
+      //     icon: "/assets/icons/products/ES600-recumbent-ergometer.webp"
+      //   }
+      // ]
     },
     "Rowing Machines": {
       "Water Rowing Machine": [
+        {
+          id: "sRow-Rowing-Machine",
+          name: "sRow-rowing-machine",
+          icon: "/assets/icons/products/sRow-Rowing-Machine.webp"
+        },
         {
           id: "AquaElite-rowing-machine",
           name: "AquaElite rowing machine",
@@ -132,20 +147,13 @@ const equipmentConfig = {
           id: "WRX1000-Water-Rowing-Machine",
           name: "WRX1000-water-rowing-machine",
           icon: "/assets/icons/products/WRX1000-Water-Rowing-Machine.webp"
-        }
-      ],
-      "Magnetic Rowing Machine": [
-        {
-          id: "sRow-Rowing-Machine",
-          name: "sRow-rowing-machine",
-          icon: "/assets/icons/products/sRow-Rowing-Machine.webp"
         },
         {
           id: "PROwer-rowing-machine",
           name: "PROwer-rowing-machine",
           icon: "/assets/icons/products/PROwer-rowing-machine.webp"
         }
-      ]
+      ],
     },
     "Cross Trainer": {
       "Cross Trainer": [
@@ -187,6 +195,11 @@ const equipmentConfig = {
           id: "sVibe-vibration-plate",
           name: "sVibe",
           icon: "/assets/icons/products/sVibe-vibration-plate.webp"
+        },
+        {
+          id: "VX350-vibration-plate",
+          name: "VX350",
+          icon: "/assets/icons/products/VX350-vibration-plate.jpg"
         }
       ]
     },
