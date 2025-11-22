@@ -4,7 +4,7 @@ import React from 'react';
 const ARQrModal = ({ visible, modelName, onClose }) => {
   if (!visible || !modelName) return null;
 
-  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(`https://d3hu0a43t9wj79.cloudfront.net/ar_redirect.html?model=${modelName}`)}`;
+  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(`https://3d-room-planner-s3.s3.eu-north-1.amazonaws.com/ar_viewer.html?model=${modelName}`)}`;
 
   return (
     <div style={{
