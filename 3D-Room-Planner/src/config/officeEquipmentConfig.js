@@ -536,7 +536,7 @@ const officeEquipmentConfig = {
           },
           {
             id: "tech_aud_2",
-            name: "Floorstanding Tower Speaker",
+            name: "Floorstanding Tower Speaker ",
             icon: "/assets/icons/products/tech_aud_2.png"
           },
           {
