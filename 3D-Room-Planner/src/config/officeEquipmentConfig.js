@@ -372,22 +372,22 @@ const officeEquipmentConfig = {
       "Meeting Point": {
         "Conference Solutions": [
           {
-            id: "con_meeting_1",
+            id: "con_meeting_4",
             name: "Video Conference Setup",
             icon: "/assets/icons/products/con_meeting_1.png"
           },
           {
-            id: "con_meeting_2",
+            id: "con_meeting_1",
             name: "Whiteboard",
             icon: "/assets/icons/products/con_meeting_2.png"
           },
           {
-            id: "con_meeting_3",
+            id: "con_meeting_2",
             name: "Flipchart",
             icon: "/assets/icons/products/con_meeting_3.png"
           },
           {
-            id: "con_meeting_4",
+            id: "con_meeting_3",
             name: "Smart Board",
             icon: "/assets/icons/products/con_meeting_4.png"
           }
