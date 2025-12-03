@@ -554,11 +554,11 @@ const officeEquipmentConfig = {
             name: "Studio Monitor Speaker",
             icon: "/assets/icons/products/tech_aud_5.png"
           },
-          {
-            id: "tech_aud_6",
-            name: "Monitor Speaker",
-            icon: "/assets/icons/products/tech_aud_6.png"
-          }
+          // {
+          //   id: "tech_aud_6",
+          //   name: "Monitor Speaker",
+          //   icon: "/assets/icons/products/tech_aud_6.png"
+          // }
         ]
       }
     }
