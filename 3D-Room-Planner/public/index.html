@@ -1,343 +1,1030 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="theme-color" content="#000000" />
-    <meta name="description" content="3D Room Planner for gym equipment" />
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
-    <title>Sports Tech 3D Room Planner</title>
-    <style>
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#000000" />
+  <meta name="description" content="3D Room Planner for gym equipment" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+  <title>Sports Tech 3D Room Planner</title>
+  <style>
+    .room-popup {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: white;
+      width: 650px;
+      padding: 30px 40px;
+      box-shadow: 0 0 30px rgba(0, 0, 0, 0.2);
+      border-radius: 10px;
+      font-family: Arial, sans-serif;
+      z-index: 9000;
+      display: none;
+    }
+
+    /* Close button styles */
+    .close-btn {
+      position: absolute;
+      top: 11px;
+      right: 15px;
+      width: 25px;
+      height: 25px;
+      border-radius: 50%;
+      background: #161616; /* Brand red background */
+      border: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      z-index: 10;
+    }
+    .dark-mode .close-btn {
+      position: absolute;
+      top: 11px;
+      right: 15px;
+      width: 25px;
+      height: 25px;
+      border-radius: 50%;
+      background: #fcfcfc; /* Brand red background */
+      border: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      z-index: 10;
+    }
+
+    .close-btn i {
+      font-size: 14px;
+      color: white; /* White X icon */
+    }
+
+    .dark-mode .close-btn i {
+      font-size: 14px;
+      color: rgb(11, 11, 11); /* White X icon */
+    }
+
+    .close-btn:hover {
+      background: #d60000; /* Darker red on hover */
+      transform: scale(1.1); /* Slightly scale on hover */
+    }
+
+    .room-popup h3 {
+      margin-bottom: 20px;
+      font-weight: 600;
+    }
+
+    /* DESKTOP: 3×3 grid - NO scroll */
+    .room-shape-slider {
+      margin-bottom: 20px;
+    }
+
+    .room-options {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 15px;
+    }
+
+    .room-option {
+      text-align: center;
+      padding: 10px;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      transition: 0.3s;
+      cursor: pointer;
+      background: #fff;
+    }
+
+    .room-option:hover {
+      border-color: #E4002B;
+      background: #fef9f2;
+    }
+
+    .room-option img {
+      width: 70px;
+      height: 60px;
+    }
+
+    .room-option.selected-room {
+      border-color: #E4002B;
+      background-color: #fff1f1;
+      box-shadow: 0 0 10px rgba(228, 0, 43, 0.3);
+    }
+
+    /* Wall Settings - DESKTOP */
+    .wall-settings {
+      margin-bottom: 20px;
+    }
+
+    .wall-settings h4 {
+      margin-bottom: 15px;
+      color: #333;
+    }
+
+    .input-group {
+      display: flex;
+      gap: 20px;
+    }
+
+    .input-field {
+      flex: 1;
+    }
+
+    .input-field label {
+      display: block;
+      margin-bottom: 5px;
+      font-weight: 500;
+    }
+    
+    /* --- DESKTOP INPUT STYLES --- */
+    /* Hide the +/- buttons on desktop */
+    .control-btn {
+      display: none;
+    }
+
+    /* Make the controls container a simple block on desktop */
+    .input-controls {
+      display: block; /* Override flex from mobile */
+    }
+
+    /* Style the input field for desktop */
+    .input-field input {
+      width: 100%;
+      padding: 8px 12px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      font-size: 14px;
+      box-sizing: border-box; /* Ensure padding doesn't affect width */
+    }
+
+    .unit-display {
+      font-size: 12px;
+      color: #666;
+      margin-top: 3px;
+    }
+
+    .error-message {
+      color: #dc3545;
+      font-size: 12px;
+      margin-top: 3px;
+    }
+
+    .validation-error {
+      border-color: #dc3545 !important;
+      box-shadow: 0 0 0 2px rgba(220, 53, 69, 0.1) !important;
+    }
+
+    /* Preview box - hidden on desktop */
+    .preview-box {
+      display: none;
+    }
+
+    .popup-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 20px;
+    }
+
+    .popup-footer button {
+      background: #E4002B;
+      color: white;
+      border: none;
+      padding: 12px 30px;
+      border-radius: 6px;
+      font-weight: bold;
+      cursor: pointer;
+      transition: transform 0.2s ease, background 0.2s ease;
+      font-size: 16px;
+    }
+
+    .popup-footer button:hover {
+      background: #d60000;
+      transform: scale(1.05);
+    }
+
+    .popup-footer button:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    #overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: rgba(0, 0, 0, 0.5);
+      z-index: 8999;
+      display: none;
+    }
+
+    .selected {
+      font-size: 14px;
+      color: rgb(228, 0, 43);
+    }
+
+    /* Hide mobile LET'S GO button on desktop */
+    @media (min-width: 769px) {
+      .wall-settings .popup-footer {
+        display: none;
+      }
+    }
+
+    /* ===================== MOBILE ===================== */
+    @media (max-width: 768px) {
       .room-popup {
-        position: fixed;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        background: white;
-        width: 650px;
-        padding: 30px 40px;
-        box-shadow: 0 0 30px rgba(0,0,0,0.2);
-        border-radius: 10px;
-        font-family: Arial, sans-serif;
-        z-index: 9999;
-        display: none;
+        width: 95% !important;
+        max-width: 680px !important;
+        max-height: 88vh !important;
+        padding: 16px !important;
+        border-radius: 16px !important;
+        overflow: hidden !important;
       }
+
       .room-popup h3 {
-        margin-bottom: 20px;
-        font-weight: 600;
+        margin-bottom: 12px !important;
+        font-weight: 600 !important;
+        text-align: center !important;
+        font-size: 18px !important;
       }
+
+      /* MOBILE: Two column layout - shapes on left, settings on right */
+      .mobile-content {
+        display: flex !important;
+        gap: 12px !important;
+        height: calc(88vh - 80px) !important; /* Reduced height */
+        margin-bottom: 15px !important; /* Added margin bottom */
+      }
+
+      /* Left column - room shapes */
+      .room-shape-slider {
+        flex: 1 !important;
+        max-height: none !important; /* Remove max-height to use full container height */
+        overflow-y: auto !important;
+        overflow-x: hidden !important;
+        padding-right: 8px !important;
+        margin-bottom: 20px !important;
+      }
+
+      /* RED SCROLLBAR */
+      .room-shape-slider::-webkit-scrollbar {
+        width: 8px !important;
+      }
+
+      .room-shape-slider::-webkit-scrollbar-track {
+        background: #f1f1f1 !important;
+        border-radius: 8px !important;
+      }
+
+      .room-shape-slider::-webkit-scrollbar-thumb {
+        background: #E4002B !important;
+        border-radius: 8px !important;
+      }
+
+      .room-shape-slider::-webkit-scrollbar-thumb:hover {
+        background: #c50025 !important;
+      }
+
+      /* Firefox */
+      .room-shape-slider {
+        scrollbar-width: thin !important;
+        scrollbar-color: #CC0027 #FFCCD6 !important;
+      }
+
+      /* MOBILE: 1 COLUMN GRID */
       .room-options {
-        display: grid;
-        grid-template-columns: repeat(3, 1fr);
-        gap: 15px;
-        margin-bottom: 25px;
+        display: grid !important;
+        grid-template-columns: 1fr !important;
+        gap: 8px !important;
       }
+
       .room-option {
-        text-align: center;
-        padding: 10px;
-        border: 1px solid #ddd;
-        border-radius: 6px;
-        transition: 0.3s;
-        cursor: pointer;
+        text-align: center !important;
+        padding: 8px 6px !important;
+        border: 2px solid #ddd !important;
+        border-radius: 8px !important;
+        transition: 0.3s !important;
+        cursor: pointer !important;
+        background: #fff !important;
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: center !important;
+        justify-content: center !important;
       }
+
       .room-option:hover {
-        border-color: #E4002B;
-        background: #fef9f2;
+        border-color: #E4002B !important;
+        background: #fff8f8 !important;
+        transform: translateY(-2px) !important;
       }
+
+      /* Show images on mobile with bigger size */
       .room-option img {
-        width: 70px;
-        height: 60px;
+        display: block !important;
+        width: 90px !important; /* Made bigger */
+        height: 90px !important; /* Made bigger */
+        object-fit: contain !important;
+        margin-bottom: 8px !important;
       }
+
+      .room-option div {
+        font-size: 12px !important;
+        font-weight: 500 !important;
+      }
+
+      /* Right column - wall settings */
+      .wall-settings {
+        flex: 1 !important;
+        padding-top: 0 !important;
+        border-top: none !important;
+        border-left: 2px solid #f0f0f0 !important;
+        padding-left: 12px !important;
+        margin-bottom: 0 !important;
+        display: flex !important;
+        flex-direction: column !important;
+      }
+
+      .wall-settings h4 {
+        text-align: center !important;
+        margin-bottom: 12px !important;
+        color: #E4002B !important;
+        font-size: 16px !important;
+        font-weight: 700 !important;
+      }
+
+      .input-group {
+        display: flex !important;
+        flex-direction: column !important;
+        gap: 12px !important;
+      }
+
+      .input-field {
+        text-align: center !important;
+        flex: none !important;
+      }
+
+      .input-field label {
+        display: block !important;
+        margin-bottom: 6px !important;
+        font-weight: 300 !important;
+        font-size: 13px !important;
+      }
+
+      /* --- MOBILE INPUT STYLES --- */
+      /* Show the +/- buttons on mobile */
+      .control-btn {
+        display: flex !important;
+        width: 36px !important;
+        height: 36px !important;
+        background: #E4002B !important;
+        color: white !important;
+        border: none !important;
+        border-radius: 8px !important;
+        font-size: 20px !important;
+        font-weight: bold !important;
+        cursor: pointer !important;
+        align-items: center !important;
+        justify-content: center !important;
+        transition: all 0.2s ease !important;
+        line-height: 1 !important;
+      }
+
+      .control-btn:hover {
+        background: #c50025 !important;
+        transform: scale(1.05) !important;
+      }
+
+      .control-btn:active {
+        transform: scale(0.95) !important;
+      }
+
+      /* Make the controls container a flex container on mobile */
+      .input-controls {
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        gap: 8px !important;
+      }
+
+      /* Override the desktop input styles for mobile */
+      .input-field input {
+        width: 80px !important;
+        padding: 8px 6px !important;
+        border: 2px solid #ddd !important;
+        border-radius: 5px !important;
+        font-size: 14px !important;
+        font-weight: 600 !important;
+        text-align: center !important;
+        background: #f9f9f9 !important;
+      }
+
+      .input-field input:focus {
+        outline: none !important;
+        border-color: #E4002B !important;
+        background: white !important;
+      }
+
+      .unit-display {
+        font-size: 11px !important;
+        color: #E4002B !important;
+        margin-top: 4px !important;
+        font-weight: 500 !important;
+      }
+
+      /* Preview Box - Hide on mobile */
+      .preview-box {
+        display: none !important;
+      }
+
       .popup-footer {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
+        display: flex !important;
+        justify-content: center !important;
+        align-items: center !important;
+        margin-top: 12px !important;
       }
+
       .popup-footer button {
-        background: #E4002B;
-        color: white;
-        border: none;
-        padding: 12px 30px;
-        border-radius: 6px;
-        font-weight: bold;
-        cursor: pointer;
-        transition: transform 0.2s ease, background 0.2s ease;
-        font-size: 16px;
+        background: #E4002B !important;
+        color: white !important;
+        border: none !important;
+        padding: 10px 40px !important;
+        border-radius: 4px !important;
+        font-weight: bold !important;
+        cursor: pointer !important;
+        transition: transform 0.2s ease, background 0.2s ease !important;
+        font-size: 16px !important;
+        text-transform: uppercase !important;
+        letter-spacing: 1px !important;
       }
-      .popup-footer button:hover {
-        background: #d60000;
-        transform: scale(1.05);
+
+      /* Hide "Selected:" text on mobile */
+      .selected {
+        display: none !important;
       }
-      .popup-footer button:disabled {
-        background: #ccc;
-        cursor: not-allowed;
-        transform: none;
+
+      /* Hide desktop LET'S GO button on mobile */
+      .room-popup > .popup-footer {
+        display: none !important;
       }
-      #overlay {
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100vw;
-        height: 100vh;
-        background: rgba(0, 0, 0, 0.5);
-        z-index: 9998;
-        display: none;
+    }
+
+    @media (max-width: 480px) {
+      .room-popup {
+        width: 98% !important;
+        max-width: 420px !important;
+        padding: 12px !important;
       }
-      .room-option.selected-room {
-        border-color: #E4002B;
-        background-color: #fff1f1;
-        box-shadow: 0 0 10px rgba(228, 0, 43, 0.3);
+
+      .room-popup h3 {
+        font-size: 16px !important;
+        margin-bottom: 10px !important;
       }
-      .validation-error {
-        border-color: #dc3545 !important;
-        box-shadow: 0 0 0 2px rgba(220, 53, 69, 0.1) !important;
+
+      /* Keep the two-column layout even on small screens */
+      .mobile-content {
+        display: flex !important;
+        flex-direction: row !important; /* Keep row direction */
+        gap: 8px !important;
+        height: calc(88vh - 70px) !important; /* Adjust height for smaller screens */
+        margin-bottom: 15px !important; /* Added margin bottom */
       }
-      .error-message {
-        color: #dc3545;
-        font-size: 12px;
-        margin-top: 3px;
+
+      .room-shape-slider {
+        flex: 1 !important;
+        max-height: none !important;
+        padding-right: 5px !important;
       }
-    </style>
-  </head>
-  <body>
-    <div id="root"></div>
-    <div id="overlay"></div>
-    <div class="room-popup modal fade" id="roomPopup" data-backdrop="static" data-keyboard="false" tabindex="-1" aria-labelledby="roomPopupLabel" aria-hidden="true">
-      <div style="text-align: center; margin-bottom: 20px;">
-        <img src="assets/icons/stech-small.png" alt="Logo" style="height: 40px; vertical-align: middle; margin-right: 10px;">
-        <h3 style="display: inline-block; vertical-align: middle; margin: 0;">Select your room shape</h3>
-      </div>
-      
-      <div class="room-options">
-        <div class="room-option" data-shape="empty"><img src="assets/room-shapes/empty.svg"><div>No walls</div></div>
-        <div class="room-option" data-shape="rectangle"><img src="assets/room-shapes/squre.svg"><div>Rectangle</div></div>
-        <div class="room-option" data-shape="l"><img src="assets/room-shapes/l-shape.svg"><div>L-Shape</div></div>
-        <div class="room-option" data-shape="z"><img src="assets/room-shapes/z-shape.svg"><div>Z-Shape</div></div>
-        <div class="room-option" data-shape="s"><img src="assets/room-shapes/s-shape.svg"><div>S-Shape</div></div>
-        <div class="room-option" data-shape="t"><img src="assets/room-shapes/t-shape.svg"><div>T-Shape</div></div>
-        <div class="room-option" data-shape="u"><img src="assets/room-shapes/u-shape.svg"><div>U-Shape</div></div>
-        <div class="room-option" data-shape="corner"><img src="assets/room-shapes/corner.svg"><div>Corner</div></div>
-        <div class="room-option" data-shape="blunt"><img src="assets/room-shapes/bluntcorner.svg"><div>Blunt Corner</div></div>
+
+      .room-options {
+        gap: 6px !important;
+      }
+
+      .room-option {
+        padding: 6px 4px !important;
+      }
+
+      .room-option img {
+        width: 90px !important; /* Made bigger */
+        height: 90px !important; /* Made bigger */
+        margin-bottom: 6px !important;
+      }
+
+      .room-option div {
+        font-size: 11px !important;
+      }
+
+      .wall-settings {
+        flex: 1 !important;
+        border-left: 2px solid #f0f0f0 !important;
+        padding-left: 8px !important;
+        padding-top: 0 !important;
+        margin-bottom: 17px !important;
+      }
+
+      .wall-settings h4 {
+        font-size: 14px !important;
+        margin-bottom: 10px !important;
+      }
+
+      .input-group {
+        gap: 10px !important;
+      }
+
+      .control-btn {
+        width: 30px !important;
+        height: 30px !important;
+        font-size: 18px !important;
+        border-radius: 4px !important;
+      }
+
+      .input-field input {
+        width: 70px !important;
+        padding: 6px 4px !important;
+        font-size: 12px !important;
+        border-radius: 4px !important;
+      }
+
+      .input-field label {
+        font-size: 12px !important;
+        margin-bottom: 4px !important;
+      }
+
+      .unit-display {
+        font-size: 10px !important;
+      }
+
+      .popup-footer button {
+        width: 100% !important;
+        padding: 8px !important;
+        font-size: 14px !important;
+        border-radius: 4px !important;
+      }
+    }
+
+    @media (max-width: 360px) {
+      .room-popup {
+        padding: 8px !important;
+      }
+
+      .room-popup h3 {
+        font-size: 14px !important;
+        margin-bottom: 8px !important;
+      }
+
+      .mobile-content {
+        gap: 6px !important;
+        height: calc(88vh - 60px) !important;
+        margin-bottom: 15px !important; /* Added margin bottom */
+      }
+
+      .room-options {
+        gap: 4px !important;
+      }
+
+      .room-option {
+        padding: 4px 2px !important;
+        border-radius: 6px !important;
+      }
+
+      .room-option img {
+        width: 90px !important; /* Made bigger */
+        height: 90px !important; /* Made bigger */
+        margin-bottom: 4px !important;
+      }
+
+      .room-option div {
+        font-size: 10px !important;
+      }
+
+      .wall-settings {
+        padding-left: 6px !important;
+      }
+
+      .wall-settings h4 {
+        font-size: 12px !important;
+        margin-bottom: 8px !important;
+      }
+
+      .control-btn {
+        width: 26px !important;
+        height: 26px !important;
+        border-radius: 4px !important;
+        font-size: 16px !important;
+        
+      }
+
+      .input-field input {
+        width: 70px !important;
+        padding: 4px 2px !important;
+        font-size: 11px !important;
+        border-radius: 4px !important;
+      }
+
+      .input-field label {
+        font-size: 11px !important;
+        margin-bottom: 3px !important;
+      }
+
+      .unit-display {
+        font-size: 9px !important;
+      }
+
+      .popup-footer button {
+        padding: 10px !important;
+        font-size: 12px !important;
+        border-radius: 4px !important;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div id="root"></div>
+  <div id="overlay"></div>
+
+  <div class="room-popup" id="roomPopup">
+    <!-- Close button -->
+    <button class="close-btn" id="closePopupBtn">
+      <i class="fas fa-times"></i>
+    </button>
+    
+    <div style="text-align: center; margin-bottom: 20px;">
+      <img src="assets/icons/stech-small.png" alt="Logo"
+        style="height: 36px; vertical-align: middle; margin-right: 0px;">
+      <h3 style="display: inline-block; vertical-align: middle; margin: 0;">Select your room shape</h3>
+    </div>
+
+    <!-- MOBILE: Two column layout -->
+    <div class="mobile-content">
+      <!-- ROOM SHAPE OPTIONS - Vertical 1-column scroll -->
+      <div class="room-shape-slider">
+        <div class="room-options">
+          <div class="room-option" data-shape="empty">
+            <img src="assets/room-shapes/empty.svg">
+            <div>No walls</div>
+          </div>
+          <div class="room-option" data-shape="rectangle">
+            <img src="assets/room-shapes/squre.svg">
+            <div>Rectangle</div>
+          </div>
+          
+          <div class="room-option" data-shape="l">
+            <img src="assets/room-shapes/l-shape.svg">
+            <div>L-Shape</div>
+          </div>
+          <div class="room-option" data-shape="z">
+            <img src="assets/room-shapes/z-shape.svg">
+            <div>Z-Shape</div>
+          </div>
+          <div class="room-option" data-shape="s">
+            <img src="assets/room-shapes/s-shape.svg">
+            <div>S-Shape</div>
+          </div>
+          <div class="room-option" data-shape="t">
+            <img src="assets/room-shapes/t-shape.svg">
+            <div>T-Shape</div>
+          </div>
+          <div class="room-option" data-shape="u">
+            <img src="assets/room-shapes/u-shape.svg">
+            <div>U-Shape</div>
+          </div>
+          <div class="room-option" data-shape="corner">
+            <img src="assets/room-shapes/corner.svg">
+            <div>Corner</div>
+          </div>
+          <div class="room-option" data-shape="blunt">
+            <img src="assets/room-shapes/bluntcorner.svg">
+            <div>Blunt Corner</div>
+          </div>
+        </div>
       </div>
 
-      <div class="wall-settings"   >
-        <h4><i class="fas fa-cog"></i> Wall Settings</h4>
+      <!-- Wall Settings with +/- Buttons -->
+      <div class="wall-settings">
+        <h4>Wall Settings</h4>
         <div class="input-group">
           <div class="input-field">
-            <label for="wallHeight" >Wall Height</label>
-            <input type="number" id="wallHeight" placeholder="2.5" min="2" max="5" step="0.1" value="2.5">
-            <div class="unit-display">meters (2-5m)</div>
+            <label for="wallHeight">Wall Height:</label>
+            <div class="input-controls">
+              <button class="control-btn" id="decHeight">−</button>
+              <input type="number" id="wallHeight" min="2" max="5" step="0.1" value="2.5">
+              <button class="control-btn" id="incHeight">+</button>
+            </div>
+            <div class="unit-display">Meters (2-5m)</div>
             <div class="error-message" id="heightError"></div>
           </div>
           <div class="input-field">
-            <label for="wallThickness">Wall Thickness</label>
-            <input type="number" id="wallThickness" placeholder="0.2" min="0.1" max="0.5" step="0.01" value="0.2">
-            <div class="unit-display">meters (0.1-0.5m)</div>
+            <label for="wallThickness">Wall Thickness:</label>
+            <div class="input-controls">
+              <button class="control-btn" id="decThick">−</button>
+              <input type="number" id="wallThickness" min="0.1" max="0.5" step="0.01" value="0.2">
+              <button class="control-btn" id="incThick">+</button>
+            </div>
+            <div class="unit-display">Meters (0.1-0.5m)</div>
             <div class="error-message" id="thicknessError"></div>
           </div>
         </div>
-      </div>
-
-      <div class="popup-footer">
-        <div class="selected" style="font-size: 14px; color: rgb(228, 0, 43)">
-          <i class="fas fa-info-circle"></i> Selected: <span id="selectedShapeText">Rectangle</span>
+        
+        <!-- Preview Box - Still in HTML but hidden by CSS on mobile -->
+        <div class="preview-box">
+          <img id="previewImage" src="assets/room-shapes/squre.svg" alt="Selected shape">
+          <div class="shape-name" id="previewShapeName">Rectangle</div>
         </div>
-        <button id="letsGoBtn">LET'S GO</button>
+        
+        <div class="popup-footer">
+          <button id="letsGoBtn">LET'S GO</button>
+        </div>
       </div>
     </div>
 
-    <script>
-      window.addEventListener('load', () => {
-        setTimeout(() => {
-          const popup = document.getElementById('roomPopup');
-          const overlay = document.getElementById('overlay');
-          const roomOptions = document.querySelectorAll('.room-option');
-          const letsGoBtn = document.getElementById('letsGoBtn');
-          const wallHeightInput = document.getElementById('wallHeight');
-          const wallThicknessInput = document.getElementById('wallThickness');
-          const selectedShapeText = document.getElementById('selectedShapeText');
-          const heightError = document.getElementById('heightError');
-          const thicknessError = document.getElementById('thicknessError');
-          
-          popup.style.display = 'block';
-          overlay.style.display = 'block';
+    <!-- Desktop footer -->
+    <div class="popup-footer">
+      <div class="selected" style="font-size: 14px; color: rgb(228, 0, 43)">
+        <i class="fas fa-info-circle"></i> Selected: <span id="selectedShapeText">Rectangle</span>
+      </div>
+      <button id="letsGoBtnDesktop">LET'S GO</button>
+    </div>
+  </div>
 
-          let selectedShape = "rectangle";
-          let wallHeight = 2.5;
-          let wallThickness = 0.2;
+  <script>
+    window.addEventListener('load', () => {
+      setTimeout(() => {
+        const popup = document.getElementById('roomPopup');
+        const overlay = document.getElementById('overlay');
+        const letsGoBtn = document.getElementById('letsGoBtn');
+        const letsGoBtnDesktop = document.getElementById('letsGoBtnDesktop');
+        const wallHeightInput = document.getElementById('wallHeight');
+        const wallThicknessInput = document.getElementById('wallThickness');
+        const selectedShapeText = document.getElementById('selectedShapeText');
+        const heightError = document.getElementById('heightError');
+        const thicknessError = document.getElementById('thicknessError');
+        const previewImage = document.getElementById('previewImage');
+        const previewShapeName = document.getElementById('previewShapeName');
+        const incHeight = document.getElementById('incHeight');
+        const decHeight = document.getElementById('decHeight');
+        const incThick = document.getElementById('incThick');
+        const decThick = document.getElementById('decThick');
+        const closePopupBtn = document.getElementById('closePopupBtn');
 
-          // Room shape selection
-          roomOptions.forEach(option => {
-            option.addEventListener('click', () => {
-              roomOptions.forEach(opt => opt.classList.remove('selected-room'));
-              option.classList.add('selected-room');
-              selectedShape = option.getAttribute('data-shape');
-              selectedShapeText.textContent = option.querySelector('div').textContent;
-              console.log("Room shape selected:", selectedShape);
-            });
+        popup.style.display = 'block';
+        overlay.style.display = 'block';
+
+        let selectedShape = "rectangle";
+        let wallHeight = 2.5;
+        let wallThickness = 0.2;
+
+        // Get all room options
+        const allRoomOptions = document.querySelectorAll('.room-option');
+
+        // Room shape selection
+        allRoomOptions.forEach(option => {
+          option.addEventListener('click', () => {
+            allRoomOptions.forEach(opt => opt.classList.remove('selected-room'));
+            option.classList.add('selected-room');
+
+            selectedShape = option.getAttribute('data-shape');
+            const shapeName = option.querySelector('div').textContent;
+
+            // Update preview (only visible on desktop)
+            previewImage.src = option.querySelector('img').src;
+            previewShapeName.textContent = shapeName;
+            selectedShapeText.textContent = shapeName;
+
+            console.log("Room shape selected:", selectedShape);
           });
+        });
 
-          // Input validation functions
-          function validateHeight() {
-            const value = parseFloat(wallHeightInput.value);
-            heightError.textContent = '';
-            wallHeightInput.classList.remove('validation-error');
-            
-            if (isNaN(value) || value < 2 || value > 5) {
-              heightError.textContent = 'Height must be between 2 and 5 meters';
-              wallHeightInput.classList.add('validation-error');
-              return false;
-            }
-            wallHeight = value;
-            return true;
-          }
-
-          function validateThickness() {
-            const value = parseFloat(wallThicknessInput.value);
-            thicknessError.textContent = '';
-            wallThicknessInput.classList.remove('validation-error');
-            
-            if (isNaN(value) || value < 0.1 || value > 0.5) {
-              thicknessError.textContent = 'Thickness must be between 0.1 and 0.5 meters';
-              wallThicknessInput.classList.add('validation-error');
-              return false;
-            }
-            wallThickness = value;
-            return true;
-          }
-
-          function validateInputs() {
-            const heightValid = validateHeight();
-            const thicknessValid = validateThickness();
-            
-            letsGoBtn.disabled = !(heightValid && thicknessValid);
-            return heightValid && thicknessValid;
-          }
-
-          // Input event listeners
-          wallHeightInput.addEventListener('input', validateInputs);
-          wallThicknessInput.addEventListener('blur', validateInputs);
-          wallThicknessInput.addEventListener('input', validateInputs);
-          wallHeightInput.addEventListener('blur', validateInputs);
-
-          // Initialize validation
+        // +/- Button handlers
+        incHeight.addEventListener('click', () => {
+          wallHeight = Math.min(parseFloat(wallHeight) + 0.1, 5);
+          wallHeight = Math.round(wallHeight * 10) / 10;
+          wallHeightInput.value = wallHeight;
           validateInputs();
+        });
 
-          // Let's Go button click
-          letsGoBtn.addEventListener('click', () => {
-            if (!validateInputs()) {
-              return;
-            }
+        decHeight.addEventListener('click', () => {
+          wallHeight = Math.max(parseFloat(wallHeight) - 0.1, 2);
+          wallHeight = Math.round(wallHeight * 10) / 10;
+          wallHeightInput.value = wallHeight;
+          validateInputs();
+        });
 
-            popup.style.display = 'none';
-            overlay.style.display = 'none';
-            
-            console.log("🚀 Room Configuration:");
-            console.log("- Shape:", selectedShape);
-            console.log("- Wall Height:", wallHeight, "meters");
-            console.log("- Wall Thickness:", wallThickness, "meters");
+        incThick.addEventListener('click', () => {
+          wallThickness = Math.min(parseFloat(wallThickness) + 0.01, 0.5);
+          wallThickness = Math.round(wallThickness * 100) / 100;
+          wallThicknessInput.value = wallThickness;
+          validateInputs();
+        });
 
-            // Store configuration globally
-            window.roomConfiguration = {
-              shape: selectedShape,
-              wallHeight: wallHeight,
-              wallThickness: wallThickness
-            };
+        decThick.addEventListener('click', () => {
+          wallThickness = Math.max(parseFloat(wallThickness) - 0.01, 0.1);
+          wallThickness = Math.round(wallThickness * 100) / 100;
+          wallThicknessInput.value = wallThickness;
+          validateInputs();
+        });
 
-            if (window.roomInstance && typeof window.roomInstance.buildFromPolygon === 'function') {
-              console.log("📦 Building room with configuration");
-              window.loadShapeFromTemplate(selectedShape, wallHeight, wallThickness);
-            }
-          });
+        // Close popup button handler
+        closePopupBtn.addEventListener('click', () => {
+          popup.style.display = 'none';
+          overlay.style.display = 'none';
+        });
 
-          // Set default selected shape
-          roomOptions[1].classList.add('selected-room'); // Rectangle
-        }, 1000);
+        // Close popup when clicking on overlay
+        overlay.addEventListener('click', () => {
+          popup.style.display = 'none';
+          overlay.style.display = 'none';
+        });
+
+        // Input validation
+        function validateHeight() {
+          const value = parseFloat(wallHeightInput.value);
+          heightError.textContent = '';
+          wallHeightInput.classList.remove('validation-error');
+
+          if (isNaN(value) || value < 2 || value > 5) {
+            heightError.textContent = 'Must be 2-5 meters';
+            wallHeightInput.classList.add('validation-error');
+            return false;
+          }
+          wallHeight = value;
+          return true;
+        }
+
+        function validateThickness() {
+          const value = parseFloat(wallThicknessInput.value);
+          thicknessError.textContent = '';
+          wallThicknessInput.classList.remove('validation-error');
+
+          if (isNaN(value) || value < 0.1 || value > 0.5) {
+            thicknessError.textContent = 'Must be 0.1-0.5 meters';
+            wallThicknessInput.classList.add('validation-error');
+            return false;
+          }
+          wallThickness = value;
+          return true;
+        }
+
+        function validateInputs() {
+          const heightValid = validateHeight();
+          const thicknessValid = validateThickness();
+          letsGoBtn.disabled = !(heightValid && thicknessValid);
+          letsGoBtnDesktop.disabled = !(heightValid && thicknessValid);
+          return heightValid && thicknessValid;
+        }
+
+        wallHeightInput.addEventListener('input', validateInputs);
+        wallThicknessInput.addEventListener('input', validateInputs);
+        wallHeightInput.addEventListener('blur', validateInputs);
+        wallThicknessInput.addEventListener('blur', validateInputs);
+
+        validateInputs();
+
+        // Common function for both buttons
+        function handleLetsGo() {
+          if (!validateInputs()) {
+            return;
+          }
+
+          popup.style.display = 'none';
+          overlay.style.display = 'none';
+
+          console.log("🚀 Room Configuration:");
+          console.log("- Shape:", selectedShape);
+          console.log("- Wall Height:", wallHeight, "meters");
+          console.log("- Wall Thickness:", wallThickness, "meters");
+
+          window.roomConfiguration = {
+            shape: selectedShape,
+            wallHeight: wallHeight,
+            wallThickness: wallThickness
+          };
+
+          if (window.roomInstance && typeof window.roomInstance.buildFromPolygon === 'function') {
+            console.log("📦 Building room with configuration");
+            window.loadShapeFromTemplate(selectedShape, wallHeight, wallThickness);
+          }
+        }
+
+        letsGoBtn.addEventListener('click', handleLetsGo);
+        letsGoBtnDesktop.addEventListener('click', handleLetsGo);
+
+        // Select Rectangle by default
+        allRoomOptions.forEach(opt => {
+          if (opt.getAttribute('data-shape') === 'rectangle') {
+            opt.classList.add('selected-room');
+          }
+        });
+      }, 1000);
+    });
+
+    /* Screen-dependent scale factor */
+    function getRoomScaleForScreen() {
+      if (typeof window === 'undefined') return 1;
+      const w = window.innerWidth;
+      if (w <= 360) return 0.45;
+      else if (w <= 480) return 0.55;
+      else if (w <= 768) return 0.7;
+      else if (w <= 1024) return 0.85;
+      else return 1;
+    }
+
+    /* loadShapeFromTemplate */
+    window.loadShapeFromTemplate = function (shapeName, height = 2.5, thickness = 0.2) {
+      console.log("🧩 loadShapeFromTemplate CALLED with:", {
+        shape: shapeName,
+        height: height,
+        thickness: thickness
       });
 
-      window.loadShapeFromTemplate = function (shapeName, height = 2.5, thickness = 0.2) {
-        console.log("🧩 loadShapeFromTemplate CALLED with:", {
-          shape: shapeName,
-          height: height,
-          thickness: thickness
-        });
+      if (!window.roomInstance || typeof window.roomInstance.buildFromPolygon !== 'function') {
+        console.error("❌ roomInstance or buildFromPolygon() not ready");
+        return;
+      }
 
-        if (!window.roomInstance || typeof window.roomInstance.buildFromPolygon !== 'function') {
-          console.error("❌ roomInstance or buildFromPolygon() not ready");
-          return;
-        }
-
-        const shapes = {
-          empty: [
-            { x: -6.75, z: -6.75 }, { x: 6.75, z: -6.75 },
-            { x: 6.75, z: 6.75 }, { x: -6.75, z: 6.75 }
-          ],
-          rectangle: [
-            { x: -6.0, z: -5.25 }, { x: 6.0, z: -5.25 },
-            { x: 6.0, z: 5.25 }, { x: -6.0, z: 5.25 }
-          ],
-          l: [
-            { x: -2.0, z: 2.0 }, { x: 2.5, z: 2.0 },
-            { x: 2.5, z: 0.5 }, { x: -0.5, z: 0.5 },
-            { x: -0.5, z: -2.5 }, { x: -2.0, z: -2.5 }
-          ],
-          z: [
-            { x: -1.5, z: -3.0 }, { x: 4.5, z: -3.0 },
-            { x: 4.5, z: 0.0 }, { x: 1.5, z: 0.0 },
-            { x: 1.5, z: 3.0 }, { x: -4.5, z: 3.0 },
-            { x: -4.5, z: 0.0 }, { x: -1.5, z: 0.0 }
-          ],
-          s: [
-            { x: -1.5, z: -3.0 }, { x: 4.5, z: -3.0 },
-            { x: 4.5, z: 0.0 }, { x: 1.5, z: 0.0 },
-            { x: 1.5, z: 3.0 }, { x: -4.5, z: 3.0 },
-            { x: -4.5, z: 0.0 }, { x: -1.5, z: 0.0 }
-          ],
-          t: [
-            { x: -3.0, z: -3.0 }, { x: 3.0, z: -3.0 },
-            { x: 3.0, z: 0.0 }, { x: 1.5, z: 0.0 },
-            { x: 1.5, z: 3.0 }, { x: -1.5, z: 3.0 },
-            { x: -1.5, z: 0.0 }, { x: -3.0, z: 0.0 }
-          ],
-          u: [
-            { x: -2.25, z: 1.875 }, { x: 2.25, z: 1.875 },
-            { x: 2.25, z: -1.125 }, { x: 0.75, z: -1.125 },
-            { x: 0.75, z: 0.375 }, { x: -0.75, z: 0.375 },
-            { x: -0.75, z: -1.125 }, { x: -2.25, z: -1.125 }
-          ],
-          corner: [
-            { x: -2.0, z: -2.0 }, { x: 2.5, z: -2.0 },
-            { x: 2.5, z: -0.5 }, { x: -0.5, z: -0.5 },
-            { x: -0.5, z: 2.5 }, { x: -2.0, z: 2.5 }
-          ],
-          blunt: [
-            { x: 0.66, z: -5.25 }, { x: 4.86, z: 0.9 },
-            { x: 4.86, z: 4.8 }, { x: -5.19, z: 4.8 },
-            { x: -5.19, z: -5.25 }
-          ]
-        };
-
-        const points = shapes[shapeName];
-        if (!points) {
-          console.warn("⚠️ Unknown shape:", shapeName);
-          return;
-        }
-
-        const isEmpty = shapeName === "empty";
-
-        console.log("🏗️ Building polygon room with:", {
-          points: points,
-          isEmpty: isEmpty,
-          wallHeight: height,
-          wallThickness: thickness
-        });
-
-        // Pass the height and thickness to your room building function
-        window.roomInstance.buildFromPolygon(points, isEmpty, {
-          height: height,
-          thickness: thickness
-        });
+      const baseShapes = {
+        empty: [
+          { x: -6.75, z: -6.75 }, { x: 6.75, z: -6.75 },
+          { x: 6.75, z: 6.75 }, { x: -6.75, z: 6.75 }
+        ],
+        rectangle: [
+          { x: -6.0, z: -5.25 }, { x: 6.0, z: -5.25 },
+          { x: 6.0, z: 5.25 }, { x: -6.0, z: 5.25 }
+        ],
+        l: [
+          { x: -2.0, z: 2.0 }, { x: 2.5, z: 2.0 },
+          { x: 2.5, z: 0.5 }, { x: -0.5, z: 0.5 },
+          { x: -0.5, z: -2.5 }, { x: -2.0, z: -2.5 }
+        ],
+        z: [
+          { x: -1.5, z: -3.0 }, { x: 4.5, z: -3.0 },
+          { x: 4.5, z: 0.0 }, { x: 1.5, z: 0.0 },
+          { x: 1.5, z: 3.0 }, { x: -4.5, z: 3.0 },
+          { x: -4.5, z: 0.0 }, { x: -1.5, z: 0.0 }
+        ],
+        s: [
+          { x: -1.5, z: -3.0 }, { x: 4.5, z: -3.0 },
+          { x: 4.5, z: 0.0 }, { x: 1.5, z: 0.0 },
+          { x: 1.5, z: 3.0 }, { x: -4.5, z: 3.0 },
+          { x: -4.5, z: 0.0 }, { x: -1.5, z: 0.0 }
+        ],
+        t: [
+          { x: -3.0, z: -3.0 }, { x: 3.0, z: -3.0 },
+          { x: 3.0, z: 0.0 }, { x: 1.5, z: 0.0 },
+          { x: 1.5, z: 3.0 }, { x: -1.5, z: 3.0 },
+          { x: -1.5, z: 0.0 }, { x: -3.0, z: 0.0 }
+        ],
+        u: [
+          { x: -2.25, z: 1.875 }, { x: 2.25, z: 1.875 },
+          { x: 2.25, z: -1.125 }, { x: 0.75, z: -1.125 },
+          { x: 0.75, z: 0.375 }, { x: -0.75, z: 0.375 },
+          { x: -0.75, z: -1.125 }, { x: -2.25, z: -1.125 }
+        ],
+        corner: [
+          { x: -2.0, z: -2.0 }, { x: 2.5, z: -2.0 },
+          { x: 2.5, z: -0.5 }, { x: -0.5, z: -0.5 },
+          { x: -0.5, z: 2.5 }, { x: -2.0, z: 2.5 }
+        ],
+        blunt: [
+          { x: 0.66, z: -5.25 }, { x: 4.86, z: 0.9 },
+          { x: 4.86, z: 4.8 }, { x: -5.19, z: 4.8 },
+          { x: -5.19, z: -5.25 }
+        ]
       };
-    </script>
-  </body>
+
+      const basePoints = baseShapes[shapeName];
+      if (!basePoints) {
+        console.warn("⚠️ Unknown shape:", shapeName);
+        return;
+      }
+
+      const isEmpty = shapeName === "empty";
+      const scale = getRoomScaleForScreen();
+      const scaledPoints = basePoints.map(p => ({
+        x: p.x * scale,
+        z: p.z * scale
+      }));
+
+      console.log("🏗️ Building polygon room with:", {
+        shapeName,
+        scale,
+        points: scaledPoints,
+        isEmpty,
+        wallHeight: height,
+        wallThickness: thickness
+      });
+
+      window.roomInstance.buildFromPolygon(scaledPoints, isEmpty, {
+        height: height,
+        thickness: thickness
+      });
+    };
+  </script>
+</body>
+
 </html>

@@ -77,9 +77,9 @@ const MoreOptionsModal = ({ isOpen, onClose, onViewAction }) => {
       const storedDarkMode = localStorage.getItem('isDarkMode') === 'true';
       
       return {
-        grid: true, // Default state, no localStorage
-        objectDimensions: false, // Default state, no localStorage
-        darkMode: storedDarkMode, // Only dark mode uses localStorage
+        grid: true,
+        objectDimensions: false,
+        darkMode: storedDarkMode,
       };
     } catch {
       return {
@@ -113,13 +113,11 @@ const MoreOptionsModal = ({ isOpen, onClose, onViewAction }) => {
   const [logs, setLogs] = useState([]);
   const eventListenersRef = useRef(new Map());
 
-  // Enhanced logging function
   const addLog = useCallback((message, type = 'info') => {
     const timestamp = new Date().toLocaleTimeString();
     setLogs(prev => [...prev.slice(-4), { message, type, timestamp }]);
   }, []);
 
-  // Component checker for real environment
   const checkComponents = useCallback(() => {
     const floorEditorExists = !!window.floorDimensionEditor;
     const sceneManagerExists = !!window.sceneManager;
@@ -141,11 +139,10 @@ const MoreOptionsModal = ({ isOpen, onClose, onViewAction }) => {
       floorEditor: floorEditorMethods,
       sceneManager: sceneManagerMethods,
       bothReady: floorEditorMethods && sceneManagerMethods,
-      available: floorEditorExists || sceneManagerExists, // At least one component exists
+      available: floorEditorExists || sceneManagerExists,
     };
   }, []);
 
-  // Enhanced dimension activation with proper retry logic
   const activateDimensions = useCallback(async (enable) => {
     const action = enable ? 'ACTIVATING' : 'DEACTIVATING';
     console.log(`🎯 ${action} dimensions`);
@@ -168,7 +165,6 @@ const MoreOptionsModal = ({ isOpen, onClose, onViewAction }) => {
         
         const components = checkComponents();
         
-        // If external components are available and ready, use them
         if (components.bothReady) {
           console.log('✅ Components ready, activating...');
           addLog('Components ready, activating...', 'success');
@@ -181,7 +177,6 @@ const MoreOptionsModal = ({ isOpen, onClose, onViewAction }) => {
               window.floorDimensionEditor.quickActivate();
             }
             
-            // Dispatch custom events
             const events = [
               { name: 'objectDimensionsToggle', detail: { visible: true, source: 'modal' } },
               { name: 'floorDimensionsToggle', detail: { visible: true, source: 'modal' } },
@@ -209,19 +204,17 @@ const MoreOptionsModal = ({ isOpen, onClose, onViewAction }) => {
             setDimensionStatus(prev => ({ ...prev, isActivating: false }));
           }
         }
-        // If no external components are available, fallback to basic event dispatch
         else if (attemptNumber === 0) {
           console.log('⚠️ External components not available, using fallback activation');
           addLog('External components not found, using fallback...', 'warning');
           
           try {
-            // Just dispatch events without calling external methods
             const events = [
               { name: 'objectDimensionsToggle', detail: { visible: true, source: 'modal' } },
               { name: 'floorDimensionsToggle', detail: { visible: true, source: 'modal' } },
               { name: 'updateToolbarButton', detail: { action: 'toggle-floor-dimensions', active: true, source: 'modal' } },
               { name: 'syncIconButton', detail: { action: 'toggle-floor-dimensions', active: true, source: 'modal' } },
-              { name: 'dimensionsActivated', detail: { active: true, source: 'modal', fallback: true } }, // Additional event
+              { name: 'dimensionsActivated', detail: { active: true, source: 'modal', fallback: true } },
             ];
             
             events.forEach(event => {
@@ -229,7 +222,6 @@ const MoreOptionsModal = ({ isOpen, onClose, onViewAction }) => {
               console.log(`📡 Dispatched: ${event.name}`, event.detail);
             });
             
-            // Also try dispatching to document in case listeners are there
             events.forEach(event => {
               document.dispatchEvent(new CustomEvent(event.name, { detail: event.detail }));
             });
@@ -237,7 +229,7 @@ const MoreOptionsModal = ({ isOpen, onClose, onViewAction }) => {
             setTimeout(() => {
               setDimensionStatus(prev => ({ ...prev, isActivating: false }));
               setSettings(prev => ({ ...prev, objectDimensions: true }));
-              setSyncStatus(prev => ({ ...prev, dimensionsConnected: false })); // Mark as disconnected since no external components
+              setSyncStatus(prev => ({ ...prev, dimensionsConnected: false }));
               addLog('✅ Fallback activation complete!', 'success');
               addLog('ℹ️ Check if 3D scene components are loaded', 'info');
             }, 200);
@@ -251,7 +243,6 @@ const MoreOptionsModal = ({ isOpen, onClose, onViewAction }) => {
           }
         }
 
-        // Retry logic only if we haven't tried fallback yet and have some components available
         if (attemptNumber < maxAttempts - 1 && components.available) {
           const delay = delays[attemptNumber + 1];
           console.log(`⏳ Retrying in ${delay}ms...`);
@@ -273,7 +264,6 @@ const MoreOptionsModal = ({ isOpen, onClose, onViewAction }) => {
       addLog('Deactivating dimensions...', 'info');
       
       try {
-        // Try to use real window objects if available
         if (window.floorDimensionEditor && typeof window.floorDimensionEditor.clearEditor === 'function') {
           window.floorDimensionEditor.clearEditor();
         }
@@ -281,7 +271,6 @@ const MoreOptionsModal = ({ isOpen, onClose, onViewAction }) => {
           window.sceneManager.clearObjectDimensions();
         }
         
-        // Always dispatch events regardless of external component availability
         const events = [
           { name: 'objectDimensionsToggle', detail: { visible: false, source: 'modal' } },
           { name: 'floorDimensionsToggle', detail: { visible: false, source: 'modal' } },
@@ -308,17 +297,14 @@ const MoreOptionsModal = ({ isOpen, onClose, onViewAction }) => {
       }
     }
 
-    // Call external callback if provided
     if (onViewAction) {
       onViewAction('toggle-floor-dimensions', enable);
     }
   }, [addLog, checkComponents, onViewAction]);
 
-  // Enhanced event handling
   useEffect(() => {
     const componentCheckInterval = setInterval(checkComponents, 2000);
 
-    // Event handlers
     const handleGridStateChange = (e) => {
       const { visible, source } = e.detail;
       setSyncStatus(prev => ({ ...prev, gridConnected: true }));
@@ -395,7 +381,6 @@ const MoreOptionsModal = ({ isOpen, onClose, onViewAction }) => {
       }
     };
 
-    // Register event listeners with fixed ref
     const currentEventListeners = eventListenersRef.current;
     const eventHandlers = [
       ['gridStateChanged', handleGridStateChange],
@@ -415,7 +400,6 @@ const MoreOptionsModal = ({ isOpen, onClose, onViewAction }) => {
 
     return () => {
       clearInterval(componentCheckInterval);
-      // Clean up event listeners
       eventHandlers.forEach(([eventName]) => {
         const handler = currentEventListeners.get(eventName);
         if (handler) {
@@ -426,10 +410,8 @@ const MoreOptionsModal = ({ isOpen, onClose, onViewAction }) => {
     };
   }, [addLog, activateDimensions, dimensionStatus.isActivating, checkComponents]);
 
-  // Handle setting changes - only dark mode uses localStorage
   useEffect(() => {
     try {
-      // Only save dark mode to localStorage
       localStorage.setItem('isDarkMode', settings.darkMode ? 'true' : 'false');
       
       document.body.classList.toggle('dark-mode', settings.darkMode);
@@ -441,7 +423,50 @@ const MoreOptionsModal = ({ isOpen, onClose, onViewAction }) => {
     } catch (error) {
       console.warn('Storage not available:', error);
     }
-  }, [settings.darkMode]); // Removed grid and objectDimensions from dependency
+  }, [settings.darkMode]);
+
+  // ✅ Hide/Show ViewControls when modal opens/closes
+  // ✅ Hide bottom container, zoom controls, and close side panels
+  useEffect(() => {
+  const hideShowControls = () => {
+    const mobileContainer = document.querySelector('.mobile-controls-unified-container');
+    const zoomControls = document.querySelector('.view-controls-mobile-wrapper .zoom-controls');
+    const undoRedoControls = document.querySelector('.view-controls-mobile-wrapper .mobile-undo-redo-controls');
+
+    // ✅ side panels (office + products both share .side-panel)
+    const sidePanels = document.querySelectorAll('.side-panel');
+
+    if (isOpen) {
+      // Hide when settings opens
+      mobileContainer?.style.setProperty('display', 'none', 'important');
+      zoomControls?.style.setProperty('display', 'none', 'important');
+      undoRedoControls?.style.setProperty('display', 'none', 'important');
+
+      sidePanels.forEach((p) => p.style.setProperty('display', 'none', 'important'));
+    } else {
+      // Show when settings closes
+      mobileContainer && (mobileContainer.style.display = 'flex');
+      zoomControls && (zoomControls.style.display = 'flex');
+      undoRedoControls && (undoRedoControls.style.display = 'flex');
+
+      // restore panels (only if they were open already, display should be default)
+      sidePanels.forEach((p) => p.style.removeProperty('display'));
+    }
+  };
+
+  hideShowControls();
+
+  const t1 = setTimeout(hideShowControls, 50);
+  const t2 = setTimeout(hideShowControls, 100);
+  const t3 = setTimeout(hideShowControls, 200);
+
+  return () => {
+    clearTimeout(t1);
+    clearTimeout(t2);
+    clearTimeout(t3);
+  };
+}, [isOpen]);
+
 
   const toggleSetting = (key) => {
     if (key === 'objectDimensions' && dimensionStatus.isActivating) {
@@ -456,7 +481,6 @@ const MoreOptionsModal = ({ isOpen, onClose, onViewAction }) => {
     if (key === 'grid') {
       addLog(`Grid ${newValue ? 'enabled' : 'disabled'}`, 'info');
       
-      // Dispatch grid events (no localStorage)
       window.dispatchEvent(new CustomEvent('gridToggle', {
         detail: { visible: newValue, source: 'modal' }
       }));
@@ -514,8 +538,25 @@ const MoreOptionsModal = ({ isOpen, onClose, onViewAction }) => {
           .settings-panel {
             animation: slideIn 0.3s ease-out;
           }
+          
+          /* Settings overlay background */
+          .settings-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 9999;
+          }
         `}
       </style>
+
+      {/* Overlay background - click to close */}
+      <div 
+        className="settings-overlay"
+        onClick={onClose}
+      />
 
       <div 
         className="settings-panel"
@@ -530,7 +571,7 @@ const MoreOptionsModal = ({ isOpen, onClose, onViewAction }) => {
             Settings
           </h2>
           <button 
-            onClick={onClose} 
+            onClick={onClose}
             style={{ 
               ...styles.closeButton, 
               color: settings.darkMode ? '#a0aec0' : '#666',
@@ -633,7 +674,7 @@ const styles = {
     height: '100vh',
     padding: '20px',
     boxShadow: '-2px 0 8px rgba(0,0,0,0.2)',
-    zIndex: 9999,
+    zIndex: 10000,
     fontFamily: 'system-ui, sans-serif',
     transition: 'all 0.3s ease',
     overflowY: 'auto',

@@ -184,7 +184,11 @@ const Toolbar = ({
         onClose={() => {
           setIsMoreOptionsOpen(false);
           setActiveButton(null);
-          setShowSidePanel(true);
+          // ✅ Only open side panel on desktop, not mobile
+          const isMobile = typeof window !== 'undefined' && window.innerWidth <= 768;
+          if (!isMobile) {
+            setShowSidePanel(true);
+          }
         }}
         onViewAction={onViewAction}
       />

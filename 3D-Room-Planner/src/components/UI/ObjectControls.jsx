@@ -1,6 +1,6 @@
-// src/components/UI/ObjectControls.jsx
 import React, { useState, useEffect } from 'react';
 import ARQrModal from './ARQrModal';
+
 const ObjectControls = ({
   selectedObject,
   onObjectAction,
@@ -9,15 +9,15 @@ const ObjectControls = ({
 }) => {
   const [qrVisible, setQrVisible] = useState(false);
   const [qrModelName, setQrModelName] = useState(null);
-  // Move useState to the top, before any returns
   const [isAnimating, setIsAnimating] = useState(false);
   const [isPinned, setIsPinned] = useState(false);
+
+  // Check if mobile
+  const isMobile = typeof window !== 'undefined' && window.innerWidth <= 768;
 
   // Sync local pin state whenever selectedObject changes
   useEffect(() => {
     setIsPinned(selectedObject?.userData?.isPinned || false);
-
-    // Check if the selectedObject's animation is running
     setIsAnimating(selectedObject?.userData?.isAnimating || false);
   }, [selectedObject]);
 
@@ -37,12 +37,11 @@ const ObjectControls = ({
   const handleAnimationClick = () => {
     onObjectAction('animate');
     setIsAnimating(!isAnimating);
-    // Update the selectedObject's userData to reflect the animation state
     if (selectedObject.userData) {
       selectedObject.userData.isAnimating = !isAnimating;
     }
   };
-  // When pin button clicked, update local state AND call handler
+
   const handlePinClick = () => {
     if (isPinned) {
       setIsPinned(false);
@@ -53,6 +52,86 @@ const ObjectControls = ({
     }
   };
 
+  const handleARClick = () => {
+    const modelType = selectedObject?.userData?.type || 'unknown';
+    setQrModelName(modelType);
+    setQrVisible(true);
+  };
+
+  // MOBILE FLOATING BAR - SEPARATE MOVE AND ROTATE BUTTONS
+  if (isMobile) {
+    return (
+      <>
+        <div className="object-controls-mobile">
+  <button
+    className="mobile-control-btn"
+    onClick={() => onObjectAction('duplicate')}
+    title="Duplicate"
+  >
+    <i className="fas fa-copy"></i>
+  </button>
+
+  <button
+    className={`mobile-control-btn ${isPinned ? 'active' : ''}`}
+    onClick={handlePinClick}
+    title={isPinned ? "Unpin" : "Pin"}
+  >
+    <i className="fas fa-thumbtack"></i>
+  </button>
+
+  <button
+    className="mobile-control-btn danger"
+    onClick={() => onObjectAction('delete')}
+    title="Delete"
+  >
+    <i className="fas fa-trash"></i>
+  </button>
+
+  <button
+    className={`mobile-control-btn ${interactionMode === 'translate' ? 'active' : ''}`}
+    onClick={() => onObjectAction('translate')}
+    title="Move Mode"
+    disabled={isPinned}
+  >
+    <i className="fas fa-arrows-alt"></i>
+  </button>
+
+  <button
+    className={`mobile-control-btn ${interactionMode === 'rotate' ? 'active' : ''}`}
+    onClick={() => onObjectAction('rotate')}
+    title="Rotate Mode"
+    disabled={isPinned}
+  >
+    <i className="fas fa-sync-alt"></i>
+  </button>
+
+  {/* ✅ ADD THIS BUTTON (Animation) */}
+  <button
+    className={`mobile-control-btn ${isAnimating ? 'active' : ''} ${!hasAnimations ? 'disabled' : ''}`}
+    onClick={handleAnimationClick}
+    disabled={!hasAnimations}
+    title={
+      !hasAnimations
+        ? "No animation available"
+        : isAnimating
+        ? "Pause Animation"
+        : "Play Animation"
+    }
+  >
+    <i className={`fas ${isAnimating ? 'fa-pause' : 'fa-play'}`}></i>
+  </button>
+        </div>
+        
+        <ARQrModal
+          visible={qrVisible}
+          modelName={qrModelName}
+          onClose={() => setQrVisible(false)}
+        />
+      </>
+    );
+  }
+
+  // DESKTOP SIDE PANEL (original)
   return (
     <>
       <div className="object-controls">
@@ -138,7 +217,7 @@ const ObjectControls = ({
           <div className="button-group">
             <button
               className={`action-button ${isPinned ? 'pinned' : ''}`}
-              onClick={() => handlePinClick(isPinned ? 'unpin' : 'pin')}
+              onClick={handlePinClick}
               title={isPinned ? "Unpin (P)" : "Pin (P)"}
             >
               <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" strokeWidth="2" fill="none">
@@ -184,14 +263,13 @@ const ObjectControls = ({
             </button>
             <button
               className="action-button ar-button"
-              onClick={() => onViewAction('generate-ar-qr')}
+              onClick={handleARClick}
               title="View in AR"
               style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
             >
               <img src="./assets/icons/ar-icon.svg" alt="AR Icon" width="16" height="16" />
               <span>View in AR</span>
             </button>
-
           </div>
         </div>
 
@@ -204,6 +282,7 @@ const ObjectControls = ({
           </p>
         </div>
       </div>
+      
       <ARQrModal
         visible={qrVisible}
         modelName={qrModelName}
