@@ -320,6 +320,7 @@ const ViewControls = ({
             background-color: #1a1a1a;
             box-shadow: 0 1px 6px rgba(0, 0, 0, 0.3);
             border: 2px solid rgba(255, 255, 255, 0.06);
+            border-radius: 5px;
           }
 
           .view-controls-mobile-wrapper.dark-mode .mobile-panel-btn.active {
