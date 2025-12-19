@@ -753,7 +753,7 @@ button {
 /* Mobile Floating Controls Bar */
 .object-controls-mobile {
   position: fixed;
-  bottom: 120px;
+  bottom: 185px;
   left: 50%;
   transform: translateX(-50%);
   display: flex;
@@ -817,7 +817,7 @@ button {
 /* Small screens */
 @media (max-width: 480px) {
   .object-controls-mobile {
-    bottom: 150px;
+    bottom: 190px;
     padding: 6px 8px;
     gap: 0;
   }
@@ -829,7 +829,7 @@ button {
 }
 
 /* Very small screens */
-@media (max-width: 375px) {
+@media (max-width: 370px) {
   .object-controls-mobile {
     bottom: 160px;
     padding: 5px 6px;
@@ -844,7 +844,7 @@ button {
 /* Landscape mode */
 @media (max-width: 768px) and (orientation: landscape) {
   .object-controls-mobile {
-    bottom: 80px;
+    bottom: 180px;
   }
 }
 

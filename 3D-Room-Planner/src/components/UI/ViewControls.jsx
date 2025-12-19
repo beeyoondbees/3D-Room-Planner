@@ -73,6 +73,46 @@ const ViewControls = ({
     }
   };
 
+  // ✅ Handle Home button click - deactivate dimensions and clear active state
+  const handleHomeClick = () => {
+    console.log('🏠 Home button clicked - Deactivating dimensions');
+    
+    // Clear active button state
+    setActiveButton(null);
+    
+    // Call reset-view action
+    onViewAction('reset-view');
+    
+    // Deactivate floor dimensions
+    try {
+      if (window.floorDimensionEditor && typeof window.floorDimensionEditor.clearEditor === 'function') {
+        window.floorDimensionEditor.clearEditor();
+        console.log('✅ Floor dimension editor cleared');
+      }
+      if (window.sceneManager && typeof window.sceneManager.clearObjectDimensions === 'function') {
+        window.sceneManager.clearObjectDimensions();
+        console.log('✅ Object dimensions cleared');
+      }
+      
+      // Dispatch events to sync with other components
+      const events = [
+        { name: 'objectDimensionsToggle', detail: { visible: false, source: 'home-button' } },
+        { name: 'floorDimensionsToggle', detail: { visible: false, source: 'home-button' } },
+        { name: 'updateToolbarButton', detail: { action: 'toggle-floor-dimensions', active: false, source: 'home-button' } },
+        { name: 'syncIconButton', detail: { action: 'toggle-floor-dimensions', active: false, source: 'home-button' } },
+      ];
+      
+      events.forEach(event => {
+        window.dispatchEvent(new CustomEvent(event.name, { detail: event.detail }));
+        console.log(`📡 Dispatched: ${event.name}`, event.detail);
+      });
+      
+      console.log('✅ Dimensions deactivated successfully');
+    } catch (error) {
+      console.error('❌ Error deactivating dimensions:', error);
+    }
+  };
+
   // Inject mobile-only styles
   useEffect(() => {
     const styleId = 'view-controls-mobile-styles';
@@ -106,11 +146,11 @@ const ViewControls = ({
             display: none !important;
           }
 
-          /* ✅ Undo/Redo buttons - Mobile only, styled like image */
+          /* ✅ Undo/Redo buttons - Mobile only, with 10px top gap */
           .view-controls-mobile-wrapper .mobile-undo-redo-controls {
             position: fixed !important;
             left: 15px !important;
-            top: 95px !important;
+            top: 105px !important;
             display: flex !important;
             flex-direction: column !important;
             gap: 10px !important;
@@ -464,7 +504,7 @@ const ViewControls = ({
           .view-controls-mobile-wrapper .mobile-undo-redo-controls {
             position: fixed !important;
             left: 15px !important;
-            top: 95px !important;
+            top: 105px !important;
             display: flex !important;
             flex-direction: column !important;
             gap: 10px !important;
@@ -487,7 +527,7 @@ const ViewControls = ({
             display: flex;
             flex-direction: column;
             gap: 10px;
-            top: 90px !important;
+            top: 100px !important;
             padding: 10px 0;
             align-items: center;
           }
@@ -542,7 +582,7 @@ const ViewControls = ({
           .view-controls-mobile-wrapper .mobile-undo-redo-controls {
             position: fixed !important;
             left: 15px !important;
-            top: 95px !important;
+            top: 100px !important;
             display: flex !important;
             flex-direction: column !important;
             gap: 10px !important;
@@ -583,7 +623,7 @@ const ViewControls = ({
           }
         }
 
-        /* ✅ Hide undo/redo and mobile controls on desktop, SHOW desktop buttons */
+        /* ✅ Desktop - no changes */
         @media (min-width: 769px) {
           .mobile-home-button-wrapper,
           .mobile-controls-unified-container,
@@ -716,12 +756,13 @@ const ViewControls = ({
             active={activeButton === 'zoom-in'}
             darkMode={darkMode}
           />
+          {/* ✅ Home button with dimension deactivation - no active state */}
           <IconButton
             imageSrc="assets/icons/home.svg"
             darkImageSrc="assets/icons/home-light.svg"
             tooltip="Home"
-            onClick={() => onViewAction('reset-view')}
-            active={activeButton === 'reset-view'}
+            onClick={handleHomeClick}
+            active={false}
             darkMode={darkMode}
           />
           <IconButton
@@ -737,7 +778,7 @@ const ViewControls = ({
         {/* ✅ Desktop panel buttons - visible on desktop, hidden on mobile */}
         <div style={buttonContainerStyle} className="desktop-panel-button-mobile">
           <img
-            src={`./assets/icons/products/table${darkMode ? '' : ''}.jpg`}
+            src={`./assets/icons/products/table${darkMode ? '' : ''}.png`}
             alt={showOfficeSidePanel ? "Hide Office Categories" : "Show Office Categories"}
             title={showOfficeSidePanel ? "Hide Office Categories" : "Show Office Categories"}
             onClick={handleToggleOffice}
@@ -815,9 +856,10 @@ const ViewControls = ({
 
           {/* Bottom 4 icons - Home, Scale, AR, Room Shapes */}
           <div className="mobile-bottom-container">
+            {/* ✅ Home button in bottom panel - no active state */}
             <div
-              className={`mobile-bottom-icon ${activeButton === 'reset-view' ? 'active' : ''}`}
-              onClick={() => onViewAction('reset-view')}
+              className="mobile-bottom-icon"
+              onClick={handleHomeClick}
               title="Home"
             >
               <img
