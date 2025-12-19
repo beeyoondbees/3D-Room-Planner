@@ -97,7 +97,7 @@ const ViewControls = ({
             pointer-events: auto;
           }
 
-          /* ✅ HIDE desktop panel buttons */
+          /* ✅ HIDE desktop panel buttons on MOBILE only */
           .view-controls-mobile-wrapper .desktop-panel-button-mobile {
             display: none !important;
           }
@@ -108,15 +108,14 @@ const ViewControls = ({
 
           /* ✅ Undo/Redo buttons - Mobile only, styled like image */
           .view-controls-mobile-wrapper .mobile-undo-redo-controls {
-  position: fixed !important;
-  left: 15px !important;
-  top: 95px !important;  /* ✅ changed */
-  display: flex !important;
-  flex-direction: column !important;
-  gap: 10px !important;
-  z-index: 101 !important;
-}
-
+            position: fixed !important;
+            left: 15px !important;
+            top: 95px !important;
+            display: flex !important;
+            flex-direction: column !important;
+            gap: 10px !important;
+            z-index: 101 !important;
+          }
 
           /* Override IconButton styles for undo/redo to match zoom controls */
           .view-controls-mobile-wrapper .mobile-undo-redo-controls .icon-button {
@@ -404,17 +403,23 @@ const ViewControls = ({
             padding-bottom: 16px !important;
             gap: 12px !important;
           }
-            .mobile-undo-redo-controls{
-            
-                background-color: white;
-    border-radius: 30px;
-    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    padding: 10px 0;
-    align-items: center;
-    }
+
+          .mobile-undo-redo-controls {
+            background-color: white;
+            border-radius: 30px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            padding: 10px 0;
+            align-items: center;
+          }
+
+          /* ✅ Dark mode for undo/redo container */
+          .view-controls-mobile-wrapper.dark-mode .mobile-undo-redo-controls {
+            background-color: #2a2a2a !important;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4) !important;
+          }
 
           .mobile-panel-buttons-wrapper {
             gap: 12px !important;
@@ -457,15 +462,14 @@ const ViewControls = ({
           }
 
           .view-controls-mobile-wrapper .mobile-undo-redo-controls {
-  position: fixed !important;
-  left: 15px !important;
-  top: 95px !important;  /* ✅ changed */
-  display: flex !important;
-  flex-direction: column !important;
-  gap: 10px !important;
-  z-index: 101 !important;
-}
-
+            position: fixed !important;
+            left: 15px !important;
+            top: 95px !important;
+            display: flex !important;
+            flex-direction: column !important;
+            gap: 10px !important;
+            z-index: 101 !important;
+          }
         }
 
         @media (max-width: 448px) {
@@ -476,19 +480,23 @@ const ViewControls = ({
             gap: 10px !important;
           }
 
-          .mobile-undo-redo-controls{
-            
-                background-color: white;
-    border-radius: 30px;
-    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    top: 90px !important;
-    padding: 10px 0;
-    align-items: center;
-    }
+          .mobile-undo-redo-controls {
+            background-color: white;
+            border-radius: 30px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            top: 90px !important;
+            padding: 10px 0;
+            align-items: center;
+          }
 
+          /* ✅ Dark mode for undo/redo container */
+          .view-controls-mobile-wrapper.dark-mode .mobile-undo-redo-controls {
+            background-color: #2a2a2a !important;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4) !important;
+          }
 
           .mobile-panel-buttons-wrapper {
             gap: 10px !important;
@@ -532,15 +540,14 @@ const ViewControls = ({
           }
 
           .view-controls-mobile-wrapper .mobile-undo-redo-controls {
-  position: fixed !important;
-  left: 15px !important;
-  top: 95px !important;  /* ✅ changed */
-  display: flex !important;
-  flex-direction: column !important;
-  gap: 10px !important;
-  z-index: 101 !important;
-}
-
+            position: fixed !important;
+            left: 15px !important;
+            top: 95px !important;
+            display: flex !important;
+            flex-direction: column !important;
+            gap: 10px !important;
+            z-index: 101 !important;
+          }
         }
 
         @media (max-width: 380px) {
@@ -576,12 +583,17 @@ const ViewControls = ({
           }
         }
 
-        /* ✅ Hide undo/redo on desktop */
+        /* ✅ Hide undo/redo and mobile controls on desktop, SHOW desktop buttons */
         @media (min-width: 769px) {
           .mobile-home-button-wrapper,
           .mobile-controls-unified-container,
           .mobile-undo-redo-controls {
             display: none !important;
+          }
+
+          /* ✅ Desktop panel buttons stay visible */
+          .view-controls-mobile-wrapper .desktop-panel-button-mobile {
+            display: block !important;
           }
         }
 
@@ -719,6 +731,43 @@ const ViewControls = ({
             onClick={() => onViewAction('zoom-out')}
             active={activeButton === 'zoom-out'}
             darkMode={darkMode}
+          />
+        </div>
+
+        {/* ✅ Desktop panel buttons - visible on desktop, hidden on mobile */}
+        <div style={buttonContainerStyle} className="desktop-panel-button-mobile">
+          <img
+            src={`./assets/icons/products/table${darkMode ? '' : ''}.jpg`}
+            alt={showOfficeSidePanel ? "Hide Office Categories" : "Show Office Categories"}
+            title={showOfficeSidePanel ? "Hide Office Categories" : "Show Office Categories"}
+            onClick={handleToggleOffice}
+            style={{
+              padding: 0,
+              borderRadius: '50%',
+              overflow: 'hidden',
+              width: '32px',
+              height: '32px',
+              cursor: 'pointer',
+              objectFit: 'cover',
+            }}
+          />
+        </div>
+
+        <div style={buttonContainer} className="desktop-panel-button-mobile">
+          <img
+            src={`./assets/icons/products/Sportstech-sBike-Lite${darkMode ? '-light' : ''}.webp`}
+            alt={showSidePanel ? "Hide Sports Categories" : "Show Sports Categories"}
+            title={showSidePanel ? "Hide Sports Categories" : "Show Sports Categories"}
+            onClick={handleToggleSidePanel}
+            style={{
+              padding: 0,
+              borderRadius: '50%',
+              overflow: 'hidden',
+              width: '32px',
+              height: '32px',
+              cursor: 'pointer',
+              objectFit: 'cover',
+            }}
           />
         </div>
 
