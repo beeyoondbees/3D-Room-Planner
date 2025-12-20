@@ -229,6 +229,11 @@
       color: rgb(228, 0, 43);
     }
 
+    /* Hide mobile content on desktop */
+    .mobile-content {
+      display: none;
+    }
+
     /* Hide mobile LET'S GO button on desktop */
     @media (min-width: 769px) {
       .wall-settings .popup-footer {
@@ -254,16 +259,17 @@
         font-size: 18px !important;
       }
 
-      /* MOBILE: Two column layout - FIX: prevent scrolling on container */
+      /* ✅ MOBILE: Two column layout - NO container scrolling */
       .mobile-content {
         display: flex !important;
         gap: 12px !important;
         height: calc(88vh - 120px) !important;
         margin-bottom: 15px !important;
         overflow: hidden !important;
+        position: relative !important;
       }
 
-      /* Left column - room shapes - ONLY this should scroll */
+      /* ✅ Left column - ONLY this scrolls */
       .room-shape-slider {
         flex: 1 !important;
         max-height: 100% !important;
@@ -271,6 +277,7 @@
         overflow-x: hidden !important;
         padding-right: 8px !important;
         margin-bottom: 0 !important;
+        -webkit-overflow-scrolling: touch !important;
       }
 
       /* RED SCROLLBAR */
@@ -298,7 +305,7 @@
         scrollbar-color: #E4002B #f1f1f1 !important;
       }
 
-      /* MOBILE: 1 COLUMN GRID */
+      /* ✅ MOBILE: 1 COLUMN GRID */
       .room-options {
         display: grid !important;
         grid-template-columns: 1fr !important;
@@ -326,7 +333,6 @@
         transform: translateY(-2px) !important;
       }
 
-      /* Show images on mobile with bigger size */
       .room-option img {
         display: block !important;
         width: 90px !important;
@@ -340,7 +346,7 @@
         font-weight: 500 !important;
       }
 
-      /* Right column - wall settings - FIX: prevent from scrolling */
+      /* ✅ Right column - FIXED, no scrolling */
       .wall-settings {
         flex: 1 !important;
         padding-top: 0 !important;
@@ -351,6 +357,7 @@
         display: flex !important;
         flex-direction: column !important;
         overflow: hidden !important;
+        max-height: 100% !important;
       }
 
       .wall-settings h4 {
@@ -382,7 +389,6 @@
       }
 
       /* --- MOBILE INPUT STYLES --- */
-      /* Show the +/- buttons on mobile */
       .control-btn {
         display: flex !important;
         width: 36px !important;
@@ -409,7 +415,6 @@
         transform: scale(0.95) !important;
       }
 
-      /* Make the controls container a flex container on mobile */
       .input-controls {
         display: flex !important;
         align-items: center !important;
@@ -417,7 +422,6 @@
         gap: 8px !important;
       }
 
-      /* Override the desktop input styles for mobile */
       .input-field input {
         width: 80px !important;
         padding: 8px 6px !important;
@@ -442,7 +446,6 @@
         font-weight: 500 !important;
       }
 
-      /* Preview Box - Hide on mobile */
       .preview-box {
         display: none !important;
       }
@@ -469,12 +472,19 @@
         letter-spacing: 1px !important;
       }
 
-      /* Hide "Selected:" text on mobile */
       .selected {
         display: none !important;
       }
 
-      /* Hide desktop LET'S GO button on mobile */
+      /* ✅ Hide desktop elements on mobile */
+      .room-popup > .room-shape-slider {
+        display: none !important;
+      }
+
+      .room-popup > .wall-settings {
+        display: none !important;
+      }
+
       .room-popup > .popup-footer {
         display: none !important;
       }
@@ -492,7 +502,6 @@
         margin-bottom: 10px !important;
       }
 
-      /* Keep the two-column layout even on small screens */
       .mobile-content {
         display: flex !important;
         flex-direction: row !important;
@@ -755,6 +764,67 @@
       </div>
     </div>
 
+    <!-- DESKTOP: Room shape options -->
+    <div class="room-shape-slider">
+      <div class="room-options">
+        <div class="room-option" data-shape="empty">
+          <img src="assets/room-shapes/empty.svg">
+          <div>No walls</div>
+        </div>
+        <div class="room-option" data-shape="rectangle">
+          <img src="assets/room-shapes/squre.svg">
+          <div>Rectangle</div>
+        </div>
+        <div class="room-option" data-shape="l">
+          <img src="assets/room-shapes/l-shape.svg">
+          <div>L-Shape</div>
+        </div>
+        <div class="room-option" data-shape="z">
+          <img src="assets/room-shapes/z-shape.svg">
+          <div>Z-Shape</div>
+        </div>
+        <div class="room-option" data-shape="s">
+          <img src="assets/room-shapes/s-shape.svg">
+          <div>S-Shape</div>
+        </div>
+        <div class="room-option" data-shape="t">
+          <img src="assets/room-shapes/t-shape.svg">
+          <div>T-Shape</div>
+        </div>
+        <div class="room-option" data-shape="u">
+          <img src="assets/room-shapes/u-shape.svg">
+          <div>U-Shape</div>
+        </div>
+        <div class="room-option" data-shape="corner">
+          <img src="assets/room-shapes/corner.svg">
+          <div>Corner</div>
+        </div>
+        <div class="room-option" data-shape="blunt">
+          <img src="assets/room-shapes/bluntcorner.svg">
+          <div>Blunt Corner</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- DESKTOP: Wall Settings -->
+    <div class="wall-settings">
+      <h4>Wall Settings</h4>
+      <div class="input-group">
+        <div class="input-field">
+          <label for="wallHeightDesktop">Wall Height:</label>
+          <input type="number" id="wallHeightDesktop" min="2" max="5" step="0.1" value="2.5">
+          <div class="unit-display">Meters (2-5m)</div>
+          <div class="error-message" id="heightErrorDesktop"></div>
+        </div>
+        <div class="input-field">
+          <label for="wallThicknessDesktop">Wall Thickness:</label>
+          <input type="number" id="wallThicknessDesktop" min="0.1" max="0.5" step="0.01" value="0.2">
+          <div class="unit-display">Meters (0.1-0.5m)</div>
+          <div class="error-message" id="thicknessErrorDesktop"></div>
+        </div>
+      </div>
+    </div>
+
     <!-- Desktop footer -->
     <div class="popup-footer">
       <div class="selected" style="font-size: 14px; color: rgb(228, 0, 43)">
@@ -771,11 +841,20 @@
         const overlay = document.getElementById('overlay');
         const letsGoBtn = document.getElementById('letsGoBtn');
         const letsGoBtnDesktop = document.getElementById('letsGoBtnDesktop');
+        
+        // Mobile inputs
         const wallHeightInput = document.getElementById('wallHeight');
         const wallThicknessInput = document.getElementById('wallThickness');
-        const selectedShapeText = document.getElementById('selectedShapeText');
         const heightError = document.getElementById('heightError');
         const thicknessError = document.getElementById('thicknessError');
+        
+        // Desktop inputs
+        const wallHeightInputDesktop = document.getElementById('wallHeightDesktop');
+        const wallThicknessInputDesktop = document.getElementById('wallThicknessDesktop');
+        const heightErrorDesktop = document.getElementById('heightErrorDesktop');
+        const thicknessErrorDesktop = document.getElementById('thicknessErrorDesktop');
+        
+        const selectedShapeText = document.getElementById('selectedShapeText');
         const previewImage = document.getElementById('previewImage');
         const previewShapeName = document.getElementById('previewShapeName');
         const incHeight = document.getElementById('incHeight');
@@ -803,16 +882,13 @@
             selectedShape = option.getAttribute('data-shape');
             const shapeName = option.querySelector('div').textContent;
 
-            // Update preview (only visible on desktop)
-            previewImage.src = option.querySelector('img').src;
-            previewShapeName.textContent = shapeName;
             selectedShapeText.textContent = shapeName;
 
             console.log("Room shape selected:", selectedShape);
           });
         });
 
-        // +/- Button handlers
+        // +/- Button handlers (Mobile only)
         incHeight.addEventListener('click', () => {
           wallHeight = Math.min(parseFloat(wallHeight) + 0.1, 5);
           wallHeight = Math.round(wallHeight * 10) / 10;
@@ -882,18 +958,57 @@
           return true;
         }
 
+        function validateHeightDesktop() {
+          const value = parseFloat(wallHeightInputDesktop.value);
+          heightErrorDesktop.textContent = '';
+          wallHeightInputDesktop.classList.remove('validation-error');
+
+          if (isNaN(value) || value < 2 || value > 5) {
+            heightErrorDesktop.textContent = 'Must be 2-5 meters';
+            wallHeightInputDesktop.classList.add('validation-error');
+            return false;
+          }
+          wallHeight = value;
+          return true;
+        }
+
+        function validateThicknessDesktop() {
+          const value = parseFloat(wallThicknessInputDesktop.value);
+          thicknessErrorDesktop.textContent = '';
+          wallThicknessInputDesktop.classList.remove('validation-error');
+
+          if (isNaN(value) || value < 0.1 || value > 0.5) {
+            thicknessErrorDesktop.textContent = 'Must be 0.1-0.5 meters';
+            wallThicknessInputDesktop.classList.add('validation-error');
+            return false;
+          }
+          wallThickness = value;
+          return true;
+        }
+
         function validateInputs() {
           const heightValid = validateHeight();
           const thicknessValid = validateThickness();
+          const heightValidDesktop = validateHeightDesktop();
+          const thicknessValidDesktop = validateThicknessDesktop();
+          
           letsGoBtn.disabled = !(heightValid && thicknessValid);
-          letsGoBtnDesktop.disabled = !(heightValid && thicknessValid);
-          return heightValid && thicknessValid;
+          letsGoBtnDesktop.disabled = !(heightValidDesktop && thicknessValidDesktop);
+          
+          return (heightValid && thicknessValid) || (heightValidDesktop && thicknessValidDesktop);
         }
 
+        // Mobile inputs
         wallHeightInput.addEventListener('input', validateInputs);
         wallThicknessInput.addEventListener('input', validateInputs);
         wallHeightInput.addEventListener('blur', validateInputs);
         wallThicknessInput.addEventListener('blur', validateInputs);
+
+        // Desktop inputs
+        wallHeightInputDesktop.addEventListener('input', validateInputs);
+        wallThicknessInputDesktop.addEventListener('input', validateInputs);
+        wallHeightInputDesktop.addEventListener('blur', validateInputs);
+        wallThicknessInputDesktop.addEventListener('blur', validateInputs);
 
         validateInputs();
 
