@@ -9,6 +9,19 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
   <title>Sports Tech 3D Room Planner</title>
   <style>
+    /* ✅ DISABLE BODY SCROLL WHEN POPUP IS OPEN */
+    body.popup-open {
+      overflow: hidden !important;
+      position: fixed !important;
+      width: 100% !important;
+      height: 100% !important;
+      touch-action: none !important;
+    }
+
+    html.popup-open {
+      overflow: hidden !important;
+    }
+
     .room-popup {
       position: fixed;
       top: 50%;
@@ -223,6 +236,7 @@
       background: rgba(0, 0, 0, 0.5);
       z-index: 8999;
       display: none;
+      touch-action: none;
     }
 
     .selected {
@@ -841,6 +855,17 @@
   </div>
 
   <script>
+    // ✅ Functions to lock/unlock body scroll
+    function lockBodyScroll() {
+      document.body.classList.add('popup-open');
+      document.documentElement.classList.add('popup-open');
+    }
+
+    function unlockBodyScroll() {
+      document.body.classList.remove('popup-open');
+      document.documentElement.classList.remove('popup-open');
+    }
+
     window.addEventListener('load', () => {
       setTimeout(() => {
         const popup = document.getElementById('roomPopup');
@@ -869,8 +894,15 @@
         const decThick = document.getElementById('decThick');
         const closePopupBtn = document.getElementById('closePopupBtn');
 
+        // ✅ Show popup and LOCK body scroll
         popup.style.display = 'block';
         overlay.style.display = 'block';
+        lockBodyScroll();
+
+        // ✅ Prevent scroll on overlay touch
+        overlay.addEventListener('touchmove', function(e) {
+          e.preventDefault();
+        }, { passive: false });
 
         let selectedShape = "rectangle";
         let wallHeight = 2.5;
@@ -923,16 +955,18 @@
           validateInputs();
         });
 
-        // Close popup button handler
+        // ✅ Close popup button handler - UNLOCK body scroll
         closePopupBtn.addEventListener('click', () => {
           popup.style.display = 'none';
           overlay.style.display = 'none';
+          unlockBodyScroll();
         });
 
-        // Close popup when clicking on overlay
+        // ✅ Close popup when clicking on overlay - UNLOCK body scroll
         overlay.addEventListener('click', () => {
           popup.style.display = 'none';
           overlay.style.display = 'none';
+          unlockBodyScroll();
         });
 
         // Input validation
@@ -1018,7 +1052,7 @@
 
         validateInputs();
 
-        // Common function for both buttons
+        // ✅ Common function for both buttons - UNLOCK body scroll
         function handleLetsGo() {
           if (!validateInputs()) {
             return;
@@ -1026,6 +1060,7 @@
 
           popup.style.display = 'none';
           overlay.style.display = 'none';
+          unlockBodyScroll();
 
           console.log("🚀 Room Configuration:");
           console.log("- Shape:", selectedShape);
