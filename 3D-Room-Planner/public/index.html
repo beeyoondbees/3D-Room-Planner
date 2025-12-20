@@ -3,23 +3,32 @@
 
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
   <meta name="theme-color" content="#000000" />
   <meta name="description" content="3D Room Planner for gym equipment" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
   <title>Sports Tech 3D Room Planner</title>
   <style>
-    /* ✅ DISABLE BODY SCROLL WHEN POPUP IS OPEN */
+    /* ✅ COMPLETELY DISABLE BODY SCROLL WHEN POPUP IS OPEN */
+    html.popup-open,
     body.popup-open {
       overflow: hidden !important;
       position: fixed !important;
+      top: 0 !important;
+      left: 0 !important;
+      right: 0 !important;
+      bottom: 0 !important;
       width: 100% !important;
       height: 100% !important;
       touch-action: none !important;
+      -webkit-overflow-scrolling: none !important;
+      overscroll-behavior: none !important;
     }
 
-    html.popup-open {
-      overflow: hidden !important;
+    /* Prevent pull-to-refresh and overscroll */
+    html.popup-open *,
+    body.popup-open * {
+      overscroll-behavior: contain !important;
     }
 
     .room-popup {
@@ -237,6 +246,8 @@
       z-index: 8999;
       display: none;
       touch-action: none;
+      -webkit-overflow-scrolling: none;
+      overscroll-behavior: none;
     }
 
     .selected {
@@ -265,6 +276,7 @@
         padding: 16px !important;
         border-radius: 16px !important;
         overflow: hidden !important;
+        touch-action: none !important;
       }
 
       .room-popup h3 {
@@ -283,6 +295,7 @@
         margin-bottom: 15px !important;
         overflow: hidden !important;
         position: relative !important;
+        touch-action: none !important;
       }
 
       /* ✅ Left column - ONLY this scrolls */
@@ -294,6 +307,8 @@
         padding-right: 8px !important;
         margin-bottom: 0 !important;
         -webkit-overflow-scrolling: touch !important;
+        touch-action: pan-y !important;
+        overscroll-behavior: contain !important;
       }
 
       /* RED SCROLLBAR */
@@ -374,6 +389,7 @@
         flex-direction: column !important;
         overflow: hidden !important;
         max-height: 100% !important;
+        touch-action: none !important;
       }
 
       .wall-settings h4 {
@@ -855,15 +871,57 @@
   </div>
 
   <script>
-    // ✅ Functions to lock/unlock body scroll
+    // ✅ Store scroll position before locking
+    let scrollPosition = 0;
+
+    // ✅ Functions to completely lock/unlock body scroll
     function lockBodyScroll() {
-      document.body.classList.add('popup-open');
+      // Save current scroll position
+      scrollPosition = window.pageYOffset || document.documentElement.scrollTop;
+      
+      // Add class to html and body
       document.documentElement.classList.add('popup-open');
+      document.body.classList.add('popup-open');
+      
+      // Set body top to negative scroll position to prevent jump
+      document.body.style.top = `-${scrollPosition}px`;
     }
 
     function unlockBodyScroll() {
-      document.body.classList.remove('popup-open');
+      // Remove class from html and body
       document.documentElement.classList.remove('popup-open');
+      document.body.classList.remove('popup-open');
+      
+      // Reset body top
+      document.body.style.top = '';
+      
+      // Restore scroll position
+      window.scrollTo(0, scrollPosition);
+    }
+
+    // ✅ Global touch prevention for background
+    function preventBackgroundScroll(e) {
+      const popup = document.getElementById('roomPopup');
+      const roomShapeSlider = popup.querySelector('.mobile-content .room-shape-slider');
+      
+      // Allow scroll only inside room-shape-slider
+      if (roomShapeSlider && roomShapeSlider.contains(e.target)) {
+        // Check if at scroll boundaries
+        const scrollTop = roomShapeSlider.scrollTop;
+        const scrollHeight = roomShapeSlider.scrollHeight;
+        const clientHeight = roomShapeSlider.clientHeight;
+        
+        // If at top and trying to scroll up, or at bottom and trying to scroll down
+        if ((scrollTop <= 0 && e.touches[0].clientY > e.touches[0].clientY) ||
+            (scrollTop + clientHeight >= scrollHeight)) {
+          // Allow the scroll inside the element
+          return;
+        }
+        return; // Allow scrolling inside room-shape-slider
+      }
+      
+      // Prevent all other touch moves
+      e.preventDefault();
     }
 
     window.addEventListener('load', () => {
@@ -894,14 +952,37 @@
         const decThick = document.getElementById('decThick');
         const closePopupBtn = document.getElementById('closePopupBtn');
 
-        // ✅ Show popup and LOCK body scroll
+        // ✅ Show popup and COMPLETELY LOCK body scroll
         popup.style.display = 'block';
         overlay.style.display = 'block';
         lockBodyScroll();
 
-        // ✅ Prevent scroll on overlay touch
+        // ✅ Prevent ALL touch scrolling on document except inside room-shape-slider
+        document.addEventListener('touchmove', preventBackgroundScroll, { passive: false });
+
+        // ✅ Prevent scroll on overlay
         overlay.addEventListener('touchmove', function(e) {
           e.preventDefault();
+          e.stopPropagation();
+        }, { passive: false });
+
+        // ✅ Prevent scroll on popup (except room-shape-slider)
+        popup.addEventListener('touchmove', function(e) {
+          const roomShapeSlider = popup.querySelector('.mobile-content .room-shape-slider');
+          if (!roomShapeSlider || !roomShapeSlider.contains(e.target)) {
+            e.preventDefault();
+            e.stopPropagation();
+          }
+        }, { passive: false });
+
+        // ✅ Prevent wheel scroll on background
+        document.addEventListener('wheel', function(e) {
+          const roomShapeSlider = popup.querySelector('.mobile-content .room-shape-slider');
+          if (!roomShapeSlider || !roomShapeSlider.contains(e.target)) {
+            if (popup.style.display === 'block') {
+              e.preventDefault();
+            }
+          }
         }, { passive: false });
 
         let selectedShape = "rectangle";
@@ -955,19 +1036,19 @@
           validateInputs();
         });
 
-        // ✅ Close popup button handler - UNLOCK body scroll
-        closePopupBtn.addEventListener('click', () => {
+        // ✅ Function to close popup and unlock scroll
+        function closePopup() {
           popup.style.display = 'none';
           overlay.style.display = 'none';
           unlockBodyScroll();
-        });
+          document.removeEventListener('touchmove', preventBackgroundScroll);
+        }
 
-        // ✅ Close popup when clicking on overlay - UNLOCK body scroll
-        overlay.addEventListener('click', () => {
-          popup.style.display = 'none';
-          overlay.style.display = 'none';
-          unlockBodyScroll();
-        });
+        // ✅ Close popup button handler
+        closePopupBtn.addEventListener('click', closePopup);
+
+        // ✅ Close popup when clicking on overlay
+        overlay.addEventListener('click', closePopup);
 
         // Input validation
         function validateHeight() {
@@ -1052,15 +1133,13 @@
 
         validateInputs();
 
-        // ✅ Common function for both buttons - UNLOCK body scroll
+        // ✅ Common function for both buttons
         function handleLetsGo() {
           if (!validateInputs()) {
             return;
           }
 
-          popup.style.display = 'none';
-          overlay.style.display = 'none';
-          unlockBodyScroll();
+          closePopup();
 
           console.log("🚀 Room Configuration:");
           console.log("- Shape:", selectedShape);
