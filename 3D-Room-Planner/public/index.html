@@ -32,7 +32,7 @@
       width: 25px;
       height: 25px;
       border-radius: 50%;
-      background: #161616; /* Brand red background */
+      background: #161616;
       border: none;
       display: flex;
       align-items: center;
@@ -48,7 +48,7 @@
       width: 25px;
       height: 25px;
       border-radius: 50%;
-      background: #fcfcfc; /* Brand red background */
+      background: #fcfcfc;
       border: none;
       display: flex;
       align-items: center;
@@ -60,17 +60,17 @@
 
     .close-btn i {
       font-size: 14px;
-      color: white; /* White X icon */
+      color: white;
     }
 
     .dark-mode .close-btn i {
       font-size: 14px;
-      color: rgb(11, 11, 11); /* White X icon */
+      color: rgb(11, 11, 11);
     }
 
     .close-btn:hover {
-      background: #d60000; /* Darker red on hover */
-      transform: scale(1.1); /* Slightly scale on hover */
+      background: #d60000;
+      transform: scale(1.1);
     }
 
     .room-popup h3 {
@@ -148,7 +148,7 @@
 
     /* Make the controls container a simple block on desktop */
     .input-controls {
-      display: block; /* Override flex from mobile */
+      display: block;
     }
 
     /* Style the input field for desktop */
@@ -158,7 +158,7 @@
       border: 1px solid #ddd;
       border-radius: 4px;
       font-size: 14px;
-      box-sizing: border-box; /* Ensure padding doesn't affect width */
+      box-sizing: border-box;
     }
 
     .unit-display {
@@ -254,22 +254,23 @@
         font-size: 18px !important;
       }
 
-      /* MOBILE: Two column layout - shapes on left, settings on right */
+      /* MOBILE: Two column layout - FIX: prevent scrolling on container */
       .mobile-content {
         display: flex !important;
         gap: 12px !important;
-        height: calc(88vh - 80px) !important; /* Reduced height */
-        margin-bottom: 15px !important; /* Added margin bottom */
+        height: calc(88vh - 120px) !important;
+        margin-bottom: 15px !important;
+        overflow: hidden !important;
       }
 
-      /* Left column - room shapes */
+      /* Left column - room shapes - ONLY this should scroll */
       .room-shape-slider {
         flex: 1 !important;
-        max-height: none !important; /* Remove max-height to use full container height */
+        max-height: 100% !important;
         overflow-y: auto !important;
         overflow-x: hidden !important;
         padding-right: 8px !important;
-        margin-bottom: 20px !important;
+        margin-bottom: 0 !important;
       }
 
       /* RED SCROLLBAR */
@@ -294,7 +295,7 @@
       /* Firefox */
       .room-shape-slider {
         scrollbar-width: thin !important;
-        scrollbar-color: #CC0027 #FFCCD6 !important;
+        scrollbar-color: #E4002B #f1f1f1 !important;
       }
 
       /* MOBILE: 1 COLUMN GRID */
@@ -302,6 +303,7 @@
         display: grid !important;
         grid-template-columns: 1fr !important;
         gap: 8px !important;
+        padding-bottom: 12px !important;
       }
 
       .room-option {
@@ -327,8 +329,8 @@
       /* Show images on mobile with bigger size */
       .room-option img {
         display: block !important;
-        width: 90px !important; /* Made bigger */
-        height: 90px !important; /* Made bigger */
+        width: 90px !important;
+        height: 90px !important;
         object-fit: contain !important;
         margin-bottom: 8px !important;
       }
@@ -338,7 +340,7 @@
         font-weight: 500 !important;
       }
 
-      /* Right column - wall settings */
+      /* Right column - wall settings - FIX: prevent from scrolling */
       .wall-settings {
         flex: 1 !important;
         padding-top: 0 !important;
@@ -348,6 +350,7 @@
         margin-bottom: 0 !important;
         display: flex !important;
         flex-direction: column !important;
+        overflow: hidden !important;
       }
 
       .wall-settings h4 {
@@ -356,12 +359,14 @@
         color: #E4002B !important;
         font-size: 16px !important;
         font-weight: 700 !important;
+        flex-shrink: 0 !important;
       }
 
       .input-group {
         display: flex !important;
         flex-direction: column !important;
         gap: 12px !important;
+        flex-shrink: 0 !important;
       }
 
       .input-field {
@@ -447,6 +452,7 @@
         justify-content: center !important;
         align-items: center !important;
         margin-top: 12px !important;
+        flex-shrink: 0 !important;
       }
 
       .popup-footer button {
@@ -489,20 +495,23 @@
       /* Keep the two-column layout even on small screens */
       .mobile-content {
         display: flex !important;
-        flex-direction: row !important; /* Keep row direction */
+        flex-direction: row !important;
         gap: 8px !important;
-        height: calc(88vh - 70px) !important; /* Adjust height for smaller screens */
-        margin-bottom: 15px !important; /* Added margin bottom */
+        height: calc(88vh - 100px) !important;
+        margin-bottom: 15px !important;
+        overflow: hidden !important;
       }
 
       .room-shape-slider {
         flex: 1 !important;
-        max-height: none !important;
+        max-height: 100% !important;
         padding-right: 5px !important;
+        margin-bottom: 0 !important;
       }
 
       .room-options {
         gap: 6px !important;
+        padding-bottom: 12px !important;
       }
 
       .room-option {
@@ -510,8 +519,8 @@
       }
 
       .room-option img {
-        width: 90px !important; /* Made bigger */
-        height: 90px !important; /* Made bigger */
+        width: 90px !important;
+        height: 90px !important;
         margin-bottom: 6px !important;
       }
 
@@ -524,7 +533,8 @@
         border-left: 2px solid #f0f0f0 !important;
         padding-left: 8px !important;
         padding-top: 0 !important;
-        margin-bottom: 17px !important;
+        margin-bottom: 0 !important;
+        overflow: hidden !important;
       }
 
       .wall-settings h4 {
@@ -579,12 +589,14 @@
 
       .mobile-content {
         gap: 6px !important;
-        height: calc(88vh - 60px) !important;
-        margin-bottom: 15px !important; /* Added margin bottom */
+        height: calc(88vh - 90px) !important;
+        margin-bottom: 15px !important;
+        overflow: hidden !important;
       }
 
       .room-options {
         gap: 4px !important;
+        padding-bottom: 12px !important;
       }
 
       .room-option {
@@ -593,8 +605,8 @@
       }
 
       .room-option img {
-        width: 90px !important; /* Made bigger */
-        height: 90px !important; /* Made bigger */
+        width: 90px !important;
+        height: 90px !important;
         margin-bottom: 4px !important;
       }
 
@@ -604,6 +616,7 @@
 
       .wall-settings {
         padding-left: 6px !important;
+        overflow: hidden !important;
       }
 
       .wall-settings h4 {
@@ -616,7 +629,6 @@
         height: 26px !important;
         border-radius: 4px !important;
         font-size: 16px !important;
-        
       }
 
       .input-field input {
