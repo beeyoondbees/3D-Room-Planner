@@ -43,6 +43,16 @@ const ViewControls = ({
     return () => window.removeEventListener('themeChanged', handleThemeChange);
   }, []);
 
+  // ✅ Sync activeButton with panel states - clear when panels close
+  useEffect(() => {
+    if (!showOfficeSidePanel && activeButton === 'office-panel') {
+      setActiveButton(null);
+    }
+    if (!showSidePanel && activeButton === 'side-panel') {
+      setActiveButton(null);
+    }
+  }, [showOfficeSidePanel, showSidePanel, activeButton, setActiveButton]);
+
   // Handle AR click
   const handleARClick = () => {
     console.log('🎯 AR button clicked!');
@@ -241,7 +251,6 @@ const ViewControls = ({
           }
 
           .mobile-panel-btn {
-            background-color: #f5f5f5;
             border-radius: 10px;
             padding: 0;
             box-shadow: 0 1px 6px rgba(0, 0, 0, 0.06);
@@ -261,9 +270,16 @@ const ViewControls = ({
             transform: scale(0.98);
           }
 
+          /* ✅ ACTIVE STATE - Red border and box shadow */
           .mobile-panel-btn.active {
-            border-color: #ff4757;
-            box-shadow: 0 3px 10px rgba(255, 71, 87, 0.25);
+            border-radius: 15px;
+            border: 2px solid #E4002B !important;
+            box-shadow: 0 0 12px rgba(228, 0, 43, 0.4), 0 4px 15px rgba(228, 0, 43, 0.3) !important;
+          }
+
+          .view-controls-mobile-wrapper.dark-mode .mobile-panel-btn.active {
+            border: 2px solid #ff4757 !important;
+            box-shadow: 0 0 12px rgba(255, 71, 87, 0.5), 0 4px 15px rgba(255, 71, 87, 0.4) !important;
           }
 
           .mobile-panel-btn-bg {
@@ -318,11 +334,7 @@ const ViewControls = ({
           .view-controls-mobile-wrapper.dark-mode .mobile-panel-btn {
             background-color: #1a1a1a;
             box-shadow: 0 1px 6px rgba(0, 0, 0, 0.3);
-          }
-
-          .view-controls-mobile-wrapper.dark-mode .mobile-panel-btn.active {
-            border-color: #ff6b7a;
-            box-shadow: 0 3px 10px rgba(255, 107, 122, 0.3);
+            border: 2px solid transparent;
           }
 
           /* Bottom 4 icons - Grid layout for 4 icons */
@@ -812,8 +824,9 @@ const ViewControls = ({
 
         <div className="mobile-controls-unified-container">
           <div className="mobile-panel-buttons-wrapper">
+            {/* ✅ Home Assets - active state tied to showOfficeSidePanel */}
             <div
-              className={`mobile-panel-btn mobile-office-btn ${activeButton === 'office-panel' ? 'active' : ''}`}
+              className={`mobile-panel-btn mobile-office-btn ${showOfficeSidePanel ? 'active' : ''}`}
               onClick={handleToggleOffice}
               title="Home Assets"
             >
@@ -831,8 +844,9 @@ const ViewControls = ({
               </div>
               <div className="mobile-panel-btn-label">Home Assets</div>
             </div>
+            {/* ✅ Products - active state tied to showSidePanel */}
             <div
-              className={`mobile-panel-btn mobile-sports-btn ${activeButton === 'side-panel' ? 'active' : ''}`}
+              className={`mobile-panel-btn mobile-sports-btn ${showSidePanel ? 'active' : ''}`}
               onClick={handleToggleSidePanel}
               title="Products"
             >
