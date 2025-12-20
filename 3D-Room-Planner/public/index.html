@@ -22,7 +22,6 @@
       font-family: Arial, sans-serif;
       z-index: 9000;
       display: none;
-      overflow: hidden;
     }
 
     /* Close button styles */
@@ -245,9 +244,13 @@
     /* ===================== MOBILE ===================== */
     @media (max-width: 768px) {
       .room-popup {
+        position: fixed !important;
+        top: 5% !important;
+        left: 50% !important;
+        transform: translateX(-50%) !important;
         width: 95% !important;
         max-width: 680px !important;
-        max-height: 88vh !important;
+        max-height: 90vh !important;
         padding: 16px !important;
         border-radius: 16px !important;
         overflow: hidden !important;
@@ -264,8 +267,7 @@
       .mobile-content {
         display: flex !important;
         gap: 12px !important;
-        height: auto !important;
-        max-height: calc(88vh - 140px) !important;
+        height: calc(90vh - 120px) !important;
         margin-bottom: 15px !important;
         overflow: hidden !important;
         position: relative !important;
@@ -494,8 +496,13 @@
 
     @media (max-width: 480px) {
       .room-popup {
-        width: 90% !important;
+        position: fixed !important;
+        top: 3% !important;
+        left: 50% !important;
+        transform: translateX(-50%) !important;
+        width: 98% !important;
         max-width: 420px !important;
+        max-height: 94vh !important;
         padding: 12px !important;
         overflow: hidden !important;
       }
@@ -509,8 +516,7 @@
         display: flex !important;
         flex-direction: row !important;
         gap: 8px !important;
-        height: auto !important;
-        max-height: calc(85vh - 120px) !important;
+        height: calc(94vh - 100px) !important;
         margin-bottom: 15px !important;
         overflow: hidden !important;
       }
@@ -592,7 +598,12 @@
 
     @media (max-width: 360px) {
       .room-popup {
+        position: fixed !important;
+        top: 2% !important;
+        left: 50% !important;
+        transform: translateX(-50%) !important;
         padding: 8px !important;
+        max-height: 96vh !important;
         overflow: hidden !important;
       }
 
@@ -603,8 +614,7 @@
 
       .mobile-content {
         gap: 6px !important;
-        height: auto !important;
-        max-height: calc(80vh - 100px) !important;
+        height: calc(96vh - 90px) !important;
         margin-bottom: 15px !important;
         overflow: hidden !important;
       }
