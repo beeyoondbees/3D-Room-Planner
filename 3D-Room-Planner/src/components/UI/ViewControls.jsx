@@ -72,6 +72,42 @@ const ViewControls = ({
   // Handle Room Shapes click - Open popup
   const handleRoomShapesClick = () => {
     console.log('🏠 Room Shapes clicked - Opening popup');
+    
+    // ✅ Clear active button state (same as Home button)
+    setActiveButton(null);
+    
+    // ✅ Call onViewAction to deactivate dimensions (same as Home button)
+    onViewAction('reset-view');
+    
+    // ✅ Deactivate floor dimensions (same as Home button)
+    try {
+      if (window.floorDimensionEditor && typeof window.floorDimensionEditor.clearEditor === 'function') {
+        window.floorDimensionEditor.clearEditor();
+        console.log('✅ Floor dimension editor cleared');
+      }
+      if (window.sceneManager && typeof window.sceneManager.clearObjectDimensions === 'function') {
+        window.sceneManager.clearObjectDimensions();
+        console.log('✅ Object dimensions cleared');
+      }
+      
+      // Dispatch events to sync with other components
+      const events = [
+        { name: 'objectDimensionsToggle', detail: { visible: false, source: 'room-shapes' } },
+        { name: 'floorDimensionsToggle', detail: { visible: false, source: 'room-shapes' } },
+        { name: 'updateToolbarButton', detail: { action: 'toggle-floor-dimensions', active: false, source: 'room-shapes' } },
+        { name: 'syncIconButton', detail: { action: 'toggle-floor-dimensions', active: false, source: 'room-shapes' } },
+      ];
+      
+      events.forEach(event => {
+        window.dispatchEvent(new CustomEvent(event.name, { detail: event.detail }));
+        console.log(`📡 Dispatched: ${event.name}`, event.detail);
+      });
+      
+      console.log('✅ Dimensions deactivated successfully');
+    } catch (error) {
+      console.error('❌ Error deactivating dimensions:', error);
+    }
+    
     const popup = document.getElementById('roomPopup');
     const overlay = document.getElementById('overlay');
 
@@ -343,6 +379,14 @@ const ViewControls = ({
             grid-template-columns: repeat(4, 1fr) !important;
             gap: 8px !important;
             width: 100%;
+          }
+
+          /* ✅ LOCKED STATE - Bottom icons disabled when panel is open */
+          .mobile-bottom-container.locked {
+            opacity: 0.4 !important;
+            pointer-events: none !important;
+            filter: grayscale(50%) !important;
+            touch-action: none !important;
           }
 
           .mobile-bottom-icon {
@@ -665,19 +709,69 @@ const ViewControls = ({
   }, []);
 
   const handleToggleSidePanel = () => {
+    // ✅ Clear active button state first (deactivate dimension design)
+    setActiveButton(null);
+    
+    // ✅ Deactivate floor dimensions (same as Home button)
+    try {
+      if (window.floorDimensionEditor && typeof window.floorDimensionEditor.clearEditor === 'function') {
+        window.floorDimensionEditor.clearEditor();
+      }
+      if (window.sceneManager && typeof window.sceneManager.clearObjectDimensions === 'function') {
+        window.sceneManager.clearObjectDimensions();
+      }
+      
+      const events = [
+        { name: 'objectDimensionsToggle', detail: { visible: false, source: 'products-panel' } },
+        { name: 'floorDimensionsToggle', detail: { visible: false, source: 'products-panel' } },
+        { name: 'updateToolbarButton', detail: { action: 'toggle-floor-dimensions', active: false, source: 'products-panel' } },
+        { name: 'syncIconButton', detail: { action: 'toggle-floor-dimensions', active: false, source: 'products-panel' } },
+      ];
+      
+      events.forEach(event => {
+        window.dispatchEvent(new CustomEvent(event.name, { detail: event.detail }));
+      });
+    } catch (error) {
+      console.error('❌ Error deactivating dimensions:', error);
+    }
+    
     setShowSidePanel(prev => !prev);
     if (setShowOfficeSidePanel) {
       setShowOfficeSidePanel(false);
     }
-    setActiveButton(prev => (prev === 'side-panel' ? null : 'side-panel'));
   };
 
   const handleToggleOffice = () => {
+    // ✅ Clear active button state first (deactivate dimension design)
+    setActiveButton(null);
+    
+    // ✅ Deactivate floor dimensions (same as Home button)
+    try {
+      if (window.floorDimensionEditor && typeof window.floorDimensionEditor.clearEditor === 'function') {
+        window.floorDimensionEditor.clearEditor();
+      }
+      if (window.sceneManager && typeof window.sceneManager.clearObjectDimensions === 'function') {
+        window.sceneManager.clearObjectDimensions();
+      }
+      
+      const events = [
+        { name: 'objectDimensionsToggle', detail: { visible: false, source: 'home-assets-panel' } },
+        { name: 'floorDimensionsToggle', detail: { visible: false, source: 'home-assets-panel' } },
+        { name: 'updateToolbarButton', detail: { action: 'toggle-floor-dimensions', active: false, source: 'home-assets-panel' } },
+        { name: 'syncIconButton', detail: { action: 'toggle-floor-dimensions', active: false, source: 'home-assets-panel' } },
+      ];
+      
+      events.forEach(event => {
+        window.dispatchEvent(new CustomEvent(event.name, { detail: event.detail }));
+      });
+    } catch (error) {
+      console.error('❌ Error deactivating dimensions:', error);
+    }
+    
     if (setShowOfficeSidePanel) {
       setShowOfficeSidePanel(prev => !prev);
     }
     setShowSidePanel(false);
-    setActiveButton(prev => (prev === 'office-panel' ? null : 'office-panel'));
   };
 
   const buttonContainerStyle = {
@@ -721,6 +815,9 @@ const ViewControls = ({
     border: darkMode ? '1px solid rgba(255,255,255,0.1)' : 'none',
     transition: 'all 0.3s ease',
   };
+
+  // ✅ Check if any panel is open
+  const isPanelOpen = showSidePanel || showOfficeSidePanel;
 
   return (
     <>
@@ -866,8 +963,8 @@ const ViewControls = ({
             </div>
           </div>
 
-          {/* Bottom 4 icons - Home, Scale, AR, Room Shapes */}
-          <div className="mobile-bottom-container">
+          {/* ✅ Bottom 4 icons - LOCKED when panel is open */}
+          <div className={`mobile-bottom-container ${isPanelOpen ? 'locked' : ''}`}>
             {/* ✅ Home button in bottom panel - no active state */}
             <div
               className="mobile-bottom-icon"
