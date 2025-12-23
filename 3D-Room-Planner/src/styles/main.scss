@@ -2208,3 +2208,14 @@ screen and (max-width: 768px) and (min-resolution: 192dpi) {
     z-index: 9995;
   }
 }
+
+
+
+
+.object-controls {
+  z-index: 10001 !important;
+}
+
+.dark-mode .object-controls {
+  z-index: 10001 !important;
+}
