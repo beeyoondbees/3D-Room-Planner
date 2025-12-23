@@ -65,8 +65,21 @@ const ViewControls = ({
 
     const modelType = selectedObject?.userData?.type || 'unknown';
     console.log('✅ Opening AR for model:', modelType);
-    setQrModelName(modelType);
-    setQrVisible(true);
+    
+    // ✅ Check if mobile device
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth <= 768;
+    
+    if (isMobile) {
+      // ✅ Mobile: Directly go to AR page
+      const arUrl = `https://d3hu0a43t9wj79.cloudfront.net/ar_redirect.html?model=${modelType}`;
+      console.log('📱 Mobile detected - Redirecting to AR:', arUrl);
+      window.location.href = arUrl;
+    } else {
+      // ✅ Desktop: Show QR modal
+      console.log('🖥️ Desktop detected - Showing QR modal');
+      setQrModelName(modelType);
+      setQrVisible(true);
+    }
   };
 
   // Handle Room Shapes click - Open popup
