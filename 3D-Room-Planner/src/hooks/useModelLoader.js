@@ -94,6 +94,11 @@ const useModelLoader = (options = {}) => {
     // Check cache first if enabled
     if (useCache && modelCacheRef.current.has(url)) {
       const cachedModel = modelCacheRef.current.get(url);
+      
+      // ✅ Dispatch event for cached model too
+      console.log('✅ Cached model loaded, dispatching event');
+      window.dispatchEvent(new CustomEvent('modelLoaded', { detail: { url, cached: true } }));
+      
       return cachedModel.clone();
     }
     
@@ -156,6 +161,11 @@ const useModelLoader = (options = {}) => {
               }
               
               setLoading(false);
+              
+              // ✅ Dispatch modelLoaded event - THIS CLOSES THE PRELOADER INSTANTLY
+              console.log('✅ Model loaded, dispatching event');
+              window.dispatchEvent(new CustomEvent('modelLoaded', { detail: { url, modelType } }));
+              
               resolve(model);
             } catch (err) {
               reject(err);
@@ -228,6 +238,10 @@ const useModelLoader = (options = {}) => {
     
     // Add a label with the model type
     addPlaceholderLabel(group, modelType);
+    
+    // ✅ Dispatch event for placeholder model too
+    console.log('✅ Placeholder model created, dispatching event');
+    window.dispatchEvent(new CustomEvent('modelLoaded', { detail: { modelType, placeholder: true } }));
     
     return group;
   }, []);
