@@ -250,6 +250,8 @@ export class ModelLoader {
           this.stats.totalLoaded++;
 
           onLoad(model);
+          
+          // ✅ THIS EVENT CLOSES THE PRELOADER - Already exists in your code!
           const loadCompleteEvent = new CustomEvent('model-loading-completed', { detail: { modelType } });
           window.dispatchEvent(loadCompleteEvent);
         } catch (error) {
@@ -289,6 +291,11 @@ export class ModelLoader {
         const instance = this.createInstance(cachedModel, options);
         
         this.dispatchEvent('model-loaded-from-cache', { modelType, instance });
+        
+        // ✅ Dispatch event for cached model too
+        const loadCompleteEvent = new CustomEvent('model-loading-completed', { detail: { modelType, cached: true } });
+        window.dispatchEvent(loadCompleteEvent);
+        
         return instance;
       }
 
@@ -315,6 +322,10 @@ export class ModelLoader {
       
       this.stats.totalLoaded++;
       this.dispatchEvent('model-loaded', { modelType, model: result, loadTime });
+      
+      // ✅ Dispatch event for async load
+      const loadCompleteEvent = new CustomEvent('model-loading-completed', { detail: { modelType } });
+      window.dispatchEvent(loadCompleteEvent);
       
       return result;
       

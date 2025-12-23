@@ -24,7 +24,7 @@ const OfficeSidePanel = ({ onAddModel, setShowOfficeSidePanel }) => {
 
   // Inject preloader styles
   useEffect(() => {
-    const styleId = 'office-side-panel-preloader-styles';
+    const styleId = 'side-panel-preloader-styles';
     
     if (!document.getElementById(styleId)) {
       const style = document.createElement('style');
@@ -87,21 +87,25 @@ const OfficeSidePanel = ({ onAddModel, setShowOfficeSidePanel }) => {
     };
   }, []);
 
-  // Listen for model loaded event
+  // Listen for model loaded event from ModelLoader.js
   useEffect(() => {
     const handleModelLoaded = () => {
-      console.log('✅ Office model loaded - hiding preloader');
+      console.log('✅ Model loaded - hiding preloader');
       setIsLoading(false);
+      
+      // Close panel on mobile after import
+      if (isMobile && typeof setShowOfficeSidePanel === 'function') {
+        setShowOfficeSidePanel(false);
+      }
     };
 
-    window.addEventListener('modelLoaded', handleModelLoaded);
-    window.addEventListener('modelAdded', handleModelLoaded);
+    // Listen to the correct event from ModelLoader.js
+    window.addEventListener('model-loading-completed', handleModelLoaded);
 
     return () => {
-      window.removeEventListener('modelLoaded', handleModelLoaded);
-      window.removeEventListener('modelAdded', handleModelLoaded);
+      window.removeEventListener('model-loading-completed', handleModelLoaded);
     };
-  }, []);
+  }, [isMobile, setShowOfficeSidePanel]);
 
   const handleTopCategorySelect = (categoryName) => {
     setSelectedTopCategory(categoryName);
@@ -139,11 +143,6 @@ const OfficeSidePanel = ({ onAddModel, setShowOfficeSidePanel }) => {
       if (typeof onAddModel === 'function') {
         setIsLoading(true);
         onAddModel(productId);
-        
-        // Fallback timeout in case event doesn't fire
-        setTimeout(() => {
-          setIsLoading(false);
-        }, 5000);
       }
     }
   };
@@ -167,14 +166,6 @@ const OfficeSidePanel = ({ onAddModel, setShowOfficeSidePanel }) => {
     if (product) {
       setIsLoading(true);
       onAddModel(product.id);
-      
-      // Fallback timeout in case event doesn't fire
-      setTimeout(() => {
-        setIsLoading(false);
-        if (typeof setShowOfficeSidePanel === 'function') {
-          setShowOfficeSidePanel(false);
-        }
-      }, 5000);
     }
   };
 
@@ -406,59 +397,62 @@ const OfficeSidePanel = ({ onAddModel, setShowOfficeSidePanel }) => {
       {/* Preloader overlay */}
       {renderPreloader()}
       
-      <div className={`side-panel ${isExpanded ? 'expanded' : 'collapsed'}`}>
-        <div className="panel-header">
-          {/* Only show back button on desktop, not on mobile */}
-          {!isMobile && currentLevel !== 'TOP_CATEGORIES' && (
-            <button onClick={handleBack} title="Back" className="back-button">
-              &larr;
-            </button>
-          )}
-          {isExpanded && (
-            isMobile ? renderMobileHeaderTitle() : renderBreadcrumb()
-          )}
-          <div className="close-button-container">
-            <button
-              className="close-button"
-              title="Close Panel"
-              onClick={() =>
-                typeof setShowOfficeSidePanel === 'function' &&
-                setShowOfficeSidePanel(false)
-              }
-            >
-              ×
-            </button>
-          </div>
-        </div>
-
-        {isExpanded && (
-          <>
-            <div className="content-wrapper">{renderContent()}</div>
-
-            {/* Footer only shows on MOBILE */}
-            {isMobile && (
-              <div className="side-panel-footer">
-                <button
-                  type="button"
-                  className="panel-btn panel-btn-back"
-                  onClick={handleBack}
-                  disabled={currentLevel === 'TOP_CATEGORIES'}
-                >
-                  Back
-                </button>
-                <button
-                  type="button"
-                  className="panel-btn panel-btn-import"
-                  onClick={handleImportClick}
-                  disabled={currentLevel !== 'PRODUCTS' || !selectedProductId || isLoading}
-                >
-                  {isLoading ? 'Loading...' : 'Import'}
-                </button>
-              </div>
+      {/* Hide category panel while preloader is showing - ONLY ON MOBILE */}
+      {!(isLoading && isMobile) && (
+        <div className={`side-panel ${isExpanded ? 'expanded' : 'collapsed'}`}>
+          <div className="panel-header">
+            {/* Only show back button on desktop, not on mobile */}
+            {!isMobile && currentLevel !== 'TOP_CATEGORIES' && (
+              <button onClick={handleBack} title="Back" className="back-button">
+                &larr;
+              </button>
             )}
-          </>
-        )}
-      </div>
+            {isExpanded && (
+              isMobile ? renderMobileHeaderTitle() : renderBreadcrumb()
+            )}
+            <div className="close-button-container">
+              <button
+                className="close-button"
+                title="Close Panel"
+                onClick={() =>
+                  typeof setShowOfficeSidePanel === 'function' &&
+                  setShowOfficeSidePanel(false)
+                }
+              >
+                ×
+              </button>
+            </div>
+          </div>
+
+          {isExpanded && (
+            <>
+              <div className="content-wrapper">{renderContent()}</div>
+
+              {/* Footer only shows on MOBILE */}
+              {isMobile && (
+                <div className="side-panel-footer">
+                  <button
+                    type="button"
+                    className="panel-btn panel-btn-back"
+                    onClick={handleBack}
+                    disabled={currentLevel === 'TOP_CATEGORIES'}
+                  >
+                    Back
+                  </button>
+                  <button
+                    type="button"
+                    className="panel-btn panel-btn-import"
+                    onClick={handleImportClick}
+                    disabled={currentLevel !== 'PRODUCTS' || !selectedProductId || isLoading}
+                  >
+                    {isLoading ? 'Loading...' : 'Import'}
+                  </button>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      )}
     </>
   );
 };
