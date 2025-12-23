@@ -89,27 +89,18 @@ const SidePanel = ({ equipmentCatalog, onAddModel, setShowSidePanel }) => {
   // Listen for model loaded event
   useEffect(() => {
     const handleModelLoaded = () => {
-      console.log('✅ Model loaded - hiding preloader immediately');
+      console.log('✅ Model loaded - hiding preloader');
       setIsLoading(false);
-      // Close the panel after loading
-      if (typeof setShowSidePanel === 'function') {
-        setShowSidePanel(false);
-      }
     };
 
-    // Listen to multiple possible event names
     window.addEventListener('modelLoaded', handleModelLoaded);
     window.addEventListener('modelAdded', handleModelLoaded);
-    window.addEventListener('objectAdded', handleModelLoaded);
-    window.addEventListener('sceneUpdated', handleModelLoaded);
 
     return () => {
       window.removeEventListener('modelLoaded', handleModelLoaded);
       window.removeEventListener('modelAdded', handleModelLoaded);
-      window.removeEventListener('objectAdded', handleModelLoaded);
-      window.removeEventListener('sceneUpdated', handleModelLoaded);
     };
-  }, [setShowSidePanel]);
+  }, []);
 
   const handleTopCategorySelect = (categoryName) => {
     setSelectedTopCategory(categoryName);
@@ -137,44 +128,26 @@ const SidePanel = ({ equipmentCatalog, onAddModel, setShowSidePanel }) => {
     }
   };
 
-  const handleProductClick = async (productId) => {
+  const handleProductClick = (productId) => {
     // On desktop: click to add immediately (panel stays open)
     // On mobile: click to select, then use Import button (panel closes)
     if (isMobile) {
       setSelectedProductId(productId);
     } else {
-      // Desktop: add immediately
+      // Desktop: add immediately but KEEP panel open
       if (typeof onAddModel === 'function') {
         setIsLoading(true);
+        onAddModel(productId);
         
-        try {
-          // Check if onAddModel returns a promise
-          const result = onAddModel(productId);
-          if (result && typeof result.then === 'function') {
-            await result;
-            // Model loaded via promise
-            setIsLoading(false);
-            if (typeof setShowSidePanel === 'function') {
-              setShowSidePanel(false);
-            }
-            return;
-          }
-        } catch (error) {
-          console.error('Error loading model:', error);
-        }
-        
-        // Fallback timeout (reduced to 3 seconds)
+        // Fallback timeout in case event doesn't fire
         setTimeout(() => {
           setIsLoading(false);
-          if (typeof setShowSidePanel === 'function') {
-            setShowSidePanel(false);
-          }
-        }, 3000);
+        }, 5000);
       }
     }
   };
 
-  const handleImportClick = async () => {
+  const handleImportClick = () => {
     if (
       typeof onAddModel !== 'function' ||
       currentLevel !== 'PRODUCTS' ||
@@ -192,30 +165,15 @@ const SidePanel = ({ equipmentCatalog, onAddModel, setShowSidePanel }) => {
 
     if (product) {
       setIsLoading(true);
+      onAddModel(product.id);
       
-      try {
-        // Check if onAddModel returns a promise
-        const result = onAddModel(product.id);
-        if (result && typeof result.then === 'function') {
-          await result;
-          // Model loaded via promise
-          setIsLoading(false);
-          if (typeof setShowSidePanel === 'function') {
-            setShowSidePanel(false);
-          }
-          return;
-        }
-      } catch (error) {
-        console.error('Error loading model:', error);
-      }
-      
-      // Fallback timeout (reduced to 3 seconds)
+      // Fallback timeout in case event doesn't fire
       setTimeout(() => {
         setIsLoading(false);
         if (typeof setShowSidePanel === 'function') {
           setShowSidePanel(false);
         }
-      }, 3000);
+      }, 5000);
     }
   };
 
@@ -447,62 +405,59 @@ const SidePanel = ({ equipmentCatalog, onAddModel, setShowSidePanel }) => {
       {/* Preloader overlay */}
       {renderPreloader()}
       
-      {/* Hide panel when loading */}
-      {!isLoading && (
-        <div className={`side-panel ${isExpanded ? 'expanded' : 'collapsed'}`}>
-          <div className="panel-header">
-            {/* Only show back button on desktop, not on mobile */}
-            {!isMobile && currentLevel !== 'TOP_CATEGORIES' && (
-              <button onClick={handleBack} title="Back" className="back-button">
-                &larr;
-              </button>
-            )}
-            {isExpanded && (
-              isMobile ? renderMobileHeaderTitle() : renderBreadcrumb()
-            )}
-            <div className="close-button-container">
-              <button
-                className="close-button"
-                title="Close Panel"
-                onClick={() =>
-                  typeof setShowSidePanel === 'function' &&
-                  setShowSidePanel(false)
-                }
-              >
-                ×
-              </button>
-            </div>
-          </div>
-
-          {isExpanded && (
-            <>
-              <div className="content-wrapper">{renderContent()}</div>
-
-              {/* Footer only shows on MOBILE */}
-              {isMobile && (
-                <div className="side-panel-footer">
-                  <button
-                    type="button"
-                    className="panel-btn panel-btn-back"
-                    onClick={handleBack}
-                    disabled={currentLevel === 'TOP_CATEGORIES'}
-                  >
-                    Back
-                  </button>
-                  <button
-                    type="button"
-                    className="panel-btn panel-btn-import"
-                    onClick={handleImportClick}
-                    disabled={currentLevel !== 'PRODUCTS' || !selectedProductId || isLoading}
-                  >
-                    {isLoading ? 'Loading...' : 'Import'}
-                  </button>
-                </div>
-              )}
-            </>
+      <div className={`side-panel ${isExpanded ? 'expanded' : 'collapsed'}`}>
+        <div className="panel-header">
+          {/* Only show back button on desktop, not on mobile */}
+          {!isMobile && currentLevel !== 'TOP_CATEGORIES' && (
+            <button onClick={handleBack} title="Back" className="back-button">
+              &larr;
+            </button>
           )}
+          {isExpanded && (
+            isMobile ? renderMobileHeaderTitle() : renderBreadcrumb()
+          )}
+          <div className="close-button-container">
+            <button
+              className="close-button"
+              title="Close Panel"
+              onClick={() =>
+                typeof setShowSidePanel === 'function' &&
+                setShowSidePanel(false)
+              }
+            >
+              ×
+            </button>
+          </div>
         </div>
-      )}
+
+        {isExpanded && (
+          <>
+            <div className="content-wrapper">{renderContent()}</div>
+
+            {/* Footer only shows on MOBILE */}
+            {isMobile && (
+              <div className="side-panel-footer">
+                <button
+                  type="button"
+                  className="panel-btn panel-btn-back"
+                  onClick={handleBack}
+                  disabled={currentLevel === 'TOP_CATEGORIES'}
+                >
+                  Back
+                </button>
+                <button
+                  type="button"
+                  className="panel-btn panel-btn-import"
+                  onClick={handleImportClick}
+                  disabled={currentLevel !== 'PRODUCTS' || !selectedProductId || isLoading}
+                >
+                  {isLoading ? 'Loading...' : 'Import'}
+                </button>
+              </div>
+            )}
+          </>
+        )}
+      </div>
     </>
   );
 };
