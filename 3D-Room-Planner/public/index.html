@@ -956,6 +956,9 @@
         popup.style.display = 'block';
         overlay.style.display = 'block';
         lockBodyScroll();
+        
+        // ✅ Dispatch event to block side panels on desktop
+        window.dispatchEvent(new CustomEvent('roomPopupStateChange', { detail: { isOpen: true } }));
 
         // ✅ Prevent ALL touch scrolling on document except inside room-shape-slider
         document.addEventListener('touchmove', preventBackgroundScroll, { passive: false });
@@ -1042,6 +1045,9 @@
           overlay.style.display = 'none';
           unlockBodyScroll();
           document.removeEventListener('touchmove', preventBackgroundScroll);
+          
+          // ✅ Dispatch event to unblock side panels on desktop
+          window.dispatchEvent(new CustomEvent('roomPopupStateChange', { detail: { isOpen: false } }));
         }
 
         // ✅ Close popup button handler
@@ -1195,54 +1201,54 @@
       }
 
       const baseShapes = {
-  empty: [
-    { x: -6.75, z: -6.75 }, { x: 6.75, z: -6.75 },
-    { x: 6.75, z: 6.75 }, { x: -6.75, z: 6.75 }
-  ],
-  rectangle: [
-    { x: -6.0, z: -5.25 }, { x: 6.0, z: -5.25 },
-    { x: 6.0, z: 5.25 }, { x: -6.0, z: 5.25 }
-  ],
-  l: [
-    { x: -4.0, z: 4.0 }, { x: 5.0, z: 4.0 },
-    { x: 5.0, z: 1.0 }, { x: -1.0, z: 1.0 },
-    { x: -1.0, z: -5.0 }, { x: -4.0, z: -5.0 }
-  ],
-  z: [
-    { x: -3.0, z: -5.0 }, { x: 5.0, z: -5.0 },
-    { x: 5.0, z: 0.0 }, { x: 3.0, z: 0.0 },
-    { x: 3.0, z: 5.0 }, { x: -5.0, z: 5.0 },
-    { x: -5.0, z: 0.0 }, { x: -3.0, z: 0.0 }
-  ],
-  s: [
-    { x: -5.0, z: -5.0 }, { x: 3.0, z: -5.0 },
-    { x: 3.0, z: 0.0 }, { x: 5.0, z: 0.0 },
-    { x: 5.0, z: 5.0 }, { x: -3.0, z: 5.0 },
-    { x: -3.0, z: 0.0 }, { x: -5.0, z: 0.0 }
-  ],
-  t: [
-    { x: -5.0, z: -4.0 }, { x: 5.0, z: -4.0 },
-    { x: 5.0, z: 0.0 }, { x: 2.0, z: 0.0 },
-    { x: 2.0, z: 5.0 }, { x: -2.0, z: 5.0 },
-    { x: -2.0, z: 0.0 }, { x: -5.0, z: 0.0 }
-  ],
-  u: [
-    { x: -5.0, z: 4.0 }, { x: 5.0, z: 4.0 },
-    { x: 5.0, z: -3.0 }, { x: 2.0, z: -3.0 },
-    { x: 2.0, z: 1.0 }, { x: -2.0, z: 1.0 },
-    { x: -2.0, z: -3.0 }, { x: -5.0, z: -3.0 }
-  ],
-  corner: [
-    { x: -4.0, z: -4.0 }, { x: 5.0, z: -4.0 },
-    { x: 5.0, z: -1.0 }, { x: -1.0, z: -1.0 },
-    { x: -1.0, z: 5.0 }, { x: -4.0, z: 5.0 }
-  ],
-  blunt: [
-    { x: 0.66, z: -5.25 }, { x: 4.86, z: 0.9 },
-    { x: 4.86, z: 4.8 }, { x: -5.19, z: 4.8 },
-    { x: -5.19, z: -5.25 }
-  ]
-};
+        empty: [
+          { x: -6.75, z: -6.75 }, { x: 6.75, z: -6.75 },
+          { x: 6.75, z: 6.75 }, { x: -6.75, z: 6.75 }
+        ],
+        rectangle: [
+          { x: -6.0, z: -5.25 }, { x: 6.0, z: -5.25 },
+          { x: 6.0, z: 5.25 }, { x: -6.0, z: 5.25 }
+        ],
+        l: [
+          { x: -2.0, z: 2.0 }, { x: 2.5, z: 2.0 },
+          { x: 2.5, z: 0.5 }, { x: -0.5, z: 0.5 },
+          { x: -0.5, z: -2.5 }, { x: -2.0, z: -2.5 }
+        ],
+        z: [
+          { x: -1.5, z: -3.0 }, { x: 4.5, z: -3.0 },
+          { x: 4.5, z: 0.0 }, { x: 1.5, z: 0.0 },
+          { x: 1.5, z: 3.0 }, { x: -4.5, z: 3.0 },
+          { x: -4.5, z: 0.0 }, { x: -1.5, z: 0.0 }
+        ],
+        s: [
+          { x: -1.5, z: -3.0 }, { x: 4.5, z: -3.0 },
+          { x: 4.5, z: 0.0 }, { x: 1.5, z: 0.0 },
+          { x: 1.5, z: 3.0 }, { x: -4.5, z: 3.0 },
+          { x: -4.5, z: 0.0 }, { x: -1.5, z: 0.0 }
+        ],
+        t: [
+          { x: -3.0, z: -3.0 }, { x: 3.0, z: -3.0 },
+          { x: 3.0, z: 0.0 }, { x: 1.5, z: 0.0 },
+          { x: 1.5, z: 3.0 }, { x: -1.5, z: 3.0 },
+          { x: -1.5, z: 0.0 }, { x: -3.0, z: 0.0 }
+        ],
+        u: [
+          { x: -2.25, z: 1.875 }, { x: 2.25, z: 1.875 },
+          { x: 2.25, z: -1.125 }, { x: 0.75, z: -1.125 },
+          { x: 0.75, z: 0.375 }, { x: -0.75, z: 0.375 },
+          { x: -0.75, z: -1.125 }, { x: -2.25, z: -1.125 }
+        ],
+        corner: [
+          { x: -2.0, z: -2.0 }, { x: 2.5, z: -2.0 },
+          { x: 2.5, z: -0.5 }, { x: -0.5, z: -0.5 },
+          { x: -0.5, z: 2.5 }, { x: -2.0, z: 2.5 }
+        ],
+        blunt: [
+          { x: 0.66, z: -5.25 }, { x: 4.86, z: 0.9 },
+          { x: 4.86, z: 4.8 }, { x: -5.19, z: 4.8 },
+          { x: -5.19, z: -5.25 }
+        ]
+      };
 
       const basePoints = baseShapes[shapeName];
       if (!basePoints) {
@@ -1256,7 +1262,6 @@
         x: p.x * scale,
         z: p.z * scale
       }));
-      
 
       console.log("🏗️ Building polygon room with:", {
         shapeName,

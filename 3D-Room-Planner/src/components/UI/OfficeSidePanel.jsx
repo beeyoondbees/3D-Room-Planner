@@ -8,6 +8,7 @@ const OfficeSidePanel = ({ onAddModel, setShowOfficeSidePanel }) => {
   const [selectedSubCategory, setSelectedSubCategory] = useState(null);
   const [selectedProductId, setSelectedProductId] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isBlockedByPopup, setIsBlockedByPopup] = useState(false);
 
   const officeEquipmentCatalog = officeEquipmentConfig.catalog;
   const topLevelCategories = useMemo(
@@ -21,6 +22,23 @@ const OfficeSidePanel = ({ onAddModel, setShowOfficeSidePanel }) => {
 
   // Check if mobile
   const isMobile = typeof window !== 'undefined' && window.innerWidth <= 768;
+
+  // Listen for room popup state changes (block on desktop when popup is open)
+  useEffect(() => {
+    const handlePopupStateChange = (event) => {
+      const { isOpen } = event.detail;
+      // Only block on desktop
+      if (!isMobile) {
+        setIsBlockedByPopup(isOpen);
+      }
+    };
+
+    window.addEventListener('roomPopupStateChange', handlePopupStateChange);
+
+    return () => {
+      window.removeEventListener('roomPopupStateChange', handlePopupStateChange);
+    };
+  }, [isMobile]);
 
   // Inject preloader styles
   useEffect(() => {
@@ -391,6 +409,11 @@ const OfficeSidePanel = ({ onAddModel, setShowOfficeSidePanel }) => {
 
     return <p className="no-items-text">Please select a category.</p>;
   };
+
+  // Don't render if blocked by room popup on desktop
+  if (isBlockedByPopup && !isMobile) {
+    return null;
+  }
 
   return (
     <>
